@@ -123,9 +123,12 @@ const CreateRequestScreen = ({ navigation }) => {
               setIsSubmitting(true);
               try {
                 const formData = new FormData();
-                formData.append('employeeId', user.employeeId || 'EMP000');
-                formData.append('employeeName', user.name);
-                formData.append('employeeEmail', user.email);
+                if (user) {
+                  formData.append('employeeId', user.employeeId || 'EMP000');
+                  formData.append('employeeName', user.name || 'Anonymous');
+                  formData.append('employeeEmail', user.email || '');
+                }
+                
                 formData.append('materialName', materialName);
                 formData.append('quantity', quantity);
 
@@ -138,7 +141,8 @@ const CreateRequestScreen = ({ navigation }) => {
                     const localUri = photo.uri;
                     const filename = localUri.split('/').pop();
                     const match = /\.(\w+)$/.exec(filename);
-                    const type = match ? `image/${match[1]}` : `image`;
+                    const ext = match ? match[1].toLowerCase() : 'jpg';
+                    const type = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
                     formData.append('photo', { uri: localUri, name: filename, type });
                   }
                 }
@@ -158,7 +162,12 @@ const CreateRequestScreen = ({ navigation }) => {
                 navigation.navigate('Dashboard', { reload: Date.now() });
               } catch (err) {
                 console.log('Upload Error:', err);
-                Toast.show({ type: 'error', text1: 'Error', text2: err.response?.data?.msg || 'Failed to submit request' });
+                const errorMsg = err.response?.data?.msg || err.message || 'Failed to submit request';
+                Toast.show({ 
+                    type: 'error', 
+                    text1: 'Submission Error', 
+                    text2: err.message === 'Network Error' ? 'Network Error: Cannot connect to server.' : errorMsg 
+                });
               } finally {
                 setIsSubmitting(false);
               }

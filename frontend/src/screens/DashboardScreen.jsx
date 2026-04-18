@@ -215,7 +215,8 @@ const DashboardScreen = ({ navigation, route }) => {
         } else {
             const filename = uri.split('/').pop();
             const match = /\.(\w+)$/.exec(filename);
-            const type = match ? `image/${match[1]}` : `image`;
+            const ext = match ? match[1].toLowerCase() : 'jpg';
+            const type = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
             formData.append('photo', { uri, name: filename, type });
         }
 
@@ -229,10 +230,11 @@ const DashboardScreen = ({ navigation, route }) => {
         fetchRequests();
     } catch (err) {
         console.error('Upload Error:', err);
+        const errorMsg = err.response?.data?.msg || err.message || 'Could not upload photo';
         Toast.show({ 
             type: 'error', 
             text1: 'Upload Failed', 
-            text2: err.response?.data?.msg || 'Could not upload photo' 
+            text2: err.message === 'Network Error' ? 'Network Error: Backend unreachable.' : errorMsg 
         });
     } finally {
         setIsSubmittingPhoto(false);

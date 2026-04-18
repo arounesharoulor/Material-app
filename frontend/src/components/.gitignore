@@ -1,0 +1,6 @@
+node_modules/
+.env
+.expo/
+android/build/
+ios/build/
+uploads/

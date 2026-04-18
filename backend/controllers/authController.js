@@ -1,0 +1,149 @@
+const User = require('../models/User');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+
+exports.register = async (req, res) => {
+    const { name, employeeId, email, password, role } = req.body;
+    try {
+        const cleanEmail = email ? email.trim().toLowerCase() : '';
+        const cleanId = (employeeId && employeeId.trim() !== '') ? employeeId.trim().toUpperCase() : undefined;
+
+        // Check for existing user by Email
+        let userEmail = await User.findOne({ email: cleanEmail });
+        if (userEmail) return res.status(400).json({ msg: 'Email is already registered' });
+
+        // Check for existing user by Employee ID
+        if (cleanId) {
+            let userId = await User.findOne({ employeeId: cleanId });
+            if (userId) return res.status(400).json({ msg: 'Employee ID is already in use' });
+        }
+
+        const user = new User({ 
+            name, 
+            employeeId: cleanId, 
+            email: cleanEmail, 
+            password, 
+            role 
+        });
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(password, salt);
+        await user.save();
+
+        const payload = { user: { id: user.id, role: user.role } };
+        jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: 360000 }, (err, token) => {
+            if (err) throw err;
+            res.json({ 
+                token, 
+                user: { 
+                    id: user.id, 
+                    name: user.name, 
+                    employeeId: user.employeeId,
+                    email: user.email,
+                    role: user.role 
+                } 
+            });
+        });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server error');
+    }
+};
+
+exports.login = async (req, res) => {
+    const { email, password, captcha } = req.body;
+    if (!captcha) return res.status(400).json({ msg: 'CAPTCHA required' });
+    
+    try {
+        const cleanEmail = email ? email.trim().toLowerCase() : '';
+        let user = await User.findOne({ email: cleanEmail });
+        if (!user) return res.status(400).json({ msg: 'Invalid Credentials' });
+
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) return res.status(400).json({ msg: 'Invalid Credentials' });
+
+        const payload = { user: { id: user.id, role: user.role } };
+        jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: 360000 }, (err, token) => {
+            if (err) throw err;
+            res.json({ 
+                token, 
+                user: { 
+                    id: user.id, 
+                    name: user.name, 
+                    employeeId: user.employeeId,
+                    email: user.email,
+                    role: user.role 
+                } 
+            });
+        });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server error');
+    }
+};
+
+exports.getUser = async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id).select('-password');
+        res.json(user);
+    } catch (err) {
+        res.status(500).send('Server Error');
+    }
+};
+
+exports.updateProfile = async (req, res) => {
+    try {
+        const { name, employeeId, email } = req.body;
+        const user = await User.findById(req.user.id);
+        
+        if (!user) return res.status(404).json({ msg: 'User not found' });
+
+        if (name) user.name = name;
+        if (employeeId && user.role === 'Employee') user.employeeId = employeeId;
+        
+        if (req.file) {
+            user.profilePicture = req.file.path.replace(/\\/g, '/');
+        }
+
+        // If email is changing, we just return that it needs verification
+        // The actual update happens after OTP verification
+        let emailChanged = false;
+        if (email && email.toLowerCase() !== user.email) {
+            emailChanged = true;
+            // Check if new email is already taken
+            const existingUser = await User.findOne({ email: email.toLowerCase() });
+            if (existingUser) return res.status(400).json({ msg: 'Email already in use' });
+        }
+
+        await user.save();
+
+        res.json({ 
+            user: {
+                id: user.id,
+                name: user.name,
+                employeeId: user.employeeId,
+                email: user.email,
+                role: user.role,
+                profilePicture: user.profilePicture
+            },
+            emailChanged 
+        });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+};
+
+exports.finalizeEmailUpdate = async (req, res) => {
+    try {
+        const { email } = req.body;
+        const user = await User.findById(req.user.id);
+        if (!user) return res.status(404).json({ msg: 'User not found' });
+
+        user.email = email.toLowerCase();
+        await user.save();
+
+        res.json({ msg: 'Email updated successfully', email: user.email });
+    } catch (err) {
+        res.status(500).send('Server Error');
+    }
+};

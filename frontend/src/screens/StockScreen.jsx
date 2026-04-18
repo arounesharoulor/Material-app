@@ -140,9 +140,6 @@ const StockScreen = ({ navigation }) => {
                                 <Ionicons name="menu" size={24} color="#1b264a" />
                             </TouchableOpacity>
                         )}
-                        <TouchableOpacity onPress={() => navigation.navigate('Dashboard')} style={styles.backButton}>
-                            <Ionicons name="arrow-back" size={24} color="#1b264a" />
-                        </TouchableOpacity>
                         <View>
                             <Text allowFontScaling={false} style={styles.headerLabel}>INVENTORY</Text>
                             <Text allowFontScaling={false} style={styles.headerTitle}>Stock Control</Text>
@@ -505,14 +502,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 4,
     borderTopColor: '#ffc61c',
     justifyContent: 'space-between',
-  },
-  backButton: {
-    backgroundColor: '#ffffff',
-    padding: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    marginLeft: 0,
   },
   stockGridName: {
     fontSize: 14,

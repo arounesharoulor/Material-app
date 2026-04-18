@@ -204,9 +204,6 @@ const CreateRequestScreen = ({ navigation }) => {
                                   <Ionicons name="menu" size={24} color="#1b264a" />
                               </TouchableOpacity>
                           )}
-                          <TouchableOpacity onPress={() => navigation.navigate('Dashboard')} style={styles.backButton}>
-                              <Ionicons name="arrow-back" size={24} color="#1b264a" />
-                          </TouchableOpacity>
                           <View>
                               <Text allowFontScaling={false} style={styles.headerLabel}>NEW ACTION</Text>
                               <Text allowFontScaling={false} style={styles.headerTitle}>Material Request</Text>
@@ -367,14 +364,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-  },
-  backButton: {
-    backgroundColor: '#ffffff',
-    padding: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    marginLeft: 0,
   },
   sectionCard: {
     backgroundColor: '#ffffff',

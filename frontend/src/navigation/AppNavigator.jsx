@@ -1,6 +1,7 @@
 import React, { useContext } from 'react';
-import { View, ActivityIndicator, Platform } from 'react-native';
+import { View, ActivityIndicator, Platform, TouchableOpacity } from 'react-native';
 import { createStackNavigator } from '@react-navigation/stack';
+import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../context/AuthContext';
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
@@ -30,11 +31,25 @@ const AppNavigator = () => {
   }
 
   return (
-    <Stack.Navigator screenOptions={{ 
+    <Stack.Navigator screenOptions={({ navigation }) => ({ 
         headerShown: Platform.OS !== 'web',
         headerStyle: { backgroundColor: '#ffffff', elevation: 0, shadowOpacity: 0 },
-        headerTitleStyle: { fontWeight: 'bold', color: '#1b264a' }
-    }}>
+        headerTitleStyle: { fontWeight: 'bold', color: '#1b264a' },
+        headerLeft: () => {
+             const state = navigation.getState();
+             const route = state?.routes[state?.index];
+             if (route?.name === 'Dashboard') return null;
+             
+             return (
+                 <TouchableOpacity 
+                    onPress={() => navigation.navigate('Dashboard')} 
+                    style={{ marginLeft: 16 }}
+                 >
+                     <Ionicons name="arrow-back" size={26} color="#1b264a" />
+                 </TouchableOpacity>
+             );
+        }
+    })}>
       {user ? (
         <>
           <Stack.Screen name="Dashboard" component={DashboardScreen} />

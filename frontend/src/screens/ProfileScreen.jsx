@@ -51,12 +51,26 @@ const ProfileScreen = ({ navigation }) => {
     };
 
     const handleImagePick = async () => {
-        const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
-            aspect: [1, 1],
-            quality: 0.8,
-        });
+        let result;
+        if (Platform.OS === 'web') {
+            result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaType.Images,
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.8,
+            });
+        } else {
+            const { status } = await ImagePicker.requestCameraPermissionsAsync();
+            if (status !== 'granted') {
+                Toast.show({ type: 'error', text1: 'Permission Denied', text2: 'Camera access is required' });
+                return;
+            }
+            result = await ImagePicker.launchCameraAsync({
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.8,
+            });
+        }
 
         if (!result.canceled) {
             setProfilePhoto(result.assets[0]);

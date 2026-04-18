@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useState, useRef, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Platform, Animated, Modal, TextInput, StyleSheet, Dimensions, KeyboardAvoidingView, ActivityIndicator, Image, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Platform, Animated, Modal, TextInput, StyleSheet, Dimensions, KeyboardAvoidingView, ActivityIndicator, Image, Alert, BackHandler } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import tw from 'twrnc';
 import Toast from 'react-native-toast-message';
@@ -88,6 +89,25 @@ const DashboardScreen = ({ navigation, route }) => {
         setIsLive(false);
     });
   }, [user]);
+
+  useFocusEffect(
+    useCallback(() => {
+        if (Platform.OS === 'web') return;
+        const onBackPress = () => {
+             Alert.alert(
+                "Exit App",
+                "Are you sure you want to close the application?",
+                [
+                    { text: "Cancel", style: "cancel" },
+                    { text: "Exit", onPress: () => BackHandler.exitApp() }
+                ]
+            );
+            return true;
+        };
+        const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+        return () => subscription.remove();
+    }, [])
+  );
 
   useEffect(() => {
     fetchRequests();

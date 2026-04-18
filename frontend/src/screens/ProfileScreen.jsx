@@ -178,6 +178,9 @@ const ProfileScreen = ({ navigation }) => {
                                     <Ionicons name="menu" size={22} color="#1b264a" />
                                 </TouchableOpacity>
                             )}
+                            <TouchableOpacity onPress={() => navigation.navigate('Dashboard')} style={styles.backButton}>
+                                <Ionicons name="arrow-back" size={22} color="#1b264a" />
+                            </TouchableOpacity>
                             <View style={{ flex: 1 }}>
                                 <Text style={styles.headerLabel}>USER IDENTITY</Text>
                                 <Text style={styles.headerTitle} numberOfLines={1}>Account Settings</Text>
@@ -332,6 +335,14 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         borderWidth: 1,
         borderColor: '#e2e8f0',
+    },
+    backButton: {
+        backgroundColor: '#ffffff',
+        padding: 10,
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        marginLeft: 0,
     },
     editButton: {
         flexDirection: 'row',

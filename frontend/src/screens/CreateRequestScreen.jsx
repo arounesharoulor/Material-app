@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect } from 'react';
-import { View, Text, TextInput, Image, Alert, ScrollView, TouchableOpacity, ActivityIndicator, Platform, StyleSheet, KeyboardAvoidingView } from 'react-native';
+import { View, Text, TextInput, Image, Alert, ScrollView, TouchableOpacity, ActivityIndicator, Platform, StyleSheet, KeyboardAvoidingView, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import tw from 'twrnc';
 import * as ImagePicker from 'expo-image-picker';
@@ -66,24 +66,7 @@ const CreateRequestScreen = ({ navigation }) => {
         return;
     }
 
-    Alert.alert(
-      "Attach Reference Photo",
-      "Would you like to take a new photo or choose from gallery?",
-      [
-        {
-          text: "Take Photo",
-          onPress: () => handleLaunchCamera()
-        },
-        {
-          text: "Choose from Gallery",
-          onPress: () => handleLaunchLibrary()
-        },
-        {
-          text: "Cancel",
-          style: "cancel"
-        }
-      ]
-    );
+    handleLaunchCamera();
   };
 
   const handleLaunchCamera = async () => {

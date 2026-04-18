@@ -226,24 +226,7 @@ const DashboardScreen = ({ navigation, route }) => {
         return;
     }
 
-    Alert.alert(
-      "Submit Evidence",
-      "Would you like to take a new photo or choose from gallery?",
-      [
-        {
-          text: "Take Photo",
-          onPress: () => handleLaunchCamera(id, endpoint)
-        },
-        {
-          text: "Choose from Gallery",
-          onPress: () => handleLaunchLibrary(id, endpoint)
-        },
-        {
-          text: "Cancel",
-          style: "cancel"
-        }
-      ]
-    );
+    handleLaunchCamera(id, endpoint);
   };
 
   const handleLaunchCamera = async (id, endpoint) => {

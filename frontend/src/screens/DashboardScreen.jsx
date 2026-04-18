@@ -271,7 +271,14 @@ const DashboardScreen = ({ navigation, route }) => {
   };
 
   const handleReturnPhoto = async (id) => {
-    handlePhotoAction(id, 'return');
+    Alert.alert(
+        "Submission Deadline",
+        "Reminder: All materials must be submitted and returned before 6:00 PM today to avoid penalties. Do you want to proceed with submission?",
+        [
+            { text: "Cancel", style: "cancel" },
+            { text: "Proceed", onPress: () => handlePhotoAction(id, 'return') }
+        ]
+    );
   };
 
   const handleIssuePenalty = async (id, penalty) => {

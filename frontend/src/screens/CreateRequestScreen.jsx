@@ -111,50 +111,61 @@ const CreateRequestScreen = ({ navigation }) => {
       Toast.show({ type: 'error', text1: 'Error', text2: 'Please select a material and enter quantity' });
       return;
     }
-    
-    setIsSubmitting(true);
 
-    try {
-      const formData = new FormData();
-      formData.append('employeeId', user.employeeId || 'EMP000');
-      formData.append('employeeName', user.name);
-      formData.append('employeeEmail', user.email);
-      formData.append('materialName', materialName);
-      formData.append('quantity', quantity);
+    Alert.alert(
+      "Daily Deadline Reminder",
+      "Notice: All materials must be submitted and returned before 6:00 PM today. Do you acknowledge this requirement and want to submit your request?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Confirm & Submit", 
+          onPress: async () => {
+              setIsSubmitting(true);
+              try {
+                const formData = new FormData();
+                formData.append('employeeId', user.employeeId || 'EMP000');
+                formData.append('employeeName', user.name);
+                formData.append('employeeEmail', user.email);
+                formData.append('materialName', materialName);
+                formData.append('quantity', quantity);
 
-      if (photo) {
-        if (Platform.OS === 'web') {
-          const response = await fetch(photo.uri);
-          const blob = await response.blob();
-          formData.append('photo', blob, 'upload.jpg');
-        } else {
-          const localUri = photo.uri;
-          const filename = localUri.split('/').pop();
-          const match = /\.(\w+)$/.exec(filename);
-          const type = match ? `image/${match[1]}` : `image`;
-          formData.append('photo', { uri: localUri, name: filename, type });
+                if (photo) {
+                  if (Platform.OS === 'web') {
+                    const response = await fetch(photo.uri);
+                    const blob = await response.blob();
+                    formData.append('photo', blob, 'upload.jpg');
+                  } else {
+                    const localUri = photo.uri;
+                    const filename = localUri.split('/').pop();
+                    const match = /\.(\w+)$/.exec(filename);
+                    const type = match ? `image/${match[1]}` : `image`;
+                    formData.append('photo', { uri: localUri, name: filename, type });
+                  }
+                }
+
+                const res = await api.post('/requests', formData);
+                
+                if (res.data.insufficientStock) {
+                    Toast.show({ 
+                        type: 'error', 
+                        text1: 'Material Out of Stock', 
+                        text2: 'Quantity exceeds available stock. Request sent to Admin for immediate restock.' 
+                    });
+                } else {
+                    Toast.show({ type: 'success', text1: 'Success', text2: 'Request submitted successfully' });
+                }
+                
+                navigation.navigate('Dashboard', { reload: Date.now() });
+              } catch (err) {
+                console.log('Upload Error:', err);
+                Toast.show({ type: 'error', text1: 'Error', text2: err.response?.data?.msg || 'Failed to submit request' });
+              } finally {
+                setIsSubmitting(false);
+              }
+          } 
         }
-      }
-
-      const res = await api.post('/requests', formData);
-      
-      if (res.data.insufficientStock) {
-          Toast.show({ 
-              type: 'error', 
-              text1: 'Material Out of Stock', 
-              text2: 'Quantity exceeds available stock. Request sent to Admin for immediate restock.' 
-          });
-      } else {
-          Toast.show({ type: 'success', text1: 'Success', text2: 'Request submitted successfully' });
-      }
-      
-      navigation.navigate('Dashboard', { reload: Date.now() });
-    } catch (err) {
-      console.log('Upload Error:', err);
-      Toast.show({ type: 'error', text1: 'Error', text2: err.response?.data?.msg || 'Failed to submit request' });
-    } finally {
-      setIsSubmitting(false);
-    }
+      ]
+    );
   };
 
   return (

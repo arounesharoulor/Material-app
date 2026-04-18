@@ -60,13 +60,35 @@ const CreateRequestScreen = ({ navigation }) => {
     }
   };
 
+  const fileInputRef = useRef(null);
+
   const pickImage = async () => {
     if (Platform.OS === 'web') {
-        handleLaunchLibrary();
+        if (fileInputRef.current) {
+            fileInputRef.current.click();
+        } else {
+            // Fallback to ImagePicker if ref not ready
+            handleLaunchLibrary();
+        }
         return;
     }
-
     handleLaunchCamera();
+  };
+
+  const handleWebFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setPhoto({
+          uri: event.target.result,
+          name: file.name,
+          type: file.type,
+          file: file // Store the actual file object for easier upload
+        });
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleLaunchCamera = async () => {
@@ -86,6 +108,7 @@ const CreateRequestScreen = ({ navigation }) => {
           setPhoto(result.assets[0]);
       }
     } catch (err) {
+      console.log('Camera Error:', err);
       Alert.alert('Error', 'Could not launch camera');
     }
   };
@@ -102,6 +125,7 @@ const CreateRequestScreen = ({ navigation }) => {
             setPhoto(result.assets[0]);
         }
     } catch (err) {
+        console.log('Library Error:', err);
         Alert.alert('Error', 'Could not access gallery');
     }
   };
@@ -134,9 +158,13 @@ const CreateRequestScreen = ({ navigation }) => {
 
                 if (photo) {
                   if (Platform.OS === 'web') {
-                    const response = await fetch(photo.uri);
-                    const blob = await response.blob();
-                    formData.append('photo', blob, 'upload.jpg');
+                    if (photo.file) {
+                        formData.append('photo', photo.file, photo.name || 'upload.jpg');
+                    } else {
+                        const response = await fetch(photo.uri);
+                        const blob = await response.blob();
+                        formData.append('photo', blob, 'upload.jpg');
+                    }
                   } else {
                     const localUri = photo.uri;
                     const filename = localUri.split('/').pop();
@@ -275,14 +303,26 @@ const CreateRequestScreen = ({ navigation }) => {
   
           <View style={styles.sectionCard}>
               <Text allowFontScaling={false} style={styles.sectionLabel}>Reference Photo</Text>
+              
+              {Platform.OS === 'web' && (
+                  <input 
+                      type="file" 
+                      ref={fileInputRef} 
+                      style={{ display: 'none' }} 
+                      accept="image/*" 
+                      onChange={handleWebFileSelect} 
+                  />
+              )}
+
               <TouchableOpacity 
-                  style={styles.uploadBox}
+                  style={[styles.uploadBox, Platform.OS === 'web' && { cursor: 'pointer' }]}
                   onPress={pickImage}
+                  activeOpacity={0.7}
               >
                   {photo ? (
                       <Image source={{ uri: photo.uri }} style={styles.previewImage} resizeMode="cover" />
                   ) : (
-                      <View style={styles.uploadPlaceholder}>
+                      <View style={[styles.uploadPlaceholder, { pointerEvents: 'none' }]}>
                           <Ionicons name="camera" size={42} color="#94a3b8" />
                           <Text allowFontScaling={false} style={styles.uploadText}>Tap to upload or capture</Text>
                       </View>

@@ -50,27 +50,52 @@ const ProfileScreen = ({ navigation }) => {
         setSidebarVisible(!sidebarVisible);
     };
 
+    const fileInputRef = useRef(null);
+
+    const handleWebFileSelect = (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          setProfilePhoto({
+            uri: event.target.result,
+            name: file.name,
+            type: file.type,
+            file: file
+          });
+        };
+        reader.readAsDataURL(file);
+      }
+    };
+
     const handleImagePick = async () => {
-        let result;
         if (Platform.OS === 'web') {
-            result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ImagePicker.MediaType.Images,
-                allowsEditing: true,
-                aspect: [1, 1],
-                quality: 0.8,
-            });
-        } else {
-            const { status } = await ImagePicker.requestCameraPermissionsAsync();
-            if (status !== 'granted') {
-                Toast.show({ type: 'error', text1: 'Permission Denied', text2: 'Camera access is required' });
-                return;
+            if (fileInputRef.current) {
+                fileInputRef.current.click();
+            } else {
+                let result = await ImagePicker.launchImageLibraryAsync({
+                    mediaTypes: ImagePicker.MediaType.Images,
+                    allowsEditing: true,
+                    aspect: [1, 1],
+                    quality: 0.8,
+                });
+                if (!result.canceled) {
+                    setProfilePhoto(result.assets[0]);
+                }
             }
-            result = await ImagePicker.launchCameraAsync({
-                allowsEditing: true,
-                aspect: [1, 1],
-                quality: 0.8,
-            });
+            return;
         }
+
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') {
+            Toast.show({ type: 'error', text1: 'Permission Denied', text2: 'Camera access is required' });
+            return;
+        }
+        const result = await ImagePicker.launchCameraAsync({
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.8,
+        });
 
         if (!result.canceled) {
             setProfilePhoto(result.assets[0]);
@@ -87,9 +112,13 @@ const ProfileScreen = ({ navigation }) => {
 
             if (profilePhoto) {
                 if (Platform.OS === 'web') {
-                    const response = await fetch(profilePhoto.uri);
-                    const blob = await response.blob();
-                    formData.append('profilePicture', blob, 'profile.jpg');
+                    if (profilePhoto.file) {
+                        formData.append('profilePicture', profilePhoto.file, profilePhoto.name || 'profile.jpg');
+                    } else {
+                        const response = await fetch(profilePhoto.uri);
+                        const blob = await response.blob();
+                        formData.append('profilePicture', blob, 'profile.jpg');
+                    }
                 } else {
                     const localUri = profilePhoto.uri;
                     const filename = localUri.split('/').pop();
@@ -174,6 +203,15 @@ const ProfileScreen = ({ navigation }) => {
 
     return (
         <View style={styles.container}>
+            {Platform.OS === 'web' && (
+                <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    style={{ display: 'none' }} 
+                    accept="image/*" 
+                    onChange={handleWebFileSelect} 
+                />
+            )}
             <Sidebar 
                 user={user} 
                 navigation={navigation} 

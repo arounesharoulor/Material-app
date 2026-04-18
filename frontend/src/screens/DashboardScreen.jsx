@@ -203,15 +203,19 @@ const DashboardScreen = ({ navigation, route }) => {
     }
   };
 
-  const processUpload = async (id, uri, endpoint) => {
+  const processUpload = async (id, uri, endpoint, webFile = null) => {
     setIsSubmittingPhoto(true);
     try {
         const formData = new FormData();
         
         if (Platform.OS === 'web') {
-            const response = await fetch(uri);
-            const blob = await response.blob();
-            formData.append('photo', blob, 'upload.jpg');
+            if (webFile) {
+                formData.append('photo', webFile, webFile.name || 'upload.jpg');
+            } else {
+                const response = await fetch(uri);
+                const blob = await response.blob();
+                formData.append('photo', blob, 'upload.jpg');
+            }
         } else {
             const filename = uri.split('/').pop();
             const match = /\.(\w+)$/.exec(filename);
@@ -246,10 +250,32 @@ const DashboardScreen = ({ navigation, route }) => {
     }
   };
 
+  const fileInputRef = useRef(null);
+  const [pendingPhotoId, setPendingPhotoId] = useState(null);
+  const [pendingPhotoEndpoint, setPendingPhotoEndpoint] = useState(null);
+
+  const handleWebFileSelect = async (e) => {
+    const file = e.target.files[0];
+    if (file && pendingPhotoId && pendingPhotoEndpoint) {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        await processUpload(pendingPhotoId, event.target.result, pendingPhotoEndpoint, file);
+        setPendingPhotoId(null);
+        setPendingPhotoEndpoint(null);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handlePhotoAction = async (id, endpoint) => {
     if (Platform.OS === 'web') {
-        // Web usually just uses library which opens file dialog
-        handleLaunchLibrary(id, endpoint);
+        if (fileInputRef.current) {
+            setPendingPhotoId(id);
+            setPendingPhotoEndpoint(endpoint);
+            fileInputRef.current.click();
+        } else {
+            handleLaunchLibrary(id, endpoint);
+        }
         return;
     }
 
@@ -578,6 +604,15 @@ const DashboardScreen = ({ navigation, route }) => {
         />
       ) : null}
       <View style={{ flex: 1, height: Platform.OS === 'web' ? '100vh' : 'auto' }}>
+        {Platform.OS === 'web' && (
+            <input 
+                type="file" 
+                ref={fileInputRef} 
+                style={{ display: 'none' }} 
+                accept="image/*" 
+                onChange={handleWebFileSelect} 
+            />
+        )}
         <ScrollView 
           style={[styles.scrollView, Platform.OS === 'web' ? { height: '100vh' } : {}]}
           contentContainerStyle={[styles.scrollContent, { minHeight: '100%' }]}

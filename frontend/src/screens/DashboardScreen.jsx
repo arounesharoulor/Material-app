@@ -220,7 +220,12 @@ const DashboardScreen = ({ navigation, route }) => {
             formData.append('photo', { uri, name: filename, type });
         }
 
-        await api.put(`/requests/${id}/${endpoint}`, formData);
+        await api.put(`/requests/${id}/${endpoint}`, formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+            timeout: 30000,
+        });
         
         Toast.show({ 
             type: 'success', 
@@ -275,7 +280,7 @@ const DashboardScreen = ({ navigation, route }) => {
   const handleLaunchLibrary = async (id, endpoint) => {
     try {
         let result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            mediaTypes: ImagePicker.MediaType.Images,
             allowsEditing: false,
             quality: 0.8,
         });

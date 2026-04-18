@@ -22,6 +22,12 @@ setupCronJobs();
 app.use(cors());
 app.use(express.json({ extended: false }));
 
+// Logger middleware
+app.use((req, res, next) => {
+    console.log(`[${new Date().toLocaleTimeString()}] ${req.method} ${req.url}`);
+    next();
+});
+
 // Make io accessible in routes/controllers
 app.set('io', io);
 

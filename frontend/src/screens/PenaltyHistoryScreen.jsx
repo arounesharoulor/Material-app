@@ -195,11 +195,11 @@ const PenaltyHistoryScreen = ({ navigation }) => {
             </View>
           ))}
 
-          {Object.keys(requests).length === 0 && (
+          {Object.keys(requests).length === 0 ? (
             <View style={styles.emptyBox}>
               <Text allowFontScaling={false} style={styles.emptyText}>No penalty records found</Text>
             </View>
-          )}
+          ) : null}
         </View>
       </ScrollView>
     </View>

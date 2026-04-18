@@ -236,11 +236,11 @@ const StockScreen = ({ navigation }) => {
                   })}
               </View>
   
-              {stock.length === 0 && (
-                  <View style={styles.emptyBox}>
-                      <Text allowFontScaling={false} style={styles.emptyText}>No items tracked</Text>
-                  </View>
-              )}
+              {stock.length === 0 ? (
+                <View style={styles.emptyBox}>
+                  <Text allowFontScaling={false} style={styles.emptyText}>No materials found in inventory</Text>
+                </View>
+              ) : null}
           </View>
         </ScrollView>
       </View>

@@ -5,8 +5,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // On mobile (Expo Go), use the machine's local network IP
 const getBaseUrl = () => {
   if (typeof window !== 'undefined' && window.location) {
-    // Running in a web browser — backend is always on the same machine
-    return 'http://localhost:5000';
+    // On web, use the same host as the page (so if accessing via IP, it uses IP)
+    const hostname = window.location.hostname;
+    // If we're on localhost, use 5000. If we're on IP, use same IP:5000
+    return `http://${hostname}:5000`;
   }
   // Expo Go / native app — use local network IP
   return 'http://192.168.0.110:5000';

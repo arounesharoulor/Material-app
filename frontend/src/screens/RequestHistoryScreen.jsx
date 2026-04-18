@@ -211,11 +211,11 @@ const RequestHistoryScreen = ({ navigation }) => {
             </View>
           ))}
 
-          {Object.keys(requests).length === 0 && (
+          {Object.keys(requests).length === 0 ? (
             <View style={styles.emptyBox}>
-              <Text allowFontScaling={false} style={styles.emptyText}>No archived records found</Text>
+              <Text allowFontScaling={false} style={styles.emptyText}>No request history found</Text>
             </View>
-          )}
+          ) : null}
         </View>
       </ScrollView>
     </View>

@@ -93,7 +93,7 @@ const CreateRequestScreen = ({ navigation }) => {
   const handleLaunchLibrary = async () => {
     try {
         let result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            mediaTypes: ImagePicker.MediaType.Images,
             allowsEditing: false,
             quality: 0.8,
         });
@@ -147,7 +147,12 @@ const CreateRequestScreen = ({ navigation }) => {
                   }
                 }
 
-                const res = await api.post('/requests', formData);
+                const res = await api.post('/requests', formData, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                    },
+                    timeout: 30000, // 30 seconds
+                });
                 
                 if (res.data.insufficientStock) {
                     Toast.show({ 

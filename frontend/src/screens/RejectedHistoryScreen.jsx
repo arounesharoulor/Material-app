@@ -189,11 +189,11 @@ const RejectedHistoryScreen = ({ navigation }) => {
             </View>
           ))}
 
-          {Object.keys(requests).length === 0 && (
+          {Object.keys(requests).length === 0 ? (
             <View style={styles.emptyBox}>
-              <Text allowFontScaling={false} style={styles.emptyText}>No rejected records found</Text>
+              <Text allowFontScaling={false} style={styles.emptyText}>No rejected requests found</Text>
             </View>
-          )}
+          ) : null}
         </View>
       </ScrollView>
     </View>

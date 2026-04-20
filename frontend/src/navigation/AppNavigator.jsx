@@ -64,9 +64,9 @@ const AppNavigator = () => {
         </>
       ) : (
         <>
-          <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="Register" component={RegisterScreen} />
-          <Stack.Screen name="Otp" component={OtpScreen} />
+          <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="Register" component={RegisterScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="Otp" component={OtpScreen} options={{ headerShown: false }} />
         </>
       )}
     </Stack.Navigator>

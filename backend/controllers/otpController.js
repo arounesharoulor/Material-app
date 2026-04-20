@@ -3,8 +3,12 @@ const Otp = require('../models/Otp');
 const crypto = require('crypto');
 
 // Configure NodeMailer transporter
+// Configure NodeMailer transporter with pooling for performance
 const transporter = nodemailer.createTransport({
     service: 'gmail',
+    pool: true, // Enable SMTP pooling
+    maxConnections: 5,
+    maxMessages: 100,
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
@@ -27,7 +31,7 @@ exports.sendOtp = async (req, res) => {
         const newOtp = new Otp({ email, otp });
         await newOtp.save();
 
-        // Send Email
+        // Send Email logic
         const mailOptions = {
             from: process.env.EMAIL_USER,
             to: email,
@@ -36,15 +40,20 @@ exports.sendOtp = async (req, res) => {
         };
 
         if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-            await transporter.sendMail(mailOptions);
-            res.json({ msg: 'OTP sent successfully to ' + email });
+            // Fire-and-forget email sending to prevent blocking the response
+            transporter.sendMail(mailOptions).catch(err => {
+                console.error('CRITICAL: Failed to deliver OTP email to', email, err.message);
+            });
+            
+            // Respond immediately for better UX
+            return res.json({ msg: 'Verification code sent to ' + email });
         } else {
             console.log('--- DEVELOPMENT MODE: OTP for ' + email + ' is ' + otp + ' ---');
-            res.json({ msg: 'OTP generated (Check server logs in dev mode)', devOtp: otp });
+            return res.json({ msg: 'OTP generated (Check server logs in dev mode)', devOtp: otp });
         }
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ msg: 'Error sending OTP' });
+        console.error('OTP Controller Error:', err);
+        res.status(500).json({ msg: 'Error processing verification' });
     }
 };
 

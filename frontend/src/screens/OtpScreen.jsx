@@ -183,6 +183,7 @@ const styles = StyleSheet.create({
     },
     row: {
         flex: 1,
+        minHeight: Platform.OS === 'web' ? '100vh' : 'auto',
     },
     rowWeb: {
         flexDirection: 'row',
@@ -192,6 +193,7 @@ const styles = StyleSheet.create({
     },
     panelWeb: {
         width: '50%',
+        minHeight: '100%',
     },
     panelMobile: {
         width: '100%',
@@ -200,7 +202,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#1b264a',
         padding: 48,
         justifyContent: 'center',
-        minHeight: '100vh',
+        minHeight: Platform.OS === 'web' ? '100vh' : 250,
     },
     brandingLabel: {
         color: '#ffc61c',
@@ -232,7 +234,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#ffffff',
         justifyContent: 'center',
         padding: 32,
-        ...(Platform.OS === 'web' ? { minHeight: '100vh' } : { flex: 1 }),
+        minHeight: Platform.OS === 'web' ? '100vh' : 'auto',
     },
     formContent: {
         maxWidth: 400,

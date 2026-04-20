@@ -80,7 +80,10 @@ const RegisterScreen = ({ navigation }) => {
     <View style={[tw`bg-slate-50`, Platform.OS === 'web' ? { height: '100vh' } : tw`flex-1`]}>
         <ScrollView 
           style={{ flex: 1, ...(Platform.OS === 'web' ? { overflow: 'auto' } : {}) }}
-          contentContainerStyle={{ paddingBottom: 120 }}
+          contentContainerStyle={[
+            { flexGrow: 1 },
+            Platform.OS === 'web' ? { paddingBottom: 0 } : { paddingBottom: 120 }
+          ]}
           showsVerticalScrollIndicator={true}
           keyboardShouldPersistTaps="handled"
         >
@@ -231,7 +234,7 @@ const styles = StyleSheet.create({
   },
   panelWeb: {
     width: '50%',
-    height: '100%',
+    minHeight: '100%',
   },
   panelMobile: {
     width: '100%',

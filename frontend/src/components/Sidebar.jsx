@@ -220,18 +220,16 @@ const Sidebar = ({
                             <Text style={styles.navLabel}>ARCHIVE</Text>
                         </View>
 
-                        {user?.role === 'Employee' && (
-                            <SidebarItem 
-                                label="REQUEST HISTORY" 
-                                iconName="list" 
-                                targetScreen="History" 
-                                isActive={activeScreen === 'History'}
-                                badgeCount={employeeReturnCount}
-                                navigation={navigation}
-                                toggleSidebar={toggleSidebar}
-                                user={user}
-                            />
-                        )}
+                        <SidebarItem 
+                            label="REQUEST HISTORY" 
+                            iconName="list" 
+                            targetScreen="History" 
+                            isActive={activeScreen === 'History'}
+                            badgeCount={user?.role === 'Employee' ? employeeReturnCount : 0}
+                            navigation={navigation}
+                            toggleSidebar={toggleSidebar}
+                            user={user}
+                        />
                         
                         <SidebarItem 
                             label="CLOSED HISTORY" 

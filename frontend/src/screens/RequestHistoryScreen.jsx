@@ -60,6 +60,7 @@ const RequestHistoryScreen = ({ navigation }) => {
           // Employee sees their own old requests
           archive = archive.filter(r => r.employeeId === user.employeeId);
       }
+      // Admins see EVERYTHING in archive (already filtered by date)
       
       // Group by date
       const grouped = archive.reduce((acc, req) => {

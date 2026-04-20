@@ -4,8 +4,11 @@ const Stock = require('../models/Stock');
 exports.createRequest = async (req, res) => {
     const { employeeId, employeeName, employeeEmail, materialName, quantity } = req.body;
     
+    console.log(`[REQUEST] Incoming from ${employeeName} (${employeeId}): ${quantity}x ${materialName}`);
+
     // Defensive checks for required fields
     if (!employeeId || !employeeName || !materialName) {
+        console.error('[REQUEST] Validation Failed: Missing required fields', { employeeId, employeeName, materialName });
         return res.status(400).json({ msg: 'Missing required fields: employeeId, employeeName, or materialName' });
     }
 

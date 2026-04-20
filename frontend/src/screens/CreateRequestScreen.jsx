@@ -279,7 +279,13 @@ const CreateRequestScreen = ({ navigation }) => {
                                 styles.chip,
                                 materialName === item.materialName ? styles.chipActive : styles.chipInactive
                             ]}
-                            onPress={() => setMaterialName(item.materialName)}
+                            onPress={() => {
+                                if (materialName === item.materialName) {
+                                    setMaterialName('');
+                                } else {
+                                    setMaterialName(item.materialName);
+                                }
+                            }}
                         >
                             <Text allowFontScaling={false} style={[
                                 styles.chipText,

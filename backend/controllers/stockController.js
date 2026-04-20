@@ -16,7 +16,7 @@ exports.updateStock = async (req, res) => {
     try {
         let stock = await Stock.findOne({ materialName: { $regex: new RegExp('^' + materialName + '$', 'i') } });
         if (stock) {
-            stock.quantity = Number(quantity);
+            stock.quantity += Number(quantity);
             await stock.save();
         } else {
             stock = new Stock({ materialName, quantity: Number(quantity) });

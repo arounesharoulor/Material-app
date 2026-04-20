@@ -164,7 +164,13 @@ const StockScreen = ({ navigation }) => {
                                   styles.chip,
                                   newItemName.toLowerCase() === item.materialName.toLowerCase() ? styles.chipActive : styles.chipInactive
                               ]}
-                              onPress={() => setNewItemName(item.materialName)}
+                              onPress={() => {
+                                  if (newItemName.toLowerCase() === item.materialName.toLowerCase()) {
+                                      setNewItemName('');
+                                  } else {
+                                      setNewItemName(item.materialName);
+                                  }
+                              }}
                           >
                               <Text allowFontScaling={false} style={[
                                   styles.chipText,

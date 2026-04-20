@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
 import {
     View, Text, TextInput, TouchableOpacity, StyleSheet,
     KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView
@@ -46,16 +46,14 @@ const OtpScreen = ({ navigation, route }) => {
         }
     };
 
-    const handleVerify = async () => {
-        if (!otp || otp.length !== 6) {
-            setError('Please enter a valid 6-digit code.');
-            return;
-        }
+    const handleVerify = useCallback(async (otpValue) => {
+        const code = otpValue || otp;
+        if (!code || code.length !== 6 || loading) return;
         setError('');
         setLoading(true);
         try {
             // Step 1: Verify the OTP
-            await api.post('/otp/verify-otp', { email, otp });
+            await api.post('/otp/verify-otp', { email, otp: code });
 
             // Step 2: Complete registration now that email is verified
             const { name, employeeId, email: regEmail, password, role } = registrationData;
@@ -63,10 +61,16 @@ const OtpScreen = ({ navigation, route }) => {
             // AuthContext sets user → AppNavigator will redirect to Dashboard automatically
         } catch (err) {
             setError(err.response?.data?.msg || 'Verification failed. Please try again.');
-        } finally {
             setLoading(false);
         }
-    };
+    }, [otp, email, loading, registrationData, register]);
+
+    // Auto-verify as soon as 6 digits are entered — no button tap needed
+    useEffect(() => {
+        if (otp.length === 6) {
+            handleVerify(otp);
+        }
+    }, [otp]);
 
     const maskedEmail = email
         ? email.replace(/(.{2})(.*)(@.*)/, (_, a, b, c) => a + '*'.repeat(b.length) + c)

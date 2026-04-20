@@ -29,4 +29,16 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
+// Response interceptor: auto-clear stale tokens on 401
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (error.response?.status === 401) {
+      // Silently remove invalid token — AuthContext will handle redirect
+      await AsyncStorage.removeItem('token');
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default api;

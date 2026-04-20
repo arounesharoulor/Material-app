@@ -12,25 +12,24 @@ exports.sendOtp = async (req, res) => {
     try {
         // Generate 6-digit OTP
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
-        // Save OTP to database (overwrite any existing for this email)
-        await Otp.deleteMany({ email });
         const newOtp = new Otp({ email, otp });
-        await newOtp.save();
 
-        // Send Email logic
+        // Parallel: Delete existing OTP and save new one simultaneously
+        await Promise.all([
+            Otp.deleteMany({ email }),
+            newOtp.save()
+        ]);
+
         if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-            // Send OTP via utility
+            // Fire-and-forget — do NOT await, respond immediately
             sendEmail(email, 'Your Verification Code', `Your OTP for verification is: ${otp}. This code will expire in 5 minutes.`);
-            
-            // Respond immediately for better UX
             return res.json({ msg: 'Verification code sent to ' + email });
         } else {
-            console.log('--- DEVELOPMENT MODE: OTP for ' + email + ' is ' + otp + ' ---');
-            return res.json({ msg: 'OTP generated (Check server logs in dev mode)', devOtp: otp });
+            console.log('--- DEV MODE OTP for ' + email + ': ' + otp + ' ---');
+            return res.json({ msg: 'OTP generated (dev mode)', devOtp: otp });
         }
     } catch (err) {
-        console.error('OTP Controller Error:', err);
+        console.error('OTP Send Error:', err.message);
         res.status(500).json({ msg: 'Error processing verification' });
     }
 };
@@ -46,26 +45,28 @@ exports.verifyOtp = async (req, res) => {
         const otpRecord = await Otp.findOne({ email });
 
         if (!otpRecord) {
-            return res.status(400).json({ msg: 'OTP expired or not found' });
+            return res.status(400).json({ msg: 'OTP expired or not found. Please request a new code.' });
         }
 
         if (otpRecord.attempts >= 3) {
-            await Otp.deleteOne({ email });
+            // Use deleteOne without awaiting to not delay the response
+            Otp.deleteOne({ email }).catch(() => {});
             return res.status(400).json({ msg: 'Too many failed attempts. Please request a new OTP.' });
         }
 
         if (otpRecord.otp !== otp) {
             otpRecord.attempts += 1;
             await otpRecord.save();
-            return res.status(400).json({ msg: 'Invalid OTP' });
+            const remaining = 3 - otpRecord.attempts;
+            return res.status(400).json({ msg: `Invalid OTP. ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining.` });
         }
 
-        // Success - Delete OTP record
-        await Otp.deleteOne({ email });
+        // Success — delete OTP without blocking the success response
+        Otp.deleteOne({ email }).catch(() => {});
         res.json({ success: true, msg: 'OTP verified successfully' });
 
     } catch (err) {
-        console.error(err);
+        console.error('OTP Verify Error:', err.message);
         res.status(500).json({ msg: 'Server error during verification' });
     }
 };

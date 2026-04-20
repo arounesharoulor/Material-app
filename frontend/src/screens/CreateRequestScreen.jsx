@@ -183,7 +183,6 @@ const CreateRequestScreen = ({ navigation }) => {
                 });
 
                 const res = await api.post('/requests', formData, {
-                    headers: Platform.OS === 'web' ? {} : { 'Content-Type': 'multipart/form-data' },
                     timeout: 60000, 
                 });
                 

@@ -19,6 +19,10 @@ const initRemoteLogging = () => {
     };
 
     console.warn = (...args) => {
+        // Filter out annoying React Native Web deprecation warnings from 3rd party libs
+        if (args.length > 0 && typeof args[0] === 'string' && args[0].includes('props.pointerEvents is deprecated')) {
+            return;
+        }
         originalWarn(...args);
         sendToRemote('warn', args);
     };

@@ -24,6 +24,8 @@ app.use(express.json({ extended: false }));
 
 // Logger middleware with response status and timing
 app.use((req, res, next) => {
+    // Skip noisy internal endpoints
+    if (req.url === '/api/debug-log') return next();
     const start = Date.now();
     res.on('finish', () => {
         const duration = Date.now() - start;

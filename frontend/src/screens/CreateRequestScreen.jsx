@@ -335,7 +335,7 @@ const CreateRequestScreen = ({ navigation }) => {
                   {photo ? (
                       <Image source={{ uri: photo.uri }} style={styles.previewImage} resizeMode="cover" />
                   ) : (
-                      <View style={[styles.uploadPlaceholder, { pointerEvents: 'none' }]}>
+                      <View style={styles.uploadPlaceholder}>
                           <Ionicons name="camera" size={42} color="#94a3b8" />
                           <Text allowFontScaling={false} style={styles.uploadText}>Tap to upload or capture</Text>
                       </View>

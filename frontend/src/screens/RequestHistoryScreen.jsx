@@ -62,11 +62,15 @@ const RequestHistoryScreen = ({ navigation }) => {
       }
       // Admins see EVERYTHING in archive (already filtered by date)
       
-      // Group by date
+      // Group by date with DAY NAME (e.g., 'Monday, 4/20/2026')
       const grouped = archive.reduce((acc, req) => {
-          const date = new Date(req.date).toLocaleDateString();
-          if (!acc[date]) acc[date] = [];
-          acc[date].push(req);
+          const d = new Date(req.date);
+          const dayName = d.toLocaleDateString('en-US', { weekday: 'long' });
+          const dateStr = d.toLocaleDateString();
+          const displayGroup = `${dayName}, ${dateStr}`;
+          
+          if (!acc[displayGroup]) acc[displayGroup] = [];
+          acc[displayGroup].push(req);
           return acc;
       }, {});
       
@@ -98,7 +102,11 @@ const RequestHistoryScreen = ({ navigation }) => {
 
     return (
         <View style={styles.card}>
-            <View style={[styles.cardAccent, item.status === 'Closed' ? styles.bgEmerald : styles.bgRose]} />
+            <View style={[
+                styles.cardAccent, 
+                item.status === 'Closed' ? styles.bgEmerald : 
+                item.status === 'Approved' ? styles.bgIndigo : styles.bgRose
+            ]} />
             <View style={styles.cardHeader}>
                 <View style={{ flex: 1 }}>
                     <Text allowFontScaling={false} style={styles.cardTitle}>{item.materialName}</Text>
@@ -106,12 +114,14 @@ const RequestHistoryScreen = ({ navigation }) => {
                 </View>
                 <View style={[
                     styles.statusBadge,
-                    item.status === 'Closed' ? styles.badgeEmerald : styles.badgeRose
+                    item.status === 'Closed' ? styles.badgeEmerald : 
+                    item.status === 'Approved' ? styles.badgeIndigo : styles.badgeRose
                 ]}>
                     <Text allowFontScaling={false} style={[
                         styles.badgeText,
-                        item.status === 'Closed' ? styles.textEmerald : styles.textRose
-                    ]}>{item.status.toUpperCase()}</Text>
+                        item.status === 'Closed' ? styles.textEmerald : 
+                        item.status === 'Approved' ? styles.textIndigo : styles.textRose
+                    ]}>{item.status.toUpperCase().replace('PENDINGRETURN', 'PICKED UP')}</Text>
                 </View>
             </View>
 
@@ -258,10 +268,15 @@ const styles = StyleSheet.create({
   cardSubtitle: { fontSize: 10, fontWeight: '700', color: '#94a3b8' },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   badgeEmerald: { backgroundColor: '#ecfdf5' },
+  badgeIndigo: { backgroundColor: '#eef2ff' },
   badgeRose: { backgroundColor: '#fff1f2' },
   badgeText: { fontSize: 9, fontWeight: '800' },
   textEmerald: { color: '#059669' },
+  textIndigo: { color: '#4f46e5' },
   textRose: { color: '#e11d48' },
+  bgEmerald: { backgroundColor: '#10b981' },
+  bgIndigo: { backgroundColor: '#4f46e5' },
+  bgRose: { backgroundColor: '#e11d48' },
   cardDetails: { backgroundColor: '#f8fafc', padding: 16, marginHorizontal: 20, borderRadius: 16, marginBottom: 16 },
   detailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10, gap: 12 },
   detailLabel: { fontSize: 9, fontWeight: '700', color: '#94a3b8', flexShrink: 0, width: '35%' },

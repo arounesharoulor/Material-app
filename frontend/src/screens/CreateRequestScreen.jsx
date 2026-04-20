@@ -146,6 +146,7 @@ const CreateRequestScreen = ({ navigation }) => {
           onPress: async () => {
               setIsSubmitting(true);
               try {
+                console.log('[DEBUG] createRequest triggered');
                 const formData = new FormData();
                 if (user) {
                   formData.append('employeeId', user.employeeId || 'EMP000');
@@ -175,12 +176,20 @@ const CreateRequestScreen = ({ navigation }) => {
                   }
                 }
 
+                console.log('[UPLOAD] Starting submission to /requests...', {
+                    material: materialName,
+                    quantity: quantity,
+                    hasPhoto: !!photo
+                });
+
                 const res = await api.post('/requests', formData, {
                     headers: {
                         'Content-Type': 'multipart/form-data',
                     },
-                    timeout: 30000, // 30 seconds
+                    timeout: 60000, // Increased to 60 seconds for larger photos
                 });
+                
+                console.log('[UPLOAD] Success Response:', res.status, res.data);
                 
                 if (res.data.insufficientStock) {
                     Toast.show({ 

@@ -80,10 +80,8 @@ const Sidebar = ({
 
             if (user?.role === 'Admin') {
                 // Only count PENDING requests — items awaiting admin decision.
-                const pending = res.data.filter(r =>
-                    r.status === 'Pending' &&
-                    new Date(r.date) >= startOfToday
-                ).length;
+                // Admin: Count ALL pending requests regardless of date
+                const pending = res.data.filter(r => r.status === 'Pending').length;
                 setPendingCount(pending);
 
                 // Fetch Stock Levels for Admin

@@ -77,6 +77,7 @@ const DashboardScreen = ({ navigation, route }) => {
     });
     
     socketRef.current.on('requestUpdated', () => {
+        console.log('[SOCKET] requestUpdated event received');
         if (isFocusedRef.current) {
             fetchRequests(true);
             if (user?.role === 'Employee') {
@@ -153,9 +154,9 @@ const DashboardScreen = ({ navigation, route }) => {
       const activeToday = activeRequests.filter(r => new Date(r.date) >= startOfToday);
       
       if (user?.role === 'Employee' && user?.employeeId) {
-          // Employees see their active requests from TODAY on the dashboard
-          // Older active requests are in the "History" sections
-          const empActive = activeToday.filter(r => r.employeeId === user.employeeId).sort((a,b) => new Date(b.date) - new Date(a.date));
+          // Employees see ALL their active requests (Pending, Approved, etc.)
+          // We removed the 'Today' filter to ensure new requests aren't missed
+          const empActive = activeRequests.filter(r => r.employeeId === user.employeeId).sort((a,b) => new Date(b.date) - new Date(a.date));
           setRequests(empActive);
       } else {
           // Admins see ALL active items that need attention, regardless of date
@@ -644,7 +645,7 @@ const DashboardScreen = ({ navigation, route }) => {
                         <Text allowFontScaling={false} style={styles.liveText}>LIVE</Text>
                     </View>
                 ) : null}
-                <TouchableOpacity onPress={() => fetchRequests(false)} style={styles.syncBtn}>
+                <TouchableOpacity onPress={() => fetchRequests(true)} style={[styles.syncBtn, { marginRight: 10 }]}>
                     <Ionicons name="refresh" size={16} color="#1b264a" />
                 </TouchableOpacity>
             </View>

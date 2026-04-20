@@ -130,7 +130,7 @@ exports.submitPickupPhoto = async (req, res) => {
         let request = await MaterialRequest.findById(req.params.id);
         if (!request) return res.status(404).json({ msg: 'Request not found' });
         
-        if (request.user.toString() !== req.user.id) {
+        if (request.user && request.user.toString() !== req.user.id) {
             return res.status(401).json({ msg: 'User not authorized' });
         }
 

@@ -154,14 +154,12 @@ const DashboardScreen = ({ navigation, route }) => {
       const activeToday = activeRequests.filter(r => new Date(r.date) >= startOfToday);
       
       if (user?.role === 'Employee' && user?.employeeId) {
-          // Employees see ALL their active requests (Pending, Approved, etc.)
-          // We removed the 'Today' filter to ensure new requests aren't missed
-          const empActive = activeRequests.filter(r => r.employeeId === user.employeeId).sort((a,b) => new Date(b.date) - new Date(a.date));
-          setRequests(empActive);
+          // Dashboard strictly shows TODAY's active requests for the current employee
+          const empToday = activeToday.filter(r => r.employeeId === user.employeeId).sort((a,b) => new Date(b.date) - new Date(a.date));
+          setRequests(empToday);
       } else {
-          // Admins see ALL active items that need attention, regardless of date
-          // This ensures no new requests are missed due to date filtering
-          setRequests(activeRequests.sort((a,b) => new Date(b.date) - new Date(a.date)));
+          // Dashboard strictly shows TODAY's active requests for the Admin
+          setRequests(activeToday.sort((a,b) => new Date(b.date) - new Date(a.date)));
       }
     } catch (err) {
       console.log('Error fetching requests');

@@ -1,5 +1,5 @@
 import React, { useContext, useState, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, Platform, ScrollView, TouchableOpacity, Animated, Image, TextInput, ActivityIndicator, Modal, Alert, BackHandler } from 'react-native';
+import { View, Text, StyleSheet, Platform, ScrollView, TouchableOpacity, Animated, Image, TextInput, ActivityIndicator, Modal, BackHandler } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -27,79 +27,45 @@ const ProfileScreen = ({ navigation }) => {
 
     const [isEditing, setIsEditing] = useState(false);
     const [loading, setLoading] = useState(false);
-    
-    // Form States
     const [name, setName] = useState(user?.name || '');
     const [employeeId, setEmployeeId] = useState(user?.employeeId || '');
     const [email, setEmail] = useState(user?.email || '');
     const [profilePhoto, setProfilePhoto] = useState(null);
-
-    // OTP States
     const [showOtpModal, setShowOtpModal] = useState(false);
     const [otp, setOtp] = useState('');
     const [verifyingOtp, setVerifyingOtp] = useState(false);
     const [pendingEmail, setPendingEmail] = useState('');
 
+    const fileInputRef = useRef(null);
+
     const toggleSidebar = () => {
         const toValue = sidebarVisible ? -280 : 0;
-        Animated.timing(sidebarAnim, {
-            toValue,
-            duration: 300,
-            useNativeDriver: false,
-        }).start();
+        Animated.timing(sidebarAnim, { toValue, duration: 300, useNativeDriver: false }).start();
         setSidebarVisible(!sidebarVisible);
     };
 
-    const fileInputRef = useRef(null);
-
     const handleWebFileSelect = (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          setProfilePhoto({
-            uri: event.target.result,
-            name: file.name,
-            type: file.type,
-            file: file
-          });
-        };
-        reader.readAsDataURL(file);
-      }
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                setProfilePhoto({ uri: event.target.result, name: file.name, type: file.type, file });
+            };
+            reader.readAsDataURL(file);
+        }
     };
 
     const handleImagePick = async () => {
         if (Platform.OS === 'web') {
-            if (fileInputRef.current) {
-                fileInputRef.current.click();
-            } else {
-                let result = await ImagePicker.launchImageLibraryAsync({
-                    mediaTypes: ImagePicker.MediaType.Images,
-                    allowsEditing: true,
-                    aspect: [1, 1],
-                    quality: 0.8,
-                });
-                if (!result.canceled) {
-                    setProfilePhoto(result.assets[0]);
-                }
-            }
-            return;
+            if (fileInputRef.current) { fileInputRef.current.click(); return; }
         }
-
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
         if (status !== 'granted') {
             Toast.show({ type: 'error', text1: 'Permission Denied', text2: 'Camera access is required' });
             return;
         }
-        const result = await ImagePicker.launchCameraAsync({
-            allowsEditing: true,
-            aspect: [1, 1],
-            quality: 0.8,
-        });
-
-        if (!result.canceled) {
-            setProfilePhoto(result.assets[0]);
-        }
+        const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.8 });
+        if (!result.canceled) setProfilePhoto(result.assets[0]);
     };
 
     const handleSave = async () => {
@@ -109,7 +75,6 @@ const ProfileScreen = ({ navigation }) => {
             formData.append('name', name);
             if (user?.role === 'Employee') formData.append('employeeId', employeeId);
             formData.append('email', email);
-
             if (profilePhoto) {
                 if (Platform.OS === 'web') {
                     if (profilePhoto.file) {
@@ -123,16 +88,13 @@ const ProfileScreen = ({ navigation }) => {
                     const localUri = profilePhoto.uri;
                     const filename = localUri.split('/').pop();
                     const match = /\.(\w+)$/.exec(filename);
-                    const type = match ? `image/${match[1]}` : `image`;
+                    const type = match ? `image/${match[1]}` : 'image';
                     formData.append('profilePicture', { uri: localUri, name: filename, type });
                 }
             }
-
             const res = await api.put('/auth/profile', formData);
-
             if (res.data.emailChanged) {
                 setPendingEmail(email);
-                // Trigger OTP send to new email
                 await api.post('/otp/send-otp', { email: email.trim() });
                 setShowOtpModal(true);
                 Toast.show({ type: 'info', text1: 'Verification Needed', text2: 'Please verify your new email' });
@@ -152,13 +114,8 @@ const ProfileScreen = ({ navigation }) => {
         setVerifyingOtp(true);
         try {
             await api.post('/otp/verify-otp', { email: pendingEmail, otp });
-            
-            // Finalize email update in backend
             const res = await api.put('/auth/finalize-email', { email: pendingEmail });
-            
-            // Update local user state
             updateUserState({ ...user, email: pendingEmail });
-            
             setShowOtpModal(false);
             setIsEditing(false);
             setOtp('');
@@ -176,88 +133,89 @@ const ProfileScreen = ({ navigation }) => {
         return null;
     };
 
-    const renderDetailItem = (label, value, iconName, fieldName, editable = true) => (
-        <View style={styles.detailItem}>
-            <View style={styles.detailIconContainer}>
-                <Ionicons name={iconName} size={20} color="#1b264a" />
+    const initials = user?.name?.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || '?';
+
+    const InfoCard = ({ icon, label, value, fieldName, editable = true, iconColor = '#4f46e5', bgColor = '#eef2ff' }) => (
+        <View style={styles.infoCard}>
+            <View style={[styles.infoCardIcon, { backgroundColor: bgColor }]}>
+                <Ionicons name={icon} size={20} color={iconColor} />
             </View>
-            <View style={styles.detailTextContainer}>
-                <Text style={styles.detailLabel}>{label}</Text>
-                {isEditing && editable ? (
-                    <TextInput 
-                        style={styles.detailInput} 
-                        value={fieldName === 'name' ? name : fieldName === 'email' ? email : employeeId}
-                        onChangeText={(val) => {
-                            if (fieldName === 'name') setName(val);
-                            if (fieldName === 'email') setEmail(val);
-                            if (fieldName === 'employeeId') setEmployeeId(val);
-                        }}
-                        autoCapitalize={fieldName === 'email' ? 'none' : 'words'}
-                    />
-                ) : (
-                    <Text style={styles.detailValue}>{value}</Text>
-                )}
-            </View>
+            <Text allowFontScaling={false} style={styles.infoCardLabel}>{label}</Text>
+            {isEditing && editable ? (
+                <TextInput
+                    style={styles.infoCardInput}
+                    value={fieldName === 'name' ? name : fieldName === 'email' ? email : employeeId}
+                    onChangeText={(val) => {
+                        if (fieldName === 'name') setName(val);
+                        if (fieldName === 'email') setEmail(val);
+                        if (fieldName === 'employeeId') setEmployeeId(val);
+                    }}
+                    autoCapitalize={fieldName === 'email' ? 'none' : 'words'}
+                    nativeID={`profile-${fieldName}`}
+                />
+            ) : (
+                <Text allowFontScaling={false} style={styles.infoCardValue} numberOfLines={1}>{value}</Text>
+            )}
         </View>
     );
 
     return (
         <View style={styles.container}>
             {Platform.OS === 'web' && (
-                <input 
-                    type="file" 
-                    ref={fileInputRef} 
-                    style={{ display: 'none' }} 
-                    accept="image/*" 
-                    onChange={handleWebFileSelect} 
-                />
+                <input type="file" ref={fileInputRef} style={{ display: 'none' }} accept="image/*" onChange={handleWebFileSelect} />
             )}
-            <Sidebar 
-                user={user} 
-                navigation={navigation} 
-                logout={logout} 
-                sidebarAnim={sidebarAnim} 
-                toggleSidebar={toggleSidebar}
-                activeScreen="Profile"
-            />
+            <Sidebar user={user} navigation={navigation} logout={logout} sidebarAnim={sidebarAnim} toggleSidebar={toggleSidebar} activeScreen="Profile" />
+
             <View style={styles.mainContent}>
-                <ScrollView style={styles.contentScroll} contentContainerStyle={styles.contentContainer}>
-                    <View style={styles.header}>
-                        {/* Top row: menu + title */}
-                        <View style={styles.headerTopRow}>
+                <ScrollView
+                    style={{ flex: 1, ...(Platform.OS === 'web' ? { height: '100vh', overflow: 'auto' } : {}) }}
+                    contentContainerStyle={styles.scrollContent}
+                    showsVerticalScrollIndicator={false}
+                >
+                    {/* ── Page Header ── */}
+                    <View style={styles.pageHeader}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                             {Platform.OS !== 'web' && (
                                 <TouchableOpacity onPress={toggleSidebar} style={styles.mobileMenuBtn}>
                                     <Ionicons name="menu" size={22} color="#1b264a" />
                                 </TouchableOpacity>
                             )}
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.headerLabel}>USER IDENTITY</Text>
-                                <Text style={styles.headerTitle} numberOfLines={1}>Account Settings</Text>
+                            <View>
+                                <Text allowFontScaling={false} style={styles.pageLabel}>USER IDENTITY</Text>
+                                <Text allowFontScaling={false} style={styles.pageTitle}>My Profile</Text>
                             </View>
                         </View>
-
-                        {/* Bottom row: action button */}
-                        <TouchableOpacity 
-                            onPress={() => isEditing ? handleSave() : setIsEditing(true)} 
-                            style={[styles.editButton, isEditing && { backgroundColor: '#10b981', borderColor: '#10b981' }]}
-                            disabled={loading}
-                        >
-                            {loading ? (
-                                <ActivityIndicator size="small" color="#ffffff" />
-                            ) : (
-                                <>
-                                    <Ionicons name={isEditing ? "checkmark-done" : "create-outline"} size={12} color={isEditing ? "#ffffff" : "#1b264a"} />
-                                    <Text style={[styles.editButtonText, isEditing && { color: '#ffffff' }]}>
-                                        {isEditing ? 'SAVE CHANGES' : 'EDIT PROFILE'}
-                                    </Text>
-                                </>
+                        <View style={{ flexDirection: 'row', gap: 10 }}>
+                            {isEditing && (
+                                <TouchableOpacity onPress={() => setIsEditing(false)} style={styles.cancelBtn}>
+                                    <Text allowFontScaling={false} style={styles.cancelBtnText}>CANCEL</Text>
+                                </TouchableOpacity>
                             )}
-                        </TouchableOpacity>
+                            <TouchableOpacity
+                                onPress={() => isEditing ? handleSave() : setIsEditing(true)}
+                                style={[styles.editBtn, isEditing && styles.editBtnSave]}
+                                disabled={loading}
+                            >
+                                {loading ? (
+                                    <ActivityIndicator size="small" color="#ffffff" />
+                                ) : (
+                                    <>
+                                        <Ionicons name={isEditing ? 'checkmark-done' : 'create-outline'} size={14} color="#ffffff" />
+                                        <Text allowFontScaling={false} style={styles.editBtnText}>
+                                            {isEditing ? 'SAVE' : 'EDIT'}
+                                        </Text>
+                                    </>
+                                )}
+                            </TouchableOpacity>
+                        </View>
                     </View>
 
-                    <View style={styles.profileCard}>
-                        <View style={styles.avatarSection}>
-                            <TouchableOpacity 
+                    {/* ── Hero Banner ── */}
+                    <View style={styles.heroBanner}>
+                        <View style={styles.heroBannerStripe} />
+                        <View style={styles.heroContent}>
+                            {/* Avatar */}
+                            <TouchableOpacity
                                 onPress={isEditing ? handleImagePick : null}
                                 activeOpacity={isEditing ? 0.7 : 1}
                                 style={styles.avatarWrapper}
@@ -266,40 +224,92 @@ const ProfileScreen = ({ navigation }) => {
                                     {getProfileImage() ? (
                                         <Image source={getProfileImage()} style={styles.avatarImg} />
                                     ) : (
-                                        <Text style={styles.avatarText}>{user?.name?.charAt(0).toUpperCase()}</Text>
+                                        <Text allowFontScaling={false} style={styles.avatarText}>{initials}</Text>
                                     )}
                                     {isEditing && (
                                         <View style={styles.avatarOverlay}>
-                                            <Ionicons name="camera" size={24} color="#ffffff" />
+                                            <Ionicons name="camera" size={22} color="#ffffff" />
                                         </View>
                                     )}
                                 </View>
+                                {isEditing && (
+                                    <View style={styles.editPhotoHint}>
+                                        <Text allowFontScaling={false} style={styles.editPhotoHintText}>CHANGE</Text>
+                                    </View>
+                                )}
                             </TouchableOpacity>
-                            <Text style={styles.profileName}>{user?.name}</Text>
-                            <View style={styles.roleBadge}>
-                                <Text style={styles.roleBadgeText}>{user?.role?.toUpperCase()}</Text>
+
+                            {/* Identity block */}
+                            <View style={styles.heroIdentity}>
+                                <Text allowFontScaling={false} style={styles.heroName}>{user?.name}</Text>
+                                <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
+                                    <View style={styles.heroBadge}>
+                                        <Ionicons name="shield-checkmark" size={10} color="#4f46e5" style={{ marginRight: 4 }} />
+                                        <Text allowFontScaling={false} style={styles.heroBadgeText}>{user?.role?.toUpperCase()}</Text>
+                                    </View>
+                                    {user?.employeeId && (
+                                        <View style={[styles.heroBadge, { backgroundColor: '#fffbeb', borderColor: '#fde68a' }]}>
+                                            <Ionicons name="id-card" size={10} color="#d97706" style={{ marginRight: 4 }} />
+                                            <Text allowFontScaling={false} style={[styles.heroBadgeText, { color: '#d97706' }]}>{user.employeeId}</Text>
+                                        </View>
+                                    )}
+                                </View>
+                                <Text allowFontScaling={false} style={styles.heroEmail}>{user?.email}</Text>
                             </View>
                         </View>
-
-                        <View style={styles.detailsContainer}>
-                            {renderDetailItem('FULL NAME', user?.name, 'person-outline', 'name')}
-                            {renderDetailItem('WORK EMAIL', user?.email, 'mail-outline', 'email')}
-                            {user?.role === 'Employee' && renderDetailItem('EMPLOYEE ID', user?.employeeId || 'NOT SET', 'id-card-outline', 'employeeId')}
-                            {renderDetailItem('ACCOUNT ROLE', user?.role, 'shield-checkmark-outline', 'role', false)}
-                        </View>
-
-                        {!isEditing && (
-                            <TouchableOpacity style={styles.logoutButton} onPress={logout}>
-                                <Ionicons name="log-out-outline" size={20} color="#ffffff" style={{ marginRight: 8 }} />
-                                <Text style={styles.logoutButtonText}>LOGOUT FROM SESSION</Text>
-                            </TouchableOpacity>
-                        )}
-                        {isEditing && (
-                            <TouchableOpacity style={styles.cancelButton} onPress={() => setIsEditing(false)}>
-                                <Text style={styles.cancelButtonText}>CANCEL EDITING</Text>
-                            </TouchableOpacity>
-                        )}
                     </View>
+
+                    {/* ── Info Grid ── */}
+                    <Text allowFontScaling={false} style={styles.sectionLabel}>ACCOUNT DETAILS</Text>
+                    <View style={styles.infoGrid}>
+                        <InfoCard
+                            icon="person-outline"
+                            label="FULL NAME"
+                            value={user?.name}
+                            fieldName="name"
+                            iconColor="#4f46e5"
+                            bgColor="#eef2ff"
+                        />
+                        <InfoCard
+                            icon="mail-outline"
+                            label="WORK EMAIL"
+                            value={user?.email}
+                            fieldName="email"
+                            iconColor="#0891b2"
+                            bgColor="#ecfeff"
+                        />
+                        {user?.role === 'Employee' && (
+                            <InfoCard
+                                icon="id-card-outline"
+                                label="EMPLOYEE ID"
+                                value={user?.employeeId || 'Not Set'}
+                                fieldName="employeeId"
+                                iconColor="#d97706"
+                                bgColor="#fffbeb"
+                            />
+                        )}
+                        <InfoCard
+                            icon="shield-checkmark-outline"
+                            label="ACCOUNT ROLE"
+                            value={user?.role}
+                            fieldName="role"
+                            editable={false}
+                            iconColor="#059669"
+                            bgColor="#ecfdf5"
+                        />
+                    </View>
+
+                    {/* ── Actions Row ── */}
+                    {!isEditing && (
+                        <View style={styles.actionsRow}>
+                            <TouchableOpacity style={styles.actionCard} onPress={logout}>
+                                <View style={[styles.actionCardIcon, { backgroundColor: '#fff1f2' }]}>
+                                    <Ionicons name="log-out-outline" size={22} color="#e11d48" />
+                                </View>
+                                <Text allowFontScaling={false} style={[styles.actionCardText, { color: '#e11d48' }]}>LOGOUT</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
                 </ScrollView>
             </View>
 
@@ -308,32 +318,24 @@ const ProfileScreen = ({ navigation }) => {
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
                         <Ionicons name="mail-unread" size={48} color="#1b264a" style={{ marginBottom: 16 }} />
-                        <Text style={styles.modalTitle}>Verify Email Change</Text>
-                        <Text style={styles.modalSubtitle}>We sent a verification code to {pendingEmail}</Text>
-                        
-                        <TextInput 
+                        <Text allowFontScaling={false} style={styles.modalTitle}>Verify Email Change</Text>
+                        <Text allowFontScaling={false} style={styles.modalSubtitle}>We sent a verification code to {pendingEmail}</Text>
+                        <TextInput
                             style={styles.otpInput}
                             placeholder="6-Digit Code"
                             keyboardType="numeric"
                             maxLength={6}
                             value={otp}
                             onChangeText={setOtp}
+                            nativeID="profile-otp"
                         />
-
-                        <TouchableOpacity 
-                            style={styles.verifyButton} 
-                            onPress={handleVerifyOtp}
-                            disabled={verifyingOtp}
-                        >
-                            {verifyingOtp ? (
-                                <ActivityIndicator color="#ffffff" />
-                            ) : (
-                                <Text style={styles.verifyButtonText}>VERIFY & UPDATE</Text>
+                        <TouchableOpacity style={styles.verifyButton} onPress={handleVerifyOtp} disabled={verifyingOtp}>
+                            {verifyingOtp ? <ActivityIndicator color="#ffffff" /> : (
+                                <Text allowFontScaling={false} style={styles.verifyButtonText}>VERIFY & UPDATE</Text>
                             )}
                         </TouchableOpacity>
-
                         <TouchableOpacity onPress={() => setShowOtpModal(false)}>
-                            <Text style={styles.modalCancelText}>Cancel</Text>
+                            <Text allowFontScaling={false} style={styles.modalCancelText}>Cancel</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -346,35 +348,31 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         flexDirection: Platform.OS === 'web' ? 'row' : 'column',
-        backgroundColor: '#f8fafc',
+        backgroundColor: '#f1f5f9',
     },
     mainContent: {
         flex: 1,
         height: Platform.OS === 'web' ? '100vh' : '100%',
     },
-    contentScroll: {
-        flex: 1,
+    scrollContent: {
+        padding: Platform.OS === 'web' ? 32 : 16,
+        paddingBottom: 60,
     },
-    contentContainer: {
-        padding: Platform.OS === 'web' ? 40 : 20,
-    },
-    header: {
+    // ── Header
+    pageHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         marginBottom: 24,
     },
-    headerTopRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-        marginBottom: 14,
-    },
-    headerLabel: {
+    pageLabel: {
         fontSize: 9,
         fontWeight: '800',
         color: '#94a3b8',
         letterSpacing: 1,
     },
-    headerTitle: {
-        fontSize: Platform.OS === 'web' ? 28 : 22,
+    pageTitle: {
+        fontSize: Platform.OS === 'web' ? 26 : 20,
         fontWeight: 'bold',
         color: '#0f172a',
     },
@@ -385,174 +383,204 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#e2e8f0',
     },
-    editButton: {
+    editBtn: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#ffffff',
+        gap: 6,
+        backgroundColor: '#1b264a',
+        paddingHorizontal: 18,
+        paddingVertical: 12,
+        borderRadius: 14,
+    },
+    editBtnSave: {
+        backgroundColor: '#10b981',
+    },
+    editBtnText: {
+        color: '#ffffff',
+        fontSize: 11,
+        fontWeight: '800',
+        letterSpacing: 0.5,
+    },
+    cancelBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#f1f5f9',
         paddingHorizontal: 16,
         paddingVertical: 12,
-        borderRadius: 12,
+        borderRadius: 14,
         borderWidth: 1,
         borderColor: '#e2e8f0',
-        gap: 8,
-        width: '100%',
     },
-    editButtonText: {
-        fontSize: 12,
+    cancelBtnText: {
+        color: '#64748b',
+        fontSize: 11,
         fontWeight: '800',
-        color: '#1b264a',
-        letterSpacing: 0.5,
     },
-    menuButton: {
-        padding: 10,
-        backgroundColor: '#ffffff',
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: '#e2e8f0',
+    // ── Hero Banner
+    heroBanner: {
+        backgroundColor: '#1b264a',
+        borderRadius: 24,
+        overflow: 'hidden',
+        marginBottom: 24,
+        ...(Platform.OS === 'web' ? { boxShadow: '0 8px 24px rgba(27,38,74,0.2)' } : { elevation: 6 }),
     },
-    profileCard: {
-        backgroundColor: '#ffffff',
-        borderRadius: 32,
-        padding: 30,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.05,
-        shadowRadius: 20,
-        elevation: 5,
-        maxWidth: 600,
-        alignSelf: Platform.OS === 'web' ? 'flex-start' : 'stretch',
-        width: '100%',
+    heroBannerStripe: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        height: 4,
+        backgroundColor: '#ffc61c',
     },
-    avatarSection: {
+    heroContent: {
+        flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 40,
-        borderBottomWidth: 1,
-        borderBottomColor: '#f1f5f9',
-        paddingBottom: 30,
+        gap: 20,
+        padding: Platform.OS === 'web' ? 28 : 20,
+        flexWrap: 'wrap',
     },
-    avatarWrapper: {
-        position: 'relative',
-        marginBottom: 16,
-    },
+    avatarWrapper: { position: 'relative' },
     avatar: {
-        width: 120,
-        height: 120,
-        borderRadius: 60,
-        backgroundColor: '#f1f5f9',
+        width: Platform.OS === 'web' ? 96 : 80,
+        height: Platform.OS === 'web' ? 96 : 80,
+        borderRadius: Platform.OS === 'web' ? 48 : 40,
+        backgroundColor: '#ffc61c',
         justifyContent: 'center',
         alignItems: 'center',
-        borderWidth: 4,
-        borderColor: '#ffc61c',
+        borderWidth: 3,
+        borderColor: 'rgba(255,255,255,0.2)',
         overflow: 'hidden',
     },
-    avatarImg: {
-        width: '100%',
-        height: '100%',
-    },
-    avatarText: {
-        color: '#1b264a',
-        fontSize: 48,
-        fontWeight: 'bold',
-    },
+    avatarImg: { width: '100%', height: '100%' },
+    avatarText: { fontSize: Platform.OS === 'web' ? 36 : 30, fontWeight: '900', color: '#1b264a' },
     avatarOverlay: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0,0,0,0.4)',
+        backgroundColor: 'rgba(0,0,0,0.45)',
         justifyContent: 'center',
         alignItems: 'center',
     },
-    profileName: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: '#1e293b',
+    editPhotoHint: {
+        position: 'absolute',
+        bottom: -8,
+        alignSelf: 'center',
+        backgroundColor: '#ffc61c',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 6,
     },
-    roleBadge: {
+    editPhotoHintText: { fontSize: 7, fontWeight: '900', color: '#1b264a' },
+    heroIdentity: { flex: 1, minWidth: 160 },
+    heroName: {
+        fontSize: Platform.OS === 'web' ? 22 : 18,
+        fontWeight: '900',
+        color: '#ffffff',
+    },
+    heroBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
         backgroundColor: '#eef2ff',
-        paddingHorizontal: 12,
-        paddingVertical: 4,
+        borderWidth: 1,
+        borderColor: '#c7d2fe',
+        paddingHorizontal: 8,
+        paddingVertical: 3,
         borderRadius: 8,
+    },
+    heroBadgeText: {
+        fontSize: 9,
+        fontWeight: '900',
+        color: '#4f46e5',
+    },
+    heroEmail: {
+        fontSize: 12,
+        color: '#94a3b8',
         marginTop: 8,
     },
-    roleBadgeText: {
+    // ── Info Grid
+    sectionLabel: {
         fontSize: 10,
-        color: '#4f46e5',
         fontWeight: '900',
-        letterSpacing: 1,
+        color: '#64748b',
+        letterSpacing: 1.5,
+        marginBottom: 14,
     },
-    detailsContainer: {
-        gap: 20,
-    },
-    detailItem: {
+    infoGrid: {
         flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#f8fafc',
-        padding: 12,
-        borderRadius: 16,
+        flexWrap: 'wrap',
+        gap: 12,
+        marginBottom: 24,
+    },
+    infoCard: {
+        width: Platform.OS === 'web' ? 'calc(50% - 6px)' : '48%',
+        backgroundColor: '#ffffff',
+        borderRadius: 20,
+        padding: Platform.OS === 'web' ? 20 : 14,
         borderWidth: 1,
         borderColor: '#f1f5f9',
+        ...(Platform.OS === 'web' ? { boxShadow: '0 2px 8px rgba(0,0,0,0.04)' } : { elevation: 2 }),
+        minWidth: 140,
+        flex: 1,
     },
-    detailIconContainer: {
-        width: 38,
-        height: 38,
-        borderRadius: 10,
-        backgroundColor: '#ffffff',
+    infoCardIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 12,
-        borderWidth: 1,
-        borderColor: '#e2e8f0',
+        marginBottom: 12,
     },
-    detailTextContainer: {
-        flex: 1,
-        gap: 2,
-    },
-    detailLabel: {
-        fontSize: 10,
-        fontWeight: '800',
+    infoCardLabel: {
+        fontSize: 9,
+        fontWeight: '900',
         color: '#94a3b8',
-        letterSpacing: 0.5,
+        letterSpacing: 0.8,
+        marginBottom: 4,
     },
-    detailValue: {
-        fontSize: 14,
-        fontWeight: '600',
+    infoCardValue: {
+        fontSize: Platform.OS === 'web' ? 15 : 13,
+        fontWeight: '700',
         color: '#1e293b',
     },
-    detailInput: {
-        fontSize: 16,
+    infoCardInput: {
+        fontSize: Platform.OS === 'web' ? 15 : 13,
         fontWeight: '700',
         color: '#1b264a',
-        borderBottomWidth: 1,
-        borderBottomColor: '#1b264a',
-        paddingVertical: 2,
+        borderBottomWidth: 2,
+        borderBottomColor: '#ffc61c',
+        paddingVertical: 4,
+        marginTop: 2,
     },
-    logoutButton: {
-        marginTop: 30,
-        backgroundColor: '#ef4444',
-        paddingVertical: 14,
-        borderRadius: 14,
-        alignItems: 'center',
+    // ── Actions
+    actionsRow: {
         flexDirection: 'row',
-        justifyContent: 'center',
+        gap: 12,
     },
-    logoutButtonText: {
-        color: '#ffffff',
-        fontSize: 14,
-        fontWeight: '800',
+    actionCard: {
+        flex: 1,
+        backgroundColor: '#ffffff',
+        borderRadius: 20,
+        padding: 20,
+        alignItems: 'center',
+        gap: 10,
+        borderWidth: 1,
+        borderColor: '#fecdd3',
+        ...(Platform.OS === 'web' ? { boxShadow: '0 2px 8px rgba(0,0,0,0.04)', maxWidth: 160, cursor: 'pointer' } : { elevation: 2 }),
+    },
+    actionCardIcon: {
+        width: 44,
+        height: 44,
+        borderRadius: 14,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    actionCardText: {
+        fontSize: 10,
+        fontWeight: '900',
         letterSpacing: 0.5,
     },
-    cancelButton: {
-        marginTop: 16,
-        paddingVertical: 14,
-        alignItems: 'center',
-    },
-    cancelButtonText: {
-        color: '#64748b',
-        fontSize: 12,
-        fontWeight: '800',
-    },
+    // ── OTP Modal
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(15, 23, 42, 0.8)',
+        backgroundColor: 'rgba(15,23,42,0.8)',
         justifyContent: 'center',
         alignItems: 'center',
         padding: 24,
@@ -565,18 +593,8 @@ const styles = StyleSheet.create({
         maxWidth: 400,
         alignItems: 'center',
     },
-    modalTitle: {
-        fontSize: 22,
-        fontWeight: 'bold',
-        color: '#0f172a',
-        marginBottom: 8,
-    },
-    modalSubtitle: {
-        fontSize: 14,
-        color: '#64748b',
-        textAlign: 'center',
-        marginBottom: 24,
-    },
+    modalTitle: { fontSize: 22, fontWeight: 'bold', color: '#0f172a', marginBottom: 8 },
+    modalSubtitle: { fontSize: 13, color: '#64748b', textAlign: 'center', marginBottom: 24 },
     otpInput: {
         backgroundColor: '#f8fafc',
         borderWidth: 1,
@@ -599,16 +617,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: 16,
     },
-    verifyButtonText: {
-        color: '#ffffff',
-        fontSize: 14,
-        fontWeight: '800',
-    },
-    modalCancelText: {
-        color: '#ef4444',
-        fontWeight: '800',
-        fontSize: 12,
-    }
+    verifyButtonText: { color: '#ffffff', fontSize: 14, fontWeight: '800' },
+    modalCancelText: { color: '#ef4444', fontWeight: '800', fontSize: 12 },
 });
 
 export default ProfileScreen;

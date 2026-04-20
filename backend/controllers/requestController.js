@@ -23,8 +23,7 @@ exports.createRequest = async (req, res) => {
         photoUrl = req.file.path.replace(/\\/g, '/');
     }
 
-    try {
-        const allStock = await Stock.find();
+    const allStock = await Stock.find();
         const stockItem = allStock.find(s => s.materialName.trim().toLowerCase() === materialName.trim().toLowerCase());
         const isInsufficient = stockItem ? Number(quantity) > stockItem.quantity : true;
 
@@ -55,6 +54,7 @@ exports.createRequest = async (req, res) => {
         console.error(err.message);
         res.status(500).send('Server Error');
     }
+
 };
 
 exports.getRequests = async (req, res) => {

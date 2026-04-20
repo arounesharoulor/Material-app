@@ -119,7 +119,10 @@ const Sidebar = ({
                 setEmployeeReturnCount(needsReturn);
             }
         } catch (err) {
-            console.log('Error fetching sidebar counts');
+            console.log(`[SIDEBAR] Failed to fetch counts from ${BASE_URL}/api/requests:`, err.message);
+            if (err.message === 'Network Error') {
+              console.log('[DEBUG] This usually means the IP in api.js is wrong or Firewall is blocking port 5000');
+            }
         }
     };
 

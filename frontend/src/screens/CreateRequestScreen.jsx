@@ -1,9 +1,9 @@
 import React, { useState, useContext, useEffect } from 'react';
-import { View, Text, TextInput, Image, Alert, ScrollView, TouchableOpacity, ActivityIndicator, Platform, StyleSheet, KeyboardAvoidingView, Animated } from 'react-native';
+import { View, Text, TextInput, Image, Alert, Modal, ScrollView, TouchableOpacity, ActivityIndicator, Platform, StyleSheet, KeyboardAvoidingView, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import tw from 'twrnc';
 import * as ImagePicker from 'expo-image-picker';
-import api from '../services/api';
+import api, { SERVER_URL } from '../services/api';
 import { AuthContext } from '../context/AuthContext';
 import Toast from 'react-native-toast-message';
 import Sidebar from '../components/Sidebar';
@@ -21,6 +21,7 @@ const CreateRequestScreen = ({ navigation }) => {
   const [loadingItems, setLoadingItems] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const sidebarAnim = useRef(new Animated.Value(-280)).current;
 
   const toggleSidebar = () => {
@@ -130,97 +131,133 @@ const CreateRequestScreen = ({ navigation }) => {
     }
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!materialName || !quantity) {
       Toast.show({ type: 'error', text1: 'Error', text2: 'Please select a material and enter quantity' });
       return;
     }
-
-    Alert.alert(
-      "Daily Deadline Reminder",
-      "Notice: All materials must be submitted and returned before 6:00 PM today. Do you acknowledge this requirement and want to submit your request?",
-      [
-        { text: "Cancel", style: "cancel" },
-        { 
-          text: "Confirm & Submit", 
-          onPress: async () => {
-              setIsSubmitting(true);
-              try {
-                console.log('[DEBUG] createRequest triggered');
-                const formData = new FormData();
-                if (user) {
-                  formData.append('employeeId', user.employeeId || 'EMP000');
-                  formData.append('employeeName', user.name || 'Anonymous');
-                  formData.append('employeeEmail', user.email || '');
-                }
-                
-                formData.append('materialName', materialName);
-                formData.append('quantity', quantity);
-
-                if (photo) {
-                  if (Platform.OS === 'web') {
-                    if (photo.file) {
-                        formData.append('photo', photo.file, photo.name || 'upload.jpg');
-                    } else {
-                        const response = await fetch(photo.uri);
-                        const blob = await response.blob();
-                        formData.append('photo', blob, 'upload.jpg');
-                    }
-                  } else {
-                    const localUri = photo.uri;
-                    const filename = localUri.split('/').pop();
-                    const match = /\.(\w+)$/.exec(filename);
-                    const ext = match ? match[1].toLowerCase() : 'jpg';
-                    const type = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
-                    formData.append('photo', { uri: localUri, name: filename, type });
-                  }
-                }
-
-                console.log('[UPLOAD] Starting submission to /requests...', {
-                    material: materialName,
-                    quantity: quantity,
-                    hasPhoto: !!photo
-                });
-
-                const res = await api.post('/requests', formData, {
-                    timeout: 60000, 
-                });
-                
-                console.log('[UPLOAD] Success Response:', res.status, res.data);
-                
-                if (res.data.insufficientStock) {
-                    Toast.show({ 
-                        type: 'error', 
-                        text1: 'Material Out of Stock', 
-                        text2: 'Quantity exceeds available stock. Request sent to Admin for immediate restock.' 
-                    });
-                } else {
-                    Toast.show({ type: 'success', text1: 'Success', text2: 'Request submitted successfully' });
-                }
-                
-                navigation.navigate('Dashboard', { reload: Date.now() });
-              } catch (err) {
-                console.log('Upload Error:', err);
-                const errorMsg = err.response?.data?.msg || err.message || 'Failed to submit request';
-                Toast.show({ 
-                    type: 'error', 
-                    text1: 'Submission Error', 
-                    text2: err.message === 'Network Error' ? 'Network Error: Cannot connect to server.' : errorMsg 
-                });
-              } finally {
-                setIsSubmitting(false);
-              }
-          } 
-        }
-      ]
-    );
+    // Always show custom modal — Alert.alert is broken on web
+    setShowConfirmModal(true);
   };
+
+  const handleConfirmedSubmit = async () => {
+    setShowConfirmModal(false);
+    setIsSubmitting(true);
+    try {
+      console.log('[DEBUG] createRequest triggered');
+      const formData = new FormData();
+      if (user) {
+        formData.append('employeeId', user.employeeId || 'EMP000');
+        formData.append('employeeName', user.name || 'Anonymous');
+        formData.append('employeeEmail', user.email || '');
+      }
+
+      formData.append('materialName', materialName);
+      formData.append('quantity', quantity);
+
+      if (photo) {
+        if (Platform.OS === 'web') {
+          if (photo.file) {
+            formData.append('photo', photo.file, photo.name || 'upload.jpg');
+          } else {
+            const response = await fetch(photo.uri);
+            const blob = await response.blob();
+            formData.append('photo', blob, 'upload.jpg');
+          }
+        } else {
+          const localUri = photo.uri;
+          const filename = localUri.split('/').pop();
+          const match = /\.(\w+)$/.exec(filename);
+          const ext = match ? match[1].toLowerCase() : 'jpg';
+          const type = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+          formData.append('photo', { uri: localUri, name: filename, type });
+        }
+      }
+
+      console.log(`[UPLOAD] Starting submission to ${SERVER_URL}/requests...`, {
+        material: materialName,
+        quantity: quantity,
+        hasPhoto: !!photo
+      });
+
+      const res = await api.post('/requests', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        timeout: 60000,
+      });
+
+      console.log('[UPLOAD] Success Response:', res.status, res.data);
+
+      if (res.data.insufficientStock) {
+        Toast.show({
+          type: 'error',
+          text1: 'Material Out of Stock',
+          text2: 'Quantity exceeds available stock. Request sent to Admin for immediate restock.',
+        });
+      } else {
+        Toast.show({ type: 'success', text1: 'Success', text2: 'Request submitted successfully' });
+      }
+
+      navigation.navigate('Dashboard', { reload: Date.now() });
+    } catch (err) {
+      console.log('Upload Error:', err);
+      const errorMsg = err.response?.data?.msg || err.message || 'Failed to submit request';
+      Toast.show({
+        type: 'error',
+        text1: 'Submission Error',
+        text2: err.message === 'Network Error' ? 'Network Error: Cannot connect to server.' : errorMsg,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const ConfirmModal = () => (
+    <Modal
+      visible={showConfirmModal}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowConfirmModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalBox}>
+          <View style={styles.modalIconRow}>
+            <View style={styles.modalIconBg}>
+              <Ionicons name="time-outline" size={28} color="#f59e0b" />
+            </View>
+          </View>
+          <Text allowFontScaling={false} style={styles.modalTitle}>Daily Deadline Reminder</Text>
+          <Text allowFontScaling={false} style={styles.modalBody}>
+            All materials must be submitted and returned before{' '}
+            <Text style={{ fontWeight: '800', color: '#1b264a' }}>6:00 PM today</Text>.
+            {`\n\n`}Do you acknowledge this requirement and want to submit your request?
+          </Text>
+          <View style={styles.modalActions}>
+            <TouchableOpacity
+              style={styles.modalCancelBtn}
+              onPress={() => setShowConfirmModal(false)}
+            >
+              <Text allowFontScaling={false} style={styles.modalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.modalConfirmBtn}
+              onPress={handleConfirmedSubmit}
+            >
+              <Text allowFontScaling={false} style={styles.modalConfirmText}>Confirm & Submit</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
 
   return (
     <KeyboardAvoidingView 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={{ flex: 1 }}
     >
+      <ConfirmModal />
       <View style={[tw`bg-slate-50`, Platform.OS === 'web' ? { flexDirection: 'row', height: '100vh', overflow: 'hidden' } : { flex: 1 }]}>
           <Sidebar 
               user={user} 
@@ -537,7 +574,86 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     letterSpacing: 1,
-  }
+  },
+  // ── Confirm Modal ──────────────────────────────────────────
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalBox: {
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
+    padding: 28,
+    width: '100%',
+    maxWidth: 420,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.15,
+    shadowRadius: 24,
+    elevation: 16,
+    ...(Platform.OS === 'web' ? { boxShadow: '0 12px 24px rgba(0,0,0,0.15)' } : {}),
+  },
+  modalIconRow: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalIconBg: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#fef3c7',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0f172a',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  modalBody: {
+    fontSize: 14,
+    color: '#475569',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalCancelBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+  },
+  modalCancelText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#64748b',
+  },
+  modalConfirmBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: '#1b264a',
+    alignItems: 'center',
+    borderBottomWidth: 3,
+    borderBottomColor: '#ffc61c',
+  },
+  modalConfirmText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
 });
 
 export default CreateRequestScreen;

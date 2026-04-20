@@ -1,10 +1,7 @@
-import { Platform } from 'react-native';
 import axios from 'axios';
+import api, { BASE_URL } from './api';
 
-// Use localhost in web browser, machine IP for Expo Go
-const REMOTE_URL = (typeof window !== 'undefined' && window.location)
-    ? 'http://localhost:5000/api/debug-log'
-    : 'http://192.168.0.110:5000/api/debug-log';
+const REMOTE_URL = `${BASE_URL}/api/debug-log`;
 
 const initRemoteLogging = () => {
     if (process.env.NODE_ENV !== 'development') return;

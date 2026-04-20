@@ -184,6 +184,8 @@ const StockScreen = ({ navigation }) => {
                           placeholderTextColor="#94a3b8"
                           value={newItemName}
                           onChangeText={setNewItemName}
+                          nativeID="materialName"
+                          name="materialName"
                       />
                   </View>
                   
@@ -196,6 +198,8 @@ const StockScreen = ({ navigation }) => {
                           keyboardType="numeric"
                           value={newItemQty}
                           onChangeText={setNewItemQty}
+                          nativeID="totalQuantity"
+                          name="totalQuantity"
                       />
                   </View>
   
@@ -323,6 +327,7 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     borderWidth: 1,
     borderColor: '#f1f5f9',
+    ...(Platform.OS === 'web' ? { boxShadow: '0 4px 10px rgba(0,0,0,0.05)' } : {}),
   },
   cardTitle: {
     fontSize: 18,

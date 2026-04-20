@@ -6,7 +6,7 @@ import tw from 'twrnc';
 import Toast from 'react-native-toast-message';
 import * as ImagePicker from 'expo-image-picker';
 import io from 'socket.io-client';
-import { Audio } from 'expo-av';
+import { useAudioPlayer } from 'expo-audio';
 import { AuthContext } from '../context/AuthContext';
 import api, { BASE_URL } from '../services/api';
 import Sidebar from '../components/Sidebar';
@@ -53,18 +53,11 @@ const DashboardScreen = ({ navigation, route }) => {
   const [viewerImage, setViewerImage] = useState(null);
   const [viewerTitle, setViewerTitle] = useState('');
 
+  const penaltyPlayer = useAudioPlayer('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+
   const playNotificationSound = async () => {
     try {
-        const { sound } = await Audio.Sound.createAsync(
-            { uri: 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3' }
-        );
-        await sound.playAsync();
-        // Clean up sound object after play
-        sound.setOnPlaybackStatusUpdate((status) => {
-            if (status.didJustFinish) {
-                sound.unloadAsync();
-            }
-        });
+        penaltyPlayer.play();
     } catch (error) {
         console.log('Error playing sound:', error);
     }

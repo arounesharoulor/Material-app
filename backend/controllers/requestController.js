@@ -3,6 +3,12 @@ const Stock = require('../models/Stock');
 
 exports.createRequest = async (req, res) => {
     const { employeeId, employeeName, employeeEmail, materialName, quantity } = req.body;
+    
+    // Defensive checks for required fields
+    if (!employeeId || !employeeName || !materialName) {
+        return res.status(400).json({ msg: 'Missing required fields: employeeId, employeeName, or materialName' });
+    }
+
     let photoUrl = '';
     if (req.file) {
         photoUrl = req.file.path.replace(/\\/g, '/');
@@ -15,12 +21,12 @@ exports.createRequest = async (req, res) => {
 
         const newRequest = new MaterialRequest({
             user: req.user.id,
-            employeeId: employeeId.trim(),
-            employeeName: employeeName.trim(),
-            employeeEmail: employeeEmail.trim(),
-            materialName: materialName.trim(),
+            employeeId: (employeeId || '').toString().trim(),
+            employeeName: (employeeName || '').toString().trim(),
+            employeeEmail: (employeeEmail || '').toString().trim(),
+            materialName: (materialName || '').toString().trim(),
             quantity: Number(quantity) || 0,
-            requestId: 'REQ' + Math.floor(Math.random() * 1000000),
+            requestId: 'REQ' + Math.floor(100000 + Math.random() * 900000),
             photoUrl,
             inTime: new Date(),
             insufficientStock: isInsufficient

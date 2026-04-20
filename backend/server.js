@@ -22,9 +22,13 @@ setupCronJobs();
 app.use(cors());
 app.use(express.json({ extended: false }));
 
-// Logger middleware
+// Logger middleware with response status and timing
 app.use((req, res, next) => {
-    console.log(`[${new Date().toLocaleTimeString()}] ${req.method} ${req.url}`);
+    const start = Date.now();
+    res.on('finish', () => {
+        const duration = Date.now() - start;
+        console.log(`[${new Date().toLocaleTimeString()}] ${req.method} ${req.url} ${res.statusCode} - ${duration}ms`);
+    });
     next();
 });
 

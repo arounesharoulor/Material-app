@@ -11,6 +11,7 @@ exports.getStock = async (req, res) => {
 
 exports.updateStock = async (req, res) => {
     let { materialName, quantity } = req.body;
+    if (!materialName) return res.status(400).json({ msg: 'Material name is required' });
     materialName = materialName.trim();
     try {
         let stock = await Stock.findOne({ materialName: { $regex: new RegExp('^' + materialName + '$', 'i') } });

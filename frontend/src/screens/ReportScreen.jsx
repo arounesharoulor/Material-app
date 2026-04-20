@@ -52,7 +52,7 @@ const DonutChart = ({ stats, size = 220 }) => {
         <View style={styles.chartContainer}>
             <View style={{ width: size + 40, height: size + 40, justifyContent: 'center', alignItems: 'center' }}>
                 <Svg width={size + 40} height={size + 40} viewBox={`0 0 ${size + 40} ${size + 40}`}>
-                    <G rotation="-90" origin={`${(size+40)/2}, ${(size+40)/2}`}>
+                    <G rotation="-90" originX={(size + 40) / 2} originY={(size + 40) / 2}>
                         <Circle
                             cx={(size+40)/2} cy={(size+40)/2} r={radius}
                             stroke="#f8fafc" strokeWidth={strokeWidth}
@@ -441,6 +441,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.05,
     shadowRadius: 10,
+    ...(Platform.OS === 'web' ? { boxShadow: '0 4px 10px rgba(0,0,0,0.05)' } : {}),
   },
   topHighlights: {
     flexDirection: 'row',
@@ -455,6 +456,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#f1f5f9',
     elevation: 2,
+    ...(Platform.OS === 'web' ? { boxShadow: '0 4px 8px rgba(0,0,0,0.03)' } : {}),
   },
   highlightLabel: {
     fontSize: 9,
@@ -589,6 +591,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
+    ...(Platform.OS === 'web' ? { boxShadow: '0 4px 8px rgba(27,38,74,0.3)' } : {}),
   },
   tabText: {
     fontSize: 10,
@@ -610,6 +613,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.05,
     shadowRadius: 10,
+    ...(Platform.OS === 'web' ? { boxShadow: '0 4px 10px rgba(0,0,0,0.05)' } : {}),
   },
   breakdownHeader: {
     flexDirection: 'row',

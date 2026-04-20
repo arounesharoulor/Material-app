@@ -1,19 +1,6 @@
-const nodemailer = require('nodemailer');
+const { sendEmail } = require('../utils/mailer');
 const Otp = require('../models/Otp');
 const crypto = require('crypto');
-
-// Configure NodeMailer transporter
-// Configure NodeMailer transporter with pooling for performance
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    pool: true, // Enable SMTP pooling
-    maxConnections: 5,
-    maxMessages: 100,
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-    }
-});
 
 exports.sendOtp = async (req, res) => {
     const { email } = req.body;
@@ -32,18 +19,9 @@ exports.sendOtp = async (req, res) => {
         await newOtp.save();
 
         // Send Email logic
-        const mailOptions = {
-            from: process.env.EMAIL_USER,
-            to: email,
-            subject: 'Your Verification Code',
-            text: `Your OTP for verification is: ${otp}. This code will expire in 5 minutes.`
-        };
-
         if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-            // Fire-and-forget email sending to prevent blocking the response
-            transporter.sendMail(mailOptions).catch(err => {
-                console.error('CRITICAL: Failed to deliver OTP email to', email, err.message);
-            });
+            // Send OTP via utility
+            sendEmail(email, 'Your Verification Code', `Your OTP for verification is: ${otp}. This code will expire in 5 minutes.`);
             
             // Respond immediately for better UX
             return res.json({ msg: 'Verification code sent to ' + email });

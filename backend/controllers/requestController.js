@@ -1,5 +1,6 @@
 const MaterialRequest = require('../models/MaterialRequest');
 const Stock = require('../models/Stock');
+const { sendEmail } = require('../utils/mailer');
 
 exports.createRequest = async (req, res) => {
     try {
@@ -194,9 +195,27 @@ exports.issuePenalty = async (req, res) => {
         request.penaltyIssuedAt = new Date();
         await request.save();
         
-        // Emit socket event
+        // Emit socket event for real-time updates
         const io = req.app.get('io');
-        io.emit('requestUpdated');
+        if (io) {
+            io.emit('requestUpdated');
+            // Specific event for the employee to trigger a sound/toast
+            io.emit('notification', {
+                userId: request.user,
+                type: 'penalty',
+                title: '⚠️ Penalty Issued',
+                message: `A penalty has been issued for your request ${request.requestId}: ${penalty}`
+            });
+        }
+
+        // Send Email Notification
+        if (request.employeeEmail) {
+            sendEmail(
+                request.employeeEmail, 
+                '⚠️ Important: Penalty Issued', 
+                `Hi ${request.employeeName},\n\nA penalty has been issued for your material request (${request.requestId}).\n\nReason: ${penalty}\n\nPlease check the app for more details.\n\nThank you.`
+            );
+        }
 
         res.json(request);
     } catch (err) {

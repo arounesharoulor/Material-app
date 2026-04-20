@@ -6,6 +6,7 @@ import tw from 'twrnc';
 import Toast from 'react-native-toast-message';
 import * as ImagePicker from 'expo-image-picker';
 import io from 'socket.io-client';
+import { Audio } from 'expo-av';
 import { AuthContext } from '../context/AuthContext';
 import api, { BASE_URL } from '../services/api';
 import Sidebar from '../components/Sidebar';
@@ -52,6 +53,23 @@ const DashboardScreen = ({ navigation, route }) => {
   const [viewerImage, setViewerImage] = useState(null);
   const [viewerTitle, setViewerTitle] = useState('');
 
+  const playNotificationSound = async () => {
+    try {
+        const { sound } = await Audio.Sound.createAsync(
+            { uri: 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3' }
+        );
+        await sound.playAsync();
+        // Clean up sound object after play
+        sound.setOnPlaybackStatusUpdate((status) => {
+            if (status.didJustFinish) {
+                sound.unloadAsync();
+            }
+        });
+    } catch (error) {
+        console.log('Error playing sound:', error);
+    }
+  };
+
   const toggleSidebar = () => {
     const toValue = isSidebarOpen ? -280 : 0;
     Animated.timing(sidebarAnim, {
@@ -88,6 +106,21 @@ const DashboardScreen = ({ navigation, route }) => {
                     visibilityTime: 4000,
                 });
             }
+        }
+    });
+
+    socketRef.current.on('notification', async (data) => {
+        // userId could be id or _id depending on how it's sent
+        const currentUserId = user?._id || user?.id;
+        if (currentUserId && data.userId === currentUserId) {
+            console.log('[SOCKET] Personalized notification received:', data.title);
+            await playNotificationSound();
+            Toast.show({
+                type: data.type === 'penalty' ? 'error' : 'info',
+                text1: data.title,
+                text2: data.message,
+                visibilityTime: 8000,
+            });
         }
     });
 

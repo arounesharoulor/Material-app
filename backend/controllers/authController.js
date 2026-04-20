@@ -100,7 +100,9 @@ exports.updateProfile = async (req, res) => {
         if (name) user.name = name;
         if (employeeId && user.role === 'Employee') user.employeeId = employeeId;
         
-        if (req.file) {
+        if (req.body.removePhoto === 'true') {
+            user.profilePicture = '';
+        } else if (req.file) {
             user.profilePicture = req.file.path.replace(/\\/g, '/');
         }
 

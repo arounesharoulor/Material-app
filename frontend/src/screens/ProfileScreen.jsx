@@ -31,6 +31,7 @@ const ProfileScreen = ({ navigation }) => {
     const [employeeId, setEmployeeId] = useState(user?.employeeId || '');
     const [email, setEmail] = useState(user?.email || '');
     const [profilePhoto, setProfilePhoto] = useState(null);
+    const [removePhotoSelected, setRemovePhotoSelected] = useState(false);
     const [showOtpModal, setShowOtpModal] = useState(false);
     const [otp, setOtp] = useState('');
     const [verifyingOtp, setVerifyingOtp] = useState(false);
@@ -75,7 +76,9 @@ const ProfileScreen = ({ navigation }) => {
             formData.append('name', name);
             if (user?.role === 'Employee') formData.append('employeeId', employeeId);
             formData.append('email', email);
-            if (profilePhoto) {
+            if (removePhotoSelected) {
+                formData.append('removePhoto', 'true');
+            } else if (profilePhoto) {
                 if (Platform.OS === 'web') {
                     if (profilePhoto.file) {
                         formData.append('profilePicture', profilePhoto.file, profilePhoto.name || 'profile.jpg');
@@ -101,6 +104,7 @@ const ProfileScreen = ({ navigation }) => {
             } else {
                 updateUserState(res.data.user);
                 setIsEditing(false);
+                setRemovePhotoSelected(false);
                 Toast.show({ type: 'success', text1: 'Success', text2: 'Profile updated successfully' });
             }
         } catch (err) {
@@ -118,6 +122,7 @@ const ProfileScreen = ({ navigation }) => {
             updateUserState({ ...user, email: pendingEmail });
             setShowOtpModal(false);
             setIsEditing(false);
+            setRemovePhotoSelected(false);
             setOtp('');
             Toast.show({ type: 'success', text1: 'Verified', text2: 'Email updated successfully' });
         } catch (err) {
@@ -128,6 +133,7 @@ const ProfileScreen = ({ navigation }) => {
     };
 
     const getProfileImage = () => {
+        if (removePhotoSelected) return null;
         if (profilePhoto) return { uri: profilePhoto.uri };
         if (user?.profilePicture) return { uri: `${BASE_URL}/${user.profilePicture.replace(/\\/g, '/')}` };
         return null;
@@ -187,7 +193,17 @@ const ProfileScreen = ({ navigation }) => {
                         </View>
                         <View style={{ flexDirection: 'row', gap: 10 }}>
                             {isEditing && (
-                                <TouchableOpacity onPress={() => setIsEditing(false)} style={styles.cancelBtn}>
+                                <TouchableOpacity 
+                                    onPress={() => { 
+                                        setIsEditing(false); 
+                                        setRemovePhotoSelected(false); 
+                                        setProfilePhoto(null); 
+                                        setName(user?.name || ''); 
+                                        setEmail(user?.email || ''); 
+                                        setEmployeeId(user?.employeeId || ''); 
+                                    }} 
+                                    style={styles.cancelBtn}
+                                >
                                     <Text allowFontScaling={false} style={styles.cancelBtnText}>CANCEL</Text>
                                 </TouchableOpacity>
                             )}
@@ -232,12 +248,25 @@ const ProfileScreen = ({ navigation }) => {
                                         </View>
                                     )}
                                 </View>
-                                {isEditing && (
-                                    <View style={styles.editPhotoHint}>
-                                        <Text allowFontScaling={false} style={styles.editPhotoHintText}>CHANGE</Text>
-                                    </View>
+                                    {isEditing && (
+                                        <View style={styles.editPhotoHint}>
+                                            <Text allowFontScaling={false} style={styles.editPhotoHintText}>CHANGE</Text>
+                                        </View>
+                                    )}
+                                </TouchableOpacity>
+
+                                {isEditing && getProfileImage() && (
+                                    <TouchableOpacity 
+                                        style={styles.removePhotoBtn}
+                                        onPress={() => {
+                                            setRemovePhotoSelected(true);
+                                            setProfilePhoto(null);
+                                        }}
+                                    >
+                                        <Ionicons name="trash" size={14} color="#ffffff" />
+                                    </TouchableOpacity>
                                 )}
-                            </TouchableOpacity>
+                            </View>
 
                             {/* Identity block */}
                             <View style={styles.heroIdentity}>
@@ -469,6 +498,19 @@ const styles = StyleSheet.create({
         borderRadius: 6,
     },
     editPhotoHintText: { fontSize: 7, fontWeight: '900', color: '#1b264a' },
+    removePhotoBtn: {
+        position: 'absolute',
+        top: 0,
+        right: -8,
+        backgroundColor: '#e11d48',
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 2,
+        borderColor: '#1b264a',
+    },
     heroIdentity: { flex: 1, minWidth: 160 },
     heroName: {
         fontSize: Platform.OS === 'web' ? 22 : 18,

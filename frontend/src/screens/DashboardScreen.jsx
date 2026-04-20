@@ -65,7 +65,12 @@ const DashboardScreen = ({ navigation, route }) => {
   const setupSocket = useCallback(() => {
     if (socketRef.current) return;
     
-    socketRef.current = io(BASE_URL);
+    // Connect to socket with websocket transport for better stability in Expo/Mobile
+    socketRef.current = io(BASE_URL, {
+        transports: ['websocket'],
+        reconnection: true,
+        reconnectionAttempts: 10,
+    });
     
     socketRef.current.on('connect', () => {
         setIsLive(true);

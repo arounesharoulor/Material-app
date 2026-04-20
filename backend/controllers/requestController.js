@@ -23,7 +23,7 @@ exports.createRequest = async (req, res) => {
         photoUrl = req.file.path.replace(/\\/g, '/');
     }
 
-    const allStock = await Stock.find();
+        const allStock = await Stock.find();
         const stockItem = allStock.find(s => s.materialName.trim().toLowerCase() === materialName.trim().toLowerCase());
         const isInsufficient = stockItem ? Number(quantity) > stockItem.quantity : true;
 
@@ -41,6 +41,13 @@ exports.createRequest = async (req, res) => {
         });
 
         const request = await newRequest.save();
+
+        // DECREASE STOCK IMMEDIATELY ON REQUEST
+        if (stockItem) {
+            stockItem.quantity -= Number(quantity);
+            await stockItem.save();
+            console.log(`[STOCK] Decreased ${materialName} by ${quantity}. New balance: ${stockItem.quantity}`);
+        }
         
         // Emit socket event for real-time updates
         const io = req.app.get('io');
@@ -79,22 +86,12 @@ exports.updateRequestStatus = async (req, res) => {
 
         let lowStockWarning = null;
         if (status === 'Approved') {
+            // Stock was already decreased on request creation. 
+            // We just need to check if we should show a warning now.
             const requestedMaterial = request.materialName.trim().toLowerCase();
-            const allStock = await Stock.find();
-            let stock = allStock.find(s => s.materialName.trim().toLowerCase() === requestedMaterial);
-            
-            if (stock) {
-                if (stock.quantity >= request.quantity) {
-                    stock.quantity -= request.quantity;
-                    await stock.save();
-                    if (stock.quantity < 10) {
-                        lowStockWarning = `Low Stock Alert: "${stock.materialName}" is now at ${stock.quantity} units. Please restock soon.`;
-                    }
-                } else {
-                    return res.status(400).json({ msg: `Insufficient Stock (Available: ${stock.quantity})` });
-                }
-            } else {
-                return res.status(400).json({ msg: `Material "${request.materialName}" not found in inventory.` });
+            const stock = await Stock.findOne({ materialName: { $regex: new RegExp('^' + requestedMaterial + '$', 'i') } });
+            if (stock && stock.quantity < 10) {
+                lowStockWarning = `Low Stock Alert: "${stock.materialName}" is now at ${stock.quantity} units.`;
             }
             
             // Set due date (6 PM today or tomorrow if approved after 6 PM)
@@ -104,12 +101,20 @@ exports.updateRequestStatus = async (req, res) => {
                 deadline.setDate(deadline.getDate() + 1);
             }
             request.dueDate = deadline;
+        } else if (status === 'Rejected') {
+            // RETURN STOCK ON REJECTION
+            const requestedMaterial = request.materialName.trim().toLowerCase();
+            const stock = await Stock.findOne({ materialName: { $regex: new RegExp('^' + requestedMaterial + '$', 'i') } });
+            if (stock) {
+                stock.quantity += request.quantity;
+                await stock.save();
+                console.log(`[STOCK] Restored ${request.materialName} by ${request.quantity} due to rejection.`);
+            }
+            request.rejectionReason = rejectionReason || 'No reason provided';
         }
         
         request.status = status;
-        if (status === 'Rejected') {
-            request.rejectionReason = rejectionReason || 'No reason provided';
-        }
+        
         if (adminComment) {
             request.adminComment = adminComment;
         }

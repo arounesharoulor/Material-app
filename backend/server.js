@@ -17,7 +17,7 @@ const io = new Server(server, {
 
 connectDB();
 const setupCronJobs = require('./utils/cronJobs');
-setupCronJobs();
+setupCronJobs(io);
 
 app.use(cors());
 app.use(express.json({ extended: false }));

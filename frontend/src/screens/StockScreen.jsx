@@ -196,7 +196,7 @@ const StockScreen = ({ navigation }) => {
                   </View>
                   
                   <View style={styles.inputGroup}>
-                      <Text allowFontScaling={false} style={styles.inputLabel}>TOTAL QUANTITY</Text>
+                      <Text allowFontScaling={false} style={styles.inputLabel}>QUANTITY TO ADD</Text>
                       <TextInput 
                           style={styles.inputBold}
                           placeholder="0" 

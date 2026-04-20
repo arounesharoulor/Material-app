@@ -228,13 +228,12 @@ const ProfileScreen = ({ navigation }) => {
 
                     {/* ── Hero Banner ── */}
                     <View style={styles.heroBanner}>
-                        <View style={styles.heroBannerStripe} />
                         <View style={styles.heroContent}>
-                            {/* Avatar */}
-                            <View style={styles.avatarWrapper}>
+                            <View style={styles.avatarSection}>
                                 <TouchableOpacity
                                     onPress={isEditing ? handleImagePick : null}
                                     activeOpacity={isEditing ? 0.7 : 1}
+                                    style={styles.avatarContainer}
                                 >
                                     <View style={styles.avatar}>
                                         {getProfileImage() ? (
@@ -244,46 +243,45 @@ const ProfileScreen = ({ navigation }) => {
                                         )}
                                         {isEditing && (
                                             <View style={styles.avatarOverlay}>
-                                                <Ionicons name="camera" size={22} color="#ffffff" />
+                                                <Ionicons name="camera" size={20} color="#ffffff" />
                                             </View>
                                         )}
                                     </View>
                                     {isEditing && (
-                                        <View style={styles.editPhotoHint}>
-                                            <Text allowFontScaling={false} style={styles.editPhotoHintText}>CHANGE</Text>
+                                        <View style={styles.editBadge}>
+                                            <Text style={styles.editBadgeText}>CHANGE</Text>
                                         </View>
                                     )}
                                 </TouchableOpacity>
 
-                                {isEditing && getProfileImage() && (
+                                {isEditing && (user?.profilePicture || profilePhoto) && !removePhotoSelected && (
                                     <TouchableOpacity 
-                                        style={styles.removePhotoBtn}
+                                        style={styles.deletePhotoBtn}
                                         onPress={() => {
                                             setRemovePhotoSelected(true);
                                             setProfilePhoto(null);
+                                            Toast.show({ type: 'info', text1: 'Photo Removed', text2: 'Save to confirm deletion' });
                                         }}
                                     >
-                                        <Ionicons name="trash" size={14} color="#ffffff" />
+                                        <Ionicons name="trash-outline" size={14} color="#ffffff" />
+                                        <Text style={styles.deletePhotoText}>REMOVE</Text>
                                     </TouchableOpacity>
                                 )}
                             </View>
 
-                            {/* Identity block */}
                             <View style={styles.heroIdentity}>
                                 <Text allowFontScaling={false} style={styles.heroName}>{user?.name}</Text>
-                                <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
+                                <Text allowFontScaling={false} style={styles.heroEmail}>{user?.email}</Text>
+                                <View style={styles.badgeRow}>
                                     <View style={styles.heroBadge}>
-                                        <Ionicons name="shield-checkmark" size={10} color="#4f46e5" style={{ marginRight: 4 }} />
                                         <Text allowFontScaling={false} style={styles.heroBadgeText}>{user?.role?.toUpperCase()}</Text>
                                     </View>
                                     {user?.employeeId && (
-                                        <View style={[styles.heroBadge, { backgroundColor: '#fffbeb', borderColor: '#fde68a' }]}>
-                                            <Ionicons name="id-card" size={10} color="#d97706" style={{ marginRight: 4 }} />
-                                            <Text allowFontScaling={false} style={[styles.heroBadgeText, { color: '#d97706' }]}>{user.employeeId}</Text>
+                                        <View style={[styles.heroBadge, { backgroundColor: '#ffffff', borderColor: '#e2e8f0' }]}>
+                                            <Text allowFontScaling={false} style={[styles.heroBadgeText, { color: '#1b264a' }]}>{user.employeeId}</Text>
                                         </View>
                                     )}
                                 </View>
-                                <Text allowFontScaling={false} style={styles.heroEmail}>{user?.email}</Text>
                             </View>
                         </View>
                     </View>
@@ -452,204 +450,224 @@ const styles = StyleSheet.create({
         borderRadius: 24,
         overflow: 'hidden',
         marginBottom: 24,
-        ...(Platform.OS === 'web' ? { boxShadow: '0 8px 24px rgba(27,38,74,0.2)' } : { elevation: 6 }),
-    },
-    heroBannerStripe: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        height: 4,
-        backgroundColor: '#ffc61c',
+        elevation: 6,
+        shadowColor: '#1b264a',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.15,
+        shadowRadius: 20,
     },
     heroContent: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 20,
-        padding: Platform.OS === 'web' ? 28 : 20,
+        gap: 24,
+        padding: Platform.OS === 'web' ? 32 : 20,
         flexWrap: 'wrap',
     },
-    avatarWrapper: { position: 'relative' },
+    avatarSection: {
+        alignItems: 'center',
+        gap: 12,
+    },
+    avatarContainer: {
+        position: 'relative',
+    },
     avatar: {
-        width: Platform.OS === 'web' ? 96 : 80,
-        height: Platform.OS === 'web' ? 96 : 80,
-        borderRadius: Platform.OS === 'web' ? 48 : 40,
+        width: Platform.OS === 'web' ? 100 : 80,
+        height: Platform.OS === 'web' ? 100 : 80,
+        borderRadius: Platform.OS === 'web' ? 50 : 40,
         backgroundColor: '#ffc61c',
         justifyContent: 'center',
         alignItems: 'center',
-        borderWidth: 3,
-        borderColor: 'rgba(255,255,255,0.2)',
+        borderWidth: 4,
+        borderColor: 'rgba(255,255,255,0.15)',
         overflow: 'hidden',
     },
     avatarImg: { width: '100%', height: '100%' },
-    avatarText: { fontSize: Platform.OS === 'web' ? 36 : 30, fontWeight: '900', color: '#1b264a' },
+    avatarText: { fontSize: Platform.OS === 'web' ? 36 : 28, fontWeight: '900', color: '#1b264a' },
     avatarOverlay: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0,0,0,0.45)',
+        backgroundColor: 'rgba(0,0,0,0.4)',
         justifyContent: 'center',
         alignItems: 'center',
     },
-    editPhotoHint: {
+    editBadge: {
         position: 'absolute',
-        bottom: -8,
+        bottom: -6,
         alignSelf: 'center',
         backgroundColor: '#ffc61c',
-        paddingHorizontal: 6,
-        paddingVertical: 2,
+        paddingHorizontal: 8,
+        paddingVertical: 3,
         borderRadius: 6,
-    },
-    editPhotoHintText: { fontSize: 7, fontWeight: '900', color: '#1b264a' },
-    removePhotoBtn: {
-        position: 'absolute',
-        top: 0,
-        right: -8,
-        backgroundColor: '#e11d48',
-        width: 24,
-        height: 24,
-        borderRadius: 12,
-        justifyContent: 'center',
-        alignItems: 'center',
         borderWidth: 2,
         borderColor: '#1b264a',
     },
-    heroIdentity: { flex: 1, minWidth: 160 },
-    heroName: {
-        fontSize: Platform.OS === 'web' ? 22 : 18,
-        fontWeight: '900',
-        color: '#ffffff',
-    },
-    heroBadge: {
+    editBadgeText: { fontSize: 8, fontWeight: '900', color: '#1b264a' },
+    deletePhotoBtn: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#eef2ff',
-        borderWidth: 1,
-        borderColor: '#c7d2fe',
-        paddingHorizontal: 8,
-        paddingVertical: 3,
+        gap: 4,
+        backgroundColor: 'rgba(239, 68, 68, 0.15)',
+        paddingHorizontal: 10,
+        paddingVertical: 6,
         borderRadius: 8,
+        borderWidth: 1,
+        borderColor: 'rgba(239, 68, 68, 0.3)',
     },
-    heroBadgeText: {
+    deletePhotoText: {
+        color: '#ef4444',
         fontSize: 9,
+        fontWeight: '800',
+    },
+    heroIdentity: { 
+        flex: 1, 
+        minWidth: 200,
+        gap: 6,
+    },
+    heroName: {
+        fontSize: Platform.OS === 'web' ? 26 : 20,
         fontWeight: '900',
-        color: '#4f46e5',
+        color: '#ffffff',
+        letterSpacing: -0.5,
     },
     heroEmail: {
-        fontSize: 12,
+        fontSize: 14,
         color: '#94a3b8',
-        marginTop: 8,
+        marginBottom: 4,
     },
-    // ── Info Grid
-    sectionLabel: {
+    badgeRow: {
+        flexDirection: 'row',
+        gap: 8,
+        marginTop: 4,
+    },
+    heroBadge: {
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        paddingHorizontal: 12,
+        paddingVertical: 4,
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+    },
+    heroBadgeText: {
         fontSize: 10,
         fontWeight: '900',
+        color: '#ffc61c',
+    },
+    // ── Info Grid
+    sectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        marginBottom: 16,
+    },
+    sectionLabel: {
+        fontSize: 11,
+        fontWeight: '900',
         color: '#64748b',
-        letterSpacing: 1.5,
-        marginBottom: 14,
+        letterSpacing: 1.2,
+    },
+    sectionDivider: {
+        flex: 1,
+        height: 1,
+        backgroundColor: '#e2e8f0',
     },
     infoGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         gap: 12,
-        marginBottom: 24,
+        marginBottom: 32,
     },
     infoCard: {
-        width: Platform.OS === 'web' ? 'calc(50% - 6px)' : '48%',
+        width: Platform.OS === 'web' ? 'calc(50% - 6px)' : '100%',
         backgroundColor: '#ffffff',
         borderRadius: 20,
-        padding: Platform.OS === 'web' ? 20 : 14,
+        padding: 20,
         borderWidth: 1,
         borderColor: '#f1f5f9',
-        ...(Platform.OS === 'web' ? { boxShadow: '0 2px 8px rgba(0,0,0,0.04)' } : { elevation: 2 }),
-        minWidth: 140,
-        flex: 1,
+        elevation: 2,
     },
     infoCardIcon: {
-        width: 40,
-        height: 40,
-        borderRadius: 12,
+        width: 36,
+        height: 36,
+        borderRadius: 10,
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 12,
     },
     infoCardLabel: {
-        fontSize: 9,
-        fontWeight: '900',
+        fontSize: 10,
+        fontWeight: '800',
         color: '#94a3b8',
-        letterSpacing: 0.8,
         marginBottom: 4,
     },
     infoCardValue: {
-        fontSize: Platform.OS === 'web' ? 15 : 13,
+        fontSize: 15,
         fontWeight: '700',
-        color: '#1e293b',
+        color: '#0f172a',
     },
     infoCardInput: {
-        fontSize: Platform.OS === 'web' ? 15 : 13,
+        fontSize: 15,
         fontWeight: '700',
         color: '#1b264a',
         borderBottomWidth: 2,
         borderBottomColor: '#ffc61c',
-        paddingVertical: 4,
-        marginTop: 2,
+        paddingVertical: 2,
     },
     // ── Actions
     actionsRow: {
-        flexDirection: 'row',
-        gap: 12,
+        marginTop: 8,
     },
     actionCard: {
-        flex: 1,
         backgroundColor: '#ffffff',
         borderRadius: 20,
-        padding: 20,
+        padding: 16,
+        flexDirection: 'row',
         alignItems: 'center',
-        gap: 10,
+        gap: 12,
         borderWidth: 1,
-        borderColor: '#fecdd3',
-        ...(Platform.OS === 'web' ? { boxShadow: '0 2px 8px rgba(0,0,0,0.04)', maxWidth: 160, cursor: 'pointer' } : { elevation: 2 }),
+        borderColor: '#fee2e2',
+        maxWidth: Platform.OS === 'web' ? 200 : '100%',
     },
     actionCardIcon: {
-        width: 44,
-        height: 44,
-        borderRadius: 14,
+        width: 40,
+        height: 40,
+        borderRadius: 12,
         justifyContent: 'center',
         alignItems: 'center',
     },
     actionCardText: {
-        fontSize: 10,
-        fontWeight: '900',
-        letterSpacing: 0.5,
+        fontSize: 12,
+        fontWeight: '800',
     },
     // ── OTP Modal
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(15,23,42,0.8)',
+        backgroundColor: 'rgba(15,23,42,0.85)',
         justifyContent: 'center',
         alignItems: 'center',
-        padding: 24,
+        padding: 20,
     },
     modalContent: {
         backgroundColor: '#ffffff',
         borderRadius: 32,
-        padding: 30,
+        padding: 32,
         width: '100%',
-        maxWidth: 400,
+        maxWidth: 380,
         alignItems: 'center',
+        ...(Platform.OS === 'web' ? { boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' } : {}),
     },
-    modalTitle: { fontSize: 22, fontWeight: 'bold', color: '#0f172a', marginBottom: 8 },
-    modalSubtitle: { fontSize: 13, color: '#64748b', textAlign: 'center', marginBottom: 24 },
+    modalTitle: { fontSize: 24, fontWeight: 'bold', color: '#0f172a', marginBottom: 8 },
+    modalSubtitle: { fontSize: 13, color: '#64748b', textAlign: 'center', marginBottom: 24, lineHeight: 20 },
     otpInput: {
         backgroundColor: '#f8fafc',
-        borderWidth: 1,
+        borderWidth: 2,
         borderColor: '#e2e8f0',
         borderRadius: 16,
         padding: 16,
-        fontSize: 24,
+        fontSize: 28,
         fontWeight: 'bold',
         color: '#1b264a',
         textAlign: 'center',
         width: '100%',
-        letterSpacing: 8,
+        letterSpacing: 10,
         marginBottom: 24,
     },
     verifyButton: {
@@ -660,8 +678,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: 16,
     },
-    verifyButtonText: { color: '#ffffff', fontSize: 14, fontWeight: '800' },
-    modalCancelText: { color: '#ef4444', fontWeight: '800', fontSize: 12 },
+    verifyButtonText: { color: '#ffffff', fontSize: 15, fontWeight: '800' },
+    modalCancelText: { color: '#ef4444', fontWeight: '800', fontSize: 13 },
 });
 
 export default ProfileScreen;

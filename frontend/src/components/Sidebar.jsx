@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, Animated, Platform, StyleShee
 import { Ionicons } from '@expo/vector-icons';
 import api, { BASE_URL } from '../services/api';
 import io from 'socket.io-client';
+import Toast from 'react-native-toast-message';
 
 const SidebarItem = ({ label, iconName, targetScreen, isActive, badgeCount = 0, navigation, toggleSidebar, user }) => {
     const [isHovered, setIsHovered] = useState(false);
@@ -131,6 +132,17 @@ const Sidebar = ({
         
         socketRef.current = io(BASE_URL);
         socketRef.current.on('requestUpdated', fetchCounts);
+        
+        socketRef.current.on('returnReminder', (data) => {
+            if (user?.employeeId === data.employeeId) {
+                Toast.show({
+                    type: 'info',
+                    text1: '🔔 Return Reminder',
+                    text2: data.message,
+                    visibilityTime: 6000,
+                });
+            }
+        });
 
         return () => {
             if (socketRef.current) {

@@ -183,10 +183,8 @@ const CreateRequestScreen = ({ navigation }) => {
                 });
 
                 const res = await api.post('/requests', formData, {
-                    headers: {
-                        'Content-Type': 'multipart/form-data',
-                    },
-                    timeout: 60000, // Increased to 60 seconds for larger photos
+                    headers: Platform.OS === 'web' ? {} : { 'Content-Type': 'multipart/form-data' },
+                    timeout: 60000, 
                 });
                 
                 console.log('[UPLOAD] Success Response:', res.status, res.data);

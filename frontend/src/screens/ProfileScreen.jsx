@@ -231,23 +231,23 @@ const ProfileScreen = ({ navigation }) => {
                         <View style={styles.heroBannerStripe} />
                         <View style={styles.heroContent}>
                             {/* Avatar */}
-                            <TouchableOpacity
-                                onPress={isEditing ? handleImagePick : null}
-                                activeOpacity={isEditing ? 0.7 : 1}
-                                style={styles.avatarWrapper}
-                            >
-                                <View style={styles.avatar}>
-                                    {getProfileImage() ? (
-                                        <Image source={getProfileImage()} style={styles.avatarImg} />
-                                    ) : (
-                                        <Text allowFontScaling={false} style={styles.avatarText}>{initials}</Text>
-                                    )}
-                                    {isEditing && (
-                                        <View style={styles.avatarOverlay}>
-                                            <Ionicons name="camera" size={22} color="#ffffff" />
-                                        </View>
-                                    )}
-                                </View>
+                            <View style={styles.avatarWrapper}>
+                                <TouchableOpacity
+                                    onPress={isEditing ? handleImagePick : null}
+                                    activeOpacity={isEditing ? 0.7 : 1}
+                                >
+                                    <View style={styles.avatar}>
+                                        {getProfileImage() ? (
+                                            <Image source={getProfileImage()} style={styles.avatarImg} />
+                                        ) : (
+                                            <Text allowFontScaling={false} style={styles.avatarText}>{initials}</Text>
+                                        )}
+                                        {isEditing && (
+                                            <View style={styles.avatarOverlay}>
+                                                <Ionicons name="camera" size={22} color="#ffffff" />
+                                            </View>
+                                        )}
+                                    </View>
                                     {isEditing && (
                                         <View style={styles.editPhotoHint}>
                                             <Text allowFontScaling={false} style={styles.editPhotoHintText}>CHANGE</Text>
@@ -370,6 +370,7 @@ const ProfileScreen = ({ navigation }) => {
                 </View>
             </Modal>
         </View>
+                        
     );
 };
 

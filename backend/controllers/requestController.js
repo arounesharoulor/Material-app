@@ -34,9 +34,12 @@ exports.createRequest = async (req, res) => {
 
         const request = await newRequest.save();
         
-        // Emit socket event
+        // Emit socket event for real-time updates
         const io = req.app.get('io');
-        io.emit('requestUpdated');
+        if (io) {
+            io.emit('requestUpdated');
+            console.log(`[SOCKET] Broadcast: requestUpdated for new request ${request.requestId}`);
+        }
 
         res.json({ request, insufficientStock: isInsufficient });
     } catch (err) {

@@ -148,14 +148,14 @@ const DashboardScreen = ({ navigation, route }) => {
       const activeToday = activeRequests.filter(r => new Date(r.date) >= startOfToday);
       
       if (user?.role === 'Employee' && user?.employeeId) {
-          // Employees see ALL their active requests from TODAY on the dashboard
+          // Employees see their active requests from TODAY on the dashboard
           // Older active requests are in the "History" sections
           const empActive = activeToday.filter(r => r.employeeId === user.employeeId).sort((a,b) => new Date(b.date) - new Date(a.date));
           setRequests(empActive);
       } else {
-          // Admins see ALL active items from TODAY
-          // Older items are segregated in Request History
-          setRequests(activeToday.sort((a,b) => new Date(b.date) - new Date(a.date)));
+          // Admins see ALL active items that need attention, regardless of date
+          // This ensures no new requests are missed due to date filtering
+          setRequests(activeRequests.sort((a,b) => new Date(b.date) - new Date(a.date)));
       }
     } catch (err) {
       console.log('Error fetching requests');

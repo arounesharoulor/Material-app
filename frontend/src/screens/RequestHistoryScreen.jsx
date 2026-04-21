@@ -169,7 +169,24 @@ const RequestHistoryScreen = ({ navigation }) => {
             )}
 
             <View style={styles.cardFooter}>
-                <Text allowFontScaling={false} style={styles.footerDate}>Completed on: {new Date(item.outTime || item.date).toLocaleDateString()}</Text>
+                <View>
+                    <Text allowFontScaling={false} style={styles.footerTime}>{new Date(item.inTime).toLocaleTimeString()}</Text>
+                    <Text allowFontScaling={false} style={styles.footerDate}>{new Date(item.inTime).toLocaleDateString()}</Text>
+                </View>
+                <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                    {item.pickupTime && (
+                        <View style={{ alignItems: 'flex-end' }}>
+                            <Text style={styles.footerLabel}>PICKUP TIME</Text>
+                            <Text style={styles.footerValue}>{new Date(item.pickupTime).toLocaleTimeString()}</Text>
+                        </View>
+                    )}
+                    {item.returnTime && (
+                        <View style={{ alignItems: 'flex-end' }}>
+                            <Text style={styles.footerLabel}>RETURN TIME</Text>
+                            <Text style={styles.footerValue}>{new Date(item.returnTime).toLocaleTimeString()}</Text>
+                        </View>
+                    )}
+                </View>
             </View>
         </View>
     );
@@ -290,8 +307,11 @@ const styles = StyleSheet.create({
   penaltyBox: { backgroundColor: '#fff1f2', padding: 16, marginHorizontal: 20, borderRadius: 16, marginBottom: 16 },
   penaltyLabel: { fontSize: 9, fontWeight: '800', color: '#e11d48' },
   penaltyText: { fontSize: 12, color: '#9f1239' },
-  cardFooter: { paddingHorizontal: 24, paddingBottom: 20 },
+  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 24, paddingBottom: 20, alignItems: 'center' },
+  footerTime: { fontSize: 10, fontWeight: '700', color: '#1e293b' },
   footerDate: { fontSize: 9, fontWeight: '700', color: '#94a3b8' },
+  footerLabel: { fontSize: 8, fontWeight: '800', color: '#94a3b8', letterSpacing: 0.5 },
+  footerValue: { fontSize: 13, fontWeight: '800', color: '#059669', marginTop: 2 },
   emptyBox: { padding: 60, alignItems: 'center', borderStyle: 'dashed', borderWidth: 1, borderColor: '#e2e8f0' },
   emptyText: { color: '#94a3b8', fontSize: 14, fontWeight: '600' },
   viewerOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center', zIndex: 2000 },

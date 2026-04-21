@@ -1,4 +1,4 @@
-import React, { useContext, useState, useRef, useCallback } from 'react';
+import React, { useContext, useState, useRef, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, Platform, ScrollView, TouchableOpacity, Animated, Image, TextInput, ActivityIndicator, Modal, BackHandler } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';

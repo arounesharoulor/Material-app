@@ -144,6 +144,21 @@ const AcceptedHistoryScreen = ({ navigation }) => {
 
             <View style={styles.cardFooter}>
                 <Text allowFontScaling={false} style={styles.footerDate}>Handled on: {new Date(item.outTime || item.date).toLocaleDateString()}</Text>
+                <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={styles.footerLabel}>TOTAL TIME</Text>
+                    <Text style={styles.footerValue}>
+                        {(() => {
+                            let start = item.approvedAt ? new Date(item.approvedAt) : null;
+                            if (!start) start = new Date(item.inTime || item.date);
+                            
+                            const end = new Date(item.outTime || Date.now());
+                            const diffMs = Math.abs(end - start);
+                            const diffHrs = Math.floor(diffMs / 3600000);
+                            const diffMins = Math.floor((diffMs % 3600000) / 60000);
+                            return `${diffHrs}h ${diffMins}m`;
+                        })()}
+                    </Text>
+                </View>
             </View>
         </View>
     );
@@ -237,8 +252,10 @@ const styles = StyleSheet.create({
   photoBox: { alignItems: 'center' },
   photoLabel: { fontSize: 8, fontWeight: '800', color: '#94a3b8', marginBottom: 4 },
   cardImage: { width: 60, height: 60, borderRadius: 10, backgroundColor: '#f1f5f9' },
-  cardFooter: { paddingHorizontal: 24, paddingBottom: 20 },
+  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 24, paddingBottom: 20, alignItems: 'center' },
   footerDate: { fontSize: 9, fontWeight: '700', color: '#94a3b8' },
+  footerLabel: { fontSize: 8, fontWeight: '800', color: '#94a3b8', letterSpacing: 0.5 },
+  footerValue: { fontSize: 13, fontWeight: '800', color: '#059669', marginTop: 2 },
   emptyBox: { padding: 60, alignItems: 'center', borderStyle: 'dashed', borderWidth: 1, borderColor: '#e2e8f0' },
   emptyText: { color: '#94a3b8', fontSize: 14, fontWeight: '600' },
   viewerOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center', zIndex: 2000 },

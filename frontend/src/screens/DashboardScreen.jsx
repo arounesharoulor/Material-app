@@ -611,7 +611,15 @@ const DashboardScreen = ({ navigation, route }) => {
                     </Text>
                     <Text allowFontScaling={false} style={styles.durationValue}>
                         {(() => {
-                            const start = new Date(item.inTime);
+                            // Use approvedAt, or fallback to inTime if already approved/picked up
+                            let start = item.approvedAt ? new Date(item.approvedAt) : null;
+                            
+                            if (!start && ['Approved', 'PendingReturn', 'Closed'].includes(item.status)) {
+                                start = new Date(item.inTime);
+                            }
+
+                            if (!start) return 'Not Started';
+                            
                             const end = item.outTime ? new Date(item.outTime) : new Date();
                             const diffMs = Math.abs(end - start);
                             const diffHrs = Math.floor(diffMs / 3600000);

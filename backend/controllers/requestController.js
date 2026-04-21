@@ -101,6 +101,7 @@ exports.updateRequestStatus = async (req, res) => {
                 deadline.setDate(deadline.getDate() + 1);
             }
             request.dueDate = deadline;
+            request.approvedAt = new Date();
         } else if (status === 'Rejected') {
             // RETURN STOCK ON REJECTION
             const requestedMaterial = request.materialName.trim().toLowerCase();

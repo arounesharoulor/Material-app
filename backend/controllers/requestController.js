@@ -52,7 +52,7 @@ exports.createRequest = async (req, res) => {
         // Emit socket event for real-time updates
         const io = req.app.get('io');
         if (io) {
-            io.emit('requestUpdated');
+            io.emit('requestUpdated', { type: 'CREATE', request });
             console.log(`[SOCKET] Broadcast: requestUpdated for new request ${request.requestId}`);
         }
 
@@ -123,7 +123,7 @@ exports.updateRequestStatus = async (req, res) => {
         
         // Emit socket event
         const io = req.app.get('io');
-        io.emit('requestUpdated');
+        io.emit('requestUpdated', { type: 'UPDATE', request });
 
         res.json({ request, lowStockWarning });
     } catch (err) {
@@ -148,7 +148,7 @@ exports.submitPickupPhoto = async (req, res) => {
 
             // Emit socket event
             const io = req.app.get('io');
-            io.emit('requestUpdated');
+            io.emit('requestUpdated', { type: 'PICKUP', request });
 
             res.json(request);
         } else {
@@ -177,7 +177,7 @@ exports.submitReturnPhoto = async (req, res) => {
 
             // Emit socket event
             const io = req.app.get('io');
-            io.emit('requestUpdated');
+            io.emit('requestUpdated', { type: 'RETURN', request });
 
             res.json(request);
         } else {
@@ -203,7 +203,7 @@ exports.issuePenalty = async (req, res) => {
         // Emit socket event for real-time updates
         const io = req.app.get('io');
         if (io) {
-            io.emit('requestUpdated');
+            io.emit('requestUpdated', { type: 'PENALTY', request });
             // Specific event for the employee to trigger a sound/toast
             io.emit('notification', {
                 userId: request.user,

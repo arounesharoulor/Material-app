@@ -87,25 +87,51 @@ const DashboardScreen = ({ navigation, route }) => {
         setIsLive(true);
     });
     
-    socketRef.current.on('requestUpdated', () => {
-        console.log('[SOCKET] requestUpdated event received');
+    socketRef.current.on('requestUpdated', (data) => {
+        console.log('[SOCKET] requestUpdated event received:', data?.type);
+        
+        // Instant state update if data is provided
+        if (data && data.request) {
+            setAllRequests(prev => {
+                const index = prev.findIndex(r => r._id === data.request._id);
+                if (index !== -1) {
+                    // Update existing
+                    const updated = [...prev];
+                    updated[index] = data.request;
+                    return updated;
+                } else {
+                    // Prepend new request
+                    return [data.request, ...prev];
+                }
+            });
+        }
+
+        // Still do a background refresh to ensure full sync (badges, filters, etc)
+        fetchRequests(true);
+
         if (isFocusedRef.current) {
-            fetchRequests(true);
-            if (user?.role === 'Employee') {
+            if (user?.role === 'Employee' && data?.type === 'UPDATE') {
                 Toast.show({
                     type: 'success',
                     text1: '🔔 Dashboard Updated',
                     text2: 'One of your requests has been updated by the admin.',
                     visibilityTime: 4000,
                 });
+            } else if (user?.role === 'Admin' && data?.type === 'CREATE') {
+                playNotificationSound();
+                Toast.show({
+                    type: 'info',
+                    text1: '📦 New Request',
+                    text2: `New material request from ${data.request?.employeeName}`,
+                    visibilityTime: 6000,
+                });
             }
         }
     });
 
     socketRef.current.on('notification', async (data) => {
-        // userId could be id or _id depending on how it's sent
         const currentUserId = user?._id || user?.id;
-        if (currentUserId && data.userId === currentUserId) {
+        if (currentUserId && (data.userId === currentUserId || data.employeeId === user?.employeeId)) {
             console.log('[SOCKET] Personalized notification received:', data.title);
             await playNotificationSound();
             Toast.show({
@@ -121,6 +147,25 @@ const DashboardScreen = ({ navigation, route }) => {
         setIsLive(false);
     });
   }, [user]);
+
+  // Sync the filtered "requests" state whenever "allRequests" changes (Instant Update)
+  useEffect(() => {
+    if (allRequests.length > 0 || !isLoading) {
+      // Define active items (not Closed, Rejected, or Penalized)
+      const activeRequests = allRequests.filter(r => !['Closed', 'Rejected', 'Penalized'].includes(r.status));
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+
+      const activeToday = activeRequests.filter(r => new Date(r.date) >= startOfToday);
+      
+      if (user?.role === 'Employee' && user?.employeeId) {
+          const empToday = activeToday.filter(r => r.employeeId === user.employeeId).sort((a,b) => new Date(b.date) - new Date(a.date));
+          setRequests(empToday);
+      } else {
+          setRequests(activeToday.sort((a,b) => new Date(b.date) - new Date(a.date)));
+      }
+    }
+  }, [allRequests, user]);
 
   useFocusEffect(
     useCallback(() => {

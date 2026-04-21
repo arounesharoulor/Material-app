@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NativeModules } from 'react-native';
 
 // 1. SET YOUR CLOUD URL HERE after deploying the backend (e.g., https://material-app-backend.onrender.com)
-const CLOUD_URL = ""; 
+const CLOUD_URL = "https://material-app-zhm4.onrender.com"; 
 
 const getBaseUrl = () => {
   // Use Cloud URL if provided

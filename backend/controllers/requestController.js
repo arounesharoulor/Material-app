@@ -211,6 +211,21 @@ exports.issuePenalty = async (req, res) => {
                 title: '⚠️ Penalty Issued',
                 message: `A penalty has been issued for your request ${request.requestId}: ${penalty}`
             });
+
+            // CHECK TOTAL PENALTY SCORE
+            const totalPenalties = await MaterialRequest.countDocuments({
+                employeeId: request.employeeId,
+                $or: [{ status: 'Penalized' }, { penalty: { $exists: true, $ne: '' } }]
+            });
+
+            if (totalPenalties >= 10) {
+                io.emit('notification', {
+                    role: 'Admin', // General broadcast to admins
+                    type: 'warning',
+                    title: '🚨 CRITICAL PENALTY SCORE',
+                    message: `Employee ${request.employeeName} (${request.employeeId}) has reached ${totalPenalties} penalties!`
+                });
+            }
         }
 
         // Send Email Notification

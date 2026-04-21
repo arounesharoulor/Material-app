@@ -358,32 +358,22 @@ const ProfileScreen = ({ navigation }) => {
                         />
                     </View>
 
-                    {/* ── Penalty History Section ── */}
+                    {/* ── Penalty Score Section ── */}
                     {user?.role === 'Employee' && (
-                        <>
-                            <Text allowFontScaling={false} style={[styles.sectionLabel, { marginTop: 8 }]}>PENALTY HISTORY</Text>
-                            <View style={styles.penaltyList}>
-                                {fetchingPenalties ? (
-                                    <View style={styles.penaltyLoading}>
-                                        <ActivityIndicator size="small" color="#e11d48" />
-                                    </View>
-                                ) : penalties.length === 0 ? (
-                                    <View style={styles.penaltyEmpty}>
-                                        <Text style={styles.penaltyEmptyText}>Clean Record: No penalties received</Text>
-                                    </View>
-                                ) : (
-                                    penalties.map((p) => (
-                                        <View key={p.id} style={styles.penaltyItem}>
-                                            <View style={styles.penaltyHeader}>
-                                                <Text style={styles.penaltyMaterial}>{p.material}</Text>
-                                                <Text style={styles.penaltyDate}>{new Date(p.date).toLocaleDateString()}</Text>
-                                            </View>
-                                            <Text style={styles.penaltyReason}>{p.reason}</Text>
-                                        </View>
-                                    ))
-                                )}
+                        <View style={styles.penaltyScoreCard}>
+                            <View style={styles.scoreHeader}>
+                                <Ionicons name="alert-circle" size={20} color="#e11d48" />
+                                <Text style={styles.scoreLabel}>TOTAL PENALTY SCORE</Text>
                             </View>
-                        </>
+                            <View style={styles.scoreContent}>
+                                <Text style={[styles.scoreValue, penalties.length >= 10 ? { color: '#e11d48' } : { color: '#1b264a' }]}>
+                                    {fetchingPenalties ? '--' : penalties.length}
+                                </Text>
+                                <Text style={styles.scoreSubtext}>
+                                    {penalties.length >= 10 ? '🚨 THRESHOLD EXCEEDED - ADMIN NOTIFIED' : 'Keep score below 10 to avoid admin alert'}
+                                </Text>
+                            </View>
+                        </View>
                     )}
 
                     {/* ── Actions Row ── */}
@@ -671,15 +661,12 @@ const styles = StyleSheet.create({
         borderBottomColor: '#ffc61c',
         paddingVertical: 2,
     },
-    penaltyList: { gap: 12, marginBottom: 24 },
-    penaltyLoading: { padding: 40, alignItems: 'center' },
-    penaltyEmpty: { backgroundColor: '#ffffff', borderRadius: 20, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: '#e2e8f0', borderStyle: 'dashed' },
-    penaltyEmptyText: { color: '#94a3b8', fontSize: 13, fontWeight: '700' },
-    penaltyItem: { backgroundColor: '#ffffff', borderRadius: 20, padding: 16, borderWidth: 1, borderColor: '#fecdd3', borderLeftWidth: 6, borderLeftColor: '#e11d48' },
-    penaltyHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-    penaltyMaterial: { fontSize: 13, fontWeight: '800', color: '#1e293b' },
-    penaltyDate: { fontSize: 9, fontWeight: '700', color: '#94a3b8' },
-    penaltyReason: { fontSize: 12, color: '#e11d48', fontWeight: '600' },
+    penaltyScoreCard: { backgroundColor: '#ffffff', borderRadius: 24, padding: 24, borderWidth: 1, borderColor: '#f1f5f9', elevation: 4, shadowColor: '#e11d48', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, marginBottom: 24 },
+    scoreHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
+    scoreLabel: { fontSize: 10, fontWeight: '900', color: '#64748b', letterSpacing: 1 },
+    scoreContent: { alignItems: 'center' },
+    scoreValue: { fontSize: 48, fontWeight: '900', marginBottom: 6 },
+    scoreSubtext: { fontSize: 10, fontWeight: '800', color: '#94a3b8', textAlign: 'center' },
     // ── Actions
     actionsRow: {
         marginTop: 8,

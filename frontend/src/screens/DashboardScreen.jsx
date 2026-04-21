@@ -611,20 +611,20 @@ const DashboardScreen = ({ navigation, route }) => {
 
             <View style={styles.cardFooter}>
                 <View>
-                    <Text allowFontScaling={false} style={styles.footerTime}>{new Date(item.inTime).toLocaleTimeString()}</Text>
+                    <Text allowFontScaling={false} style={styles.footerTime}>{new Date(item.inTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}</Text>
                     <Text allowFontScaling={false} style={styles.footerDate}>{new Date(item.inTime).toLocaleDateString()}</Text>
                 </View>
                 <View style={{ alignItems: 'flex-end', gap: 4 }}>
                     {item.pickupTime && (
                         <View style={{ alignItems: 'flex-end' }}>
                             <Text style={styles.durationLabel}>PICKUP TIME</Text>
-                            <Text style={styles.durationValue}>{new Date(item.pickupTime).toLocaleTimeString()}</Text>
+                            <Text style={styles.durationValue}>{new Date(item.pickupTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}</Text>
                         </View>
                     )}
                     {item.returnTime && (
                         <View style={{ alignItems: 'flex-end' }}>
                             <Text style={styles.durationLabel}>RETURN TIME</Text>
-                            <Text style={styles.durationValue}>{new Date(item.returnTime).toLocaleTimeString()}</Text>
+                            <Text style={styles.durationValue}>{new Date(item.returnTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}</Text>
                         </View>
                     )}
                     {item.status === 'Approved' && !item.pickupTime && (

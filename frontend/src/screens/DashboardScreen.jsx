@@ -44,6 +44,7 @@ const DashboardScreen = ({ navigation, route }) => {
   const [selectedPreset, setSelectedPreset] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLive, setIsLive] = useState(false);
+  const [allRequests, setAllRequests] = useState([]);
   const sidebarAnim = useRef(new Animated.Value(-280)).current;
   const socketRef = useRef(null);
   const isFocusedRef = useRef(true);
@@ -206,7 +207,7 @@ const DashboardScreen = ({ navigation, route }) => {
     };
   }, []);
 
-  const [allRequests, setAllRequests] = useState([]);
+
 
   const fetchRequests = async (silent = false) => {
     try {

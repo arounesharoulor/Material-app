@@ -125,19 +125,19 @@ const AcceptedHistoryScreen = ({ navigation }) => {
                 {item.photoUrl && (
                     <TouchableOpacity style={styles.photoBox} onPress={() => openViewer(item.photoUrl, 'Reference Photo')}>
                         <Text style={styles.photoLabel}>Ref</Text>
-                        <Image source={{ uri: getFullImageUrl(item.photoUrl) }} style={styles.cardImage} />
+                        <Image source={{ uri: getFullImageUrl(item.photoUrl) }} style={styles.cardImage} resizeMode="contain" />
                     </TouchableOpacity>
                 )}
                 {item.pickupPhotoUrl && (
                     <TouchableOpacity style={styles.photoBox} onPress={() => openViewer(item.pickupPhotoUrl, 'Pickup Proof')}>
                         <Text style={styles.photoLabel}>Pickup</Text>
-                        <Image source={{ uri: getFullImageUrl(item.pickupPhotoUrl) }} style={styles.cardImage} />
+                        <Image source={{ uri: getFullImageUrl(item.pickupPhotoUrl) }} style={styles.cardImage} resizeMode="contain" />
                     </TouchableOpacity>
                 )}
                 {item.returnPhotoUrl && (
                     <TouchableOpacity style={styles.photoBox} onPress={() => openViewer(item.returnPhotoUrl, 'Return Proof')}>
                         <Text style={styles.photoLabel}>Return</Text>
-                        <Image source={{ uri: getFullImageUrl(item.returnPhotoUrl) }} style={styles.cardImage} />
+                        <Image source={{ uri: getFullImageUrl(item.returnPhotoUrl) }} style={styles.cardImage} resizeMode="contain" />
                     </TouchableOpacity>
                 )}
             </ScrollView>

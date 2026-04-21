@@ -563,19 +563,19 @@ const DashboardScreen = ({ navigation, route }) => {
                 {item.photoUrl ? (
                     <TouchableOpacity style={styles.photoBox} onPress={() => openViewer(item.photoUrl, 'Reference Photo')}>
                         <Text style={styles.photoLabel}>Ref Photo</Text>
-                        <Image source={{ uri: getFullImageUrl(item.photoUrl) }} style={styles.cardImage} />
+                        <Image source={{ uri: getFullImageUrl(item.photoUrl) }} style={styles.cardImage} resizeMode="contain" />
                     </TouchableOpacity>
                 ) : null}
                 {item.pickupPhotoUrl ? (
                     <TouchableOpacity style={styles.photoBox} onPress={() => openViewer(item.pickupPhotoUrl, 'Pickup Proof')}>
                         <Text style={styles.photoLabel}>Pickup Proof</Text>
-                        <Image source={{ uri: getFullImageUrl(item.pickupPhotoUrl) }} style={styles.cardImage} />
+                        <Image source={{ uri: getFullImageUrl(item.pickupPhotoUrl) }} style={styles.cardImage} resizeMode="contain" />
                     </TouchableOpacity>
                 ) : null}
                 {item.returnPhotoUrl ? (
                     <TouchableOpacity style={styles.photoBox} onPress={() => openViewer(item.returnPhotoUrl, 'Return Proof')}>
                         <Text style={styles.photoLabel}>Return Proof</Text>
-                        <Image source={{ uri: getFullImageUrl(item.returnPhotoUrl) }} style={styles.cardImage} />
+                        <Image source={{ uri: getFullImageUrl(item.returnPhotoUrl) }} style={styles.cardImage} resizeMode="contain" />
                     </TouchableOpacity>
                 ) : null}
             </ScrollView>
@@ -1183,9 +1183,9 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   cardImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 10,
+    width: 75,
+    height: 75,
+    borderRadius: 12,
     backgroundColor: '#f1f5f9',
     borderWidth: 1,
     borderColor: '#e2e8f0',
@@ -1287,11 +1287,11 @@ const styles = StyleSheet.create({
   modalCancelText: { color: '#475569', fontSize: 13, fontWeight: '800' },
   modalSubmit: { flex: 2, height: 56, borderRadius: 18, justifyContent: 'center', alignItems: 'center', elevation: 8 },
   modalSubmitText: { color: '#ffffff', fontSize: 13, fontWeight: '800' },
-  viewerOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center', zIndex: 2000 },
-  viewerClose: { position: 'absolute', top: 50, right: 30, backgroundColor: 'rgba(255,255,255,0.1)', width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
-  viewerCloseText: { color: '#ffffff', fontSize: 20, fontWeight: 'bold' },
-  viewerTitle: { position: 'absolute', top: 60, color: '#ffffff', fontSize: 14, fontWeight: '800', letterSpacing: 1 },
-  viewerImage: { width: Dimensions.get('window').width * 0.9, height: Dimensions.get('window').height * 0.7 },
+  viewerOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.98)', justifyContent: 'center', alignItems: 'center', zIndex: 3000 },
+  viewerClose: { position: 'absolute', top: Platform.OS === 'web' ? 20 : 50, right: 20, backgroundColor: 'rgba(255,255,255,0.2)', width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center', zIndex: 3001 },
+  viewerCloseText: { color: '#ffffff', fontSize: 24, fontWeight: 'bold' },
+  viewerTitle: { position: 'absolute', top: Platform.OS === 'web' ? 30 : 60, color: '#ffffff', fontSize: 16, fontWeight: '800', width: '100%', textAlign: 'center' },
+  viewerImage: { width: Dimensions.get('window').width, height: Dimensions.get('window').height * 0.9 },
   uploadOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(27,38,74,0.85)', justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
   uploadOverlayText: { color: '#ffffff', marginTop: 12, fontWeight: '800', letterSpacing: 1 },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8fafc' },

@@ -44,6 +44,15 @@ const DashboardScreen = ({ navigation, route }) => {
   const [selectedPreset, setSelectedPreset] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLive, setIsLive] = useState(false);
+  const [ticker, setTicker] = useState(0);
+
+  // Heartbeat for live clock
+  useEffect(() => {
+    const interval = setInterval(() => {
+        setTicker(prev => prev + 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
   const [allRequests, setAllRequests] = useState([]);
   const sidebarAnim = useRef(new Animated.Value(-280)).current;
   const socketRef = useRef(null);
@@ -624,7 +633,8 @@ const DashboardScreen = ({ navigation, route }) => {
                             const diffMs = Math.abs(end - start);
                             const diffHrs = Math.floor(diffMs / 3600000);
                             const diffMins = Math.floor((diffMs % 3600000) / 60000);
-                            return `${diffHrs}h ${diffMins}m`;
+                            const diffSecs = Math.floor((diffMs % 60000) / 1000);
+                            return `${diffHrs}h ${diffMins}m ${diffSecs}s`;
                         })()}
                     </Text>
                 </View>

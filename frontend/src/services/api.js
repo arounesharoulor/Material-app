@@ -2,14 +2,24 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NativeModules } from 'react-native';
 
+// 1. SET YOUR CLOUD URL HERE after deploying the backend (e.g., https://material-app-backend.onrender.com)
+const CLOUD_URL = ""; 
+
 const getBaseUrl = () => {
+  // Use Cloud URL if provided
+  if (CLOUD_URL) return CLOUD_URL;
+
   if (typeof window !== 'undefined' && window.location && window.location.hostname) {
     const hostname = window.location.hostname;
-    return `http://${hostname}:5000`;
+    if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+        // If the web app is hosted on Vercel/Netlify, it should use the cloud URL
+        return CLOUD_URL || `http://${hostname}:5000`;
+    }
+    return `http://localhost:5000`;
   }
   
   // On Mobile: Extract the IP address from the scriptURL (the IP of the dev machine)
-  let machineIp = '192.168.0.109'; // Fallback to current computer's LAN IP
+  let machineIp = '192.168.0.109'; 
   
   try {
     const scriptURL = NativeModules?.SourceCode?.scriptURL;
@@ -17,19 +27,15 @@ const getBaseUrl = () => {
       const match = scriptURL.match(/http:\/\/([\d\.]+):/);
       if (match && match[1]) {
         const detectedIp = match[1];
-        // If detected IP is local, use our known LAN IP as better fallback
-        if (detectedIp === 'localhost' || detectedIp === '127.0.0.1') {
-           machineIp = '192.168.0.109';
-        } else {
+        if (detectedIp !== 'localhost' && detectedIp !== '127.0.0.1') {
            machineIp = detectedIp;
         }
       }
     }
   } catch (e) {
-    console.log('[API] IP detection failed, using fallback');
+    console.log('[API] IP detection failed');
   }
 
-  console.log(`[API] Mobile detected, using BASE_URL: http://${machineIp}:5000`);
   return `http://${machineIp}:5000`;
 };
 

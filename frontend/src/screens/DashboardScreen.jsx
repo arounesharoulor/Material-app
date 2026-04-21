@@ -614,29 +614,25 @@ const DashboardScreen = ({ navigation, route }) => {
                     <Text allowFontScaling={false} style={styles.footerTime}>{new Date(item.inTime).toLocaleTimeString()}</Text>
                     <Text allowFontScaling={false} style={styles.footerDate}>{new Date(item.inTime).toLocaleDateString()}</Text>
                 </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                    <Text allowFontScaling={false} style={styles.durationLabel}>
-                        {item.status === 'Closed' ? 'TOTAL COMPLETION' : 'TIME ELAPSED'}
-                    </Text>
-                    <Text allowFontScaling={false} style={styles.durationValue}>
-                        {(() => {
-                            // Use approvedAt, or fallback to inTime if already approved/picked up
-                            let start = item.approvedAt ? new Date(item.approvedAt) : null;
-                            
-                            if (!start && ['Approved', 'PendingReturn', 'Closed'].includes(item.status)) {
-                                start = new Date(item.inTime);
-                            }
-
-                            if (!start) return 'Not Started';
-                            
-                            const end = item.outTime ? new Date(item.outTime) : new Date();
-                            const diffMs = Math.abs(end - start);
-                            const diffHrs = Math.floor(diffMs / 3600000);
-                            const diffMins = Math.floor((diffMs % 3600000) / 60000);
-                            const diffSecs = Math.floor((diffMs % 60000) / 1000);
-                            return `${diffHrs}h ${diffMins}m ${diffSecs}s`;
-                        })()}
-                    </Text>
+                <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                    {item.pickupTime && (
+                        <View style={{ alignItems: 'flex-end' }}>
+                            <Text style={styles.durationLabel}>PICKUP TIME</Text>
+                            <Text style={styles.durationValue}>{new Date(item.pickupTime).toLocaleTimeString()}</Text>
+                        </View>
+                    )}
+                    {item.returnTime && (
+                        <View style={{ alignItems: 'flex-end' }}>
+                            <Text style={styles.durationLabel}>RETURN TIME</Text>
+                            <Text style={styles.durationValue}>{new Date(item.returnTime).toLocaleTimeString()}</Text>
+                        </View>
+                    )}
+                    {item.status === 'Approved' && !item.pickupTime && (
+                        <View style={{ alignItems: 'flex-end' }}>
+                            <Text style={styles.durationLabel}>STATUS</Text>
+                            <Text style={[styles.durationValue, { color: '#d97706' }]}>READY FOR PICKUP</Text>
+                        </View>
+                    )}
                 </View>
             </View>
             

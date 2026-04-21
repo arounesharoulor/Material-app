@@ -143,21 +143,23 @@ const AcceptedHistoryScreen = ({ navigation }) => {
             </ScrollView>
 
             <View style={styles.cardFooter}>
-                <Text allowFontScaling={false} style={styles.footerDate}>Handled on: {new Date(item.outTime || item.date).toLocaleDateString()}</Text>
-                <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={styles.footerLabel}>TOTAL TIME</Text>
-                    <Text style={styles.footerValue}>
-                        {(() => {
-                            let start = item.approvedAt ? new Date(item.approvedAt) : null;
-                            if (!start) start = new Date(item.inTime || item.date);
-                            
-                            const end = new Date(item.outTime || Date.now());
-                            const diffMs = Math.abs(end - start);
-                            const diffHrs = Math.floor(diffMs / 3600000);
-                            const diffMins = Math.floor((diffMs % 3600000) / 60000);
-                            return `${diffHrs}h ${diffMins}m`;
-                        })()}
-                    </Text>
+                <View>
+                    <Text allowFontScaling={false} style={styles.footerTime}>{new Date(item.inTime).toLocaleTimeString()}</Text>
+                    <Text allowFontScaling={false} style={styles.footerDate}>{new Date(item.inTime).toLocaleDateString()}</Text>
+                </View>
+                <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                    {item.pickupTime && (
+                        <View style={{ alignItems: 'flex-end' }}>
+                            <Text style={styles.footerLabel}>PICKUP TIME</Text>
+                            <Text style={styles.footerValue}>{new Date(item.pickupTime).toLocaleTimeString()}</Text>
+                        </View>
+                    )}
+                    {item.returnTime && (
+                        <View style={{ alignItems: 'flex-end' }}>
+                            <Text style={styles.footerLabel}>RETURN TIME</Text>
+                            <Text style={styles.footerValue}>{new Date(item.returnTime).toLocaleTimeString()}</Text>
+                        </View>
+                    )}
                 </View>
             </View>
         </View>
@@ -253,6 +255,7 @@ const styles = StyleSheet.create({
   photoLabel: { fontSize: 8, fontWeight: '800', color: '#94a3b8', marginBottom: 4 },
   cardImage: { width: 60, height: 60, borderRadius: 10, backgroundColor: '#f1f5f9' },
   cardFooter: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 24, paddingBottom: 20, alignItems: 'center' },
+  footerTime: { fontSize: 10, fontWeight: '700', color: '#1e293b' },
   footerDate: { fontSize: 9, fontWeight: '700', color: '#94a3b8' },
   footerLabel: { fontSize: 8, fontWeight: '800', color: '#94a3b8', letterSpacing: 0.5 },
   footerValue: { fontSize: 13, fontWeight: '800', color: '#059669', marginTop: 2 },

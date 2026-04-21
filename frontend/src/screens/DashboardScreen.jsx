@@ -601,8 +601,25 @@ const DashboardScreen = ({ navigation, route }) => {
             ) : null}
 
             <View style={styles.cardFooter}>
-                <Text allowFontScaling={false} style={styles.footerTime}>{new Date(item.inTime).toLocaleTimeString()}</Text>
-                <Text allowFontScaling={false} style={styles.footerDate}>{new Date(item.inTime).toLocaleDateString()}</Text>
+                <View>
+                    <Text allowFontScaling={false} style={styles.footerTime}>{new Date(item.inTime).toLocaleTimeString()}</Text>
+                    <Text allowFontScaling={false} style={styles.footerDate}>{new Date(item.inTime).toLocaleDateString()}</Text>
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                    <Text allowFontScaling={false} style={styles.durationLabel}>
+                        {item.status === 'Closed' ? 'TOTAL COMPLETION' : 'TIME ELAPSED'}
+                    </Text>
+                    <Text allowFontScaling={false} style={styles.durationValue}>
+                        {(() => {
+                            const start = new Date(item.inTime);
+                            const end = item.outTime ? new Date(item.outTime) : new Date();
+                            const diffMs = Math.abs(end - start);
+                            const diffHrs = Math.floor(diffMs / 3600000);
+                            const diffMins = Math.floor((diffMs % 3600000) / 60000);
+                            return `${diffHrs}h ${diffMins}m`;
+                        })()}
+                    </Text>
+                </View>
             </View>
             
             {/* Actions for Admin */}
@@ -728,11 +745,12 @@ const DashboardScreen = ({ navigation, route }) => {
           </View>
 
           <View style={styles.statsRow}>
-            {['Total', 'Approved', 'Picked Up', 'Closed'].map(lbl => (
+            {(user?.role === 'Admin' ? ['Total', 'Approved', 'Picked Up', 'Closed'] : ['Total', 'Closed', 'Penalized']).map(lbl => (
                 <View key={lbl} style={styles.statBox}>
                     <Text allowFontScaling={false} style={styles.statValue}>
                         {lbl === 'Total' ? allRequests.length : 
                          lbl === 'Picked Up' ? allRequests.filter(r => r.status === 'PendingReturn').length :
+                         lbl === 'Penalized' ? allRequests.filter(r => r.status === 'Penalized' || (r.penalty && r.penalty !== '')).length :
                          allRequests.filter(r => r.status === lbl).length}
                     </Text>
                     <Text allowFontScaling={false} style={styles.statLabel}>{lbl.toUpperCase()}</Text>
@@ -1221,9 +1239,11 @@ const styles = StyleSheet.create({
   },
   rejectLabel: { fontSize: 9, fontWeight: '800', color: '#64748b', marginBottom: 6 },
   rejectText: { fontSize: 12, color: '#1e293b', lineHeight: 18 },
-  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 16 },
-  footerTime: { fontSize: 8, fontWeight: '700', color: '#cbd5e1' },
-  footerDate: { fontSize: 8, fontWeight: '700', color: '#94a3b8' },
+  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 16, borderTopWidth: 1, borderTopColor: '#f1f5f9', paddingTop: 12 },
+  footerTime: { fontSize: 10, fontWeight: '700', color: '#1e293b' },
+  footerDate: { fontSize: 9, fontWeight: '600', color: '#94a3b8', marginTop: 1 },
+  durationLabel: { fontSize: 8, fontWeight: '800', color: '#94a3b8', letterSpacing: 0.5 },
+  durationValue: { fontSize: 13, fontWeight: '800', color: '#10b981', marginTop: 2 },
   actionRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingBottom: 16 },
   actionBtn: { flex: 1, height: 48, borderRadius: 14, justifyContent: 'center', alignItems: 'center', elevation: 2 },
   btnEmerald: { backgroundColor: '#10b981' },

@@ -39,11 +39,43 @@ const ProfileScreen = ({ navigation }) => {
 
     const fileInputRef = useRef(null);
 
+    const [penalties, setPenalties] = useState([]);
+    const [fetchingPenalties, setFetchingPenalties] = useState(false);
+
     const toggleSidebar = () => {
         const toValue = sidebarVisible ? -280 : 0;
         Animated.timing(sidebarAnim, { toValue, duration: 300, useNativeDriver: false }).start();
         setSidebarVisible(!sidebarVisible);
     };
+
+    const fetchPenaltyHistory = useCallback(async () => {
+        if (!user) return;
+        setFetchingPenalties(true);
+        try {
+            const res = await api.get('/requests');
+            // Filter only penalized items for this user
+            const userPenalties = res.data.filter(r => 
+                r.employeeId === user.employeeId && 
+                (r.status === 'Penalized' || (r.penalty && r.penalty.trim() !== ''))
+            ).map(r => ({
+                id: r._id,
+                material: r.materialName,
+                date: r.date,
+                reason: r.penalty || 'No reason provided',
+                status: r.status
+            })).sort((a,b) => new Date(b.date) - new Date(a.date));
+            
+            setPenalties(userPenalties);
+        } catch (err) {
+            console.log('[PROFILE] Failed to fetch penalties');
+        } finally {
+            setFetchingPenalties(false);
+        }
+    }, [user]);
+
+    useEffect(() => {
+        fetchPenaltyHistory();
+    }, [fetchPenaltyHistory]);
 
     const handleWebFileSelect = (e) => {
         const file = e.target.files[0];
@@ -325,6 +357,34 @@ const ProfileScreen = ({ navigation }) => {
                             bgColor="#ecfdf5"
                         />
                     </View>
+
+                    {/* ── Penalty History Section ── */}
+                    {user?.role === 'Employee' && (
+                        <>
+                            <Text allowFontScaling={false} style={[styles.sectionLabel, { marginTop: 8 }]}>PENALTY HISTORY</Text>
+                            <View style={styles.penaltyList}>
+                                {fetchingPenalties ? (
+                                    <View style={styles.penaltyLoading}>
+                                        <ActivityIndicator size="small" color="#e11d48" />
+                                    </View>
+                                ) : penalties.length === 0 ? (
+                                    <View style={styles.penaltyEmpty}>
+                                        <Text style={styles.penaltyEmptyText}>Clean Record: No penalties received</Text>
+                                    </View>
+                                ) : (
+                                    penalties.map((p) => (
+                                        <View key={p.id} style={styles.penaltyItem}>
+                                            <View style={styles.penaltyHeader}>
+                                                <Text style={styles.penaltyMaterial}>{p.material}</Text>
+                                                <Text style={styles.penaltyDate}>{new Date(p.date).toLocaleDateString()}</Text>
+                                            </View>
+                                            <Text style={styles.penaltyReason}>{p.reason}</Text>
+                                        </View>
+                                    ))
+                                )}
+                            </View>
+                        </>
+                    )}
 
                     {/* ── Actions Row ── */}
                     {!isEditing && (
@@ -611,6 +671,15 @@ const styles = StyleSheet.create({
         borderBottomColor: '#ffc61c',
         paddingVertical: 2,
     },
+    penaltyList: { gap: 12, marginBottom: 24 },
+    penaltyLoading: { padding: 40, alignItems: 'center' },
+    penaltyEmpty: { backgroundColor: '#ffffff', borderRadius: 20, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: '#e2e8f0', borderStyle: 'dashed' },
+    penaltyEmptyText: { color: '#94a3b8', fontSize: 13, fontWeight: '700' },
+    penaltyItem: { backgroundColor: '#ffffff', borderRadius: 20, padding: 16, borderWidth: 1, borderColor: '#fecdd3', borderLeftWidth: 6, borderLeftColor: '#e11d48' },
+    penaltyHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+    penaltyMaterial: { fontSize: 13, fontWeight: '800', color: '#1e293b' },
+    penaltyDate: { fontSize: 9, fontWeight: '700', color: '#94a3b8' },
+    penaltyReason: { fontSize: 12, color: '#e11d48', fontWeight: '600' },
     // ── Actions
     actionsRow: {
         marginTop: 8,

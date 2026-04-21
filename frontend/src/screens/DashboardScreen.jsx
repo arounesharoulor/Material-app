@@ -400,6 +400,12 @@ const DashboardScreen = ({ navigation, route }) => {
   };
 
   const handleReturnPhoto = async (id) => {
+    if (Platform.OS === 'web') {
+        const proceed = window.confirm("Submission Deadline: Reminder: All materials must be submitted and returned before 6:00 PM today to avoid penalties. Do you want to proceed with submission?");
+        if (proceed) handlePhotoAction(id, 'return');
+        return;
+    }
+
     Alert.alert(
         "Submission Deadline",
         "Reminder: All materials must be submitted and returned before 6:00 PM today to avoid penalties. Do you want to proceed with submission?",

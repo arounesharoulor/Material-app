@@ -3,6 +3,11 @@ require('dotenv').config();
 const User = require('./models/User');
 const Stock = require('./models/Stock');
 const bcrypt = require('bcryptjs');
+const dns = require('dns');
+
+// DNS fix
+dns.setDefaultResultOrder('ipv4first');
+dns.setServers(['8.8.8.8', '8.8.4.4']);
 
 mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
 

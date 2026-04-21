@@ -9,20 +9,19 @@ const getBaseUrl = () => {
   }
   
   // On Mobile: Extract the IP address from the scriptURL (the IP of the dev machine)
-  // This is the most reliable way to find the host machine in any network setup (Wi-Fi or Hotspot).
-  let machineIp = '192.168.0.100'; // Fallback
+  let machineIp = '192.168.0.109'; // Fallback to current computer's LAN IP
   
   try {
     const scriptURL = NativeModules?.SourceCode?.scriptURL;
     if (scriptURL) {
       const match = scriptURL.match(/http:\/\/([\d\.]+):/);
       if (match && match[1]) {
-        machineIp = match[ match[1] === 'localhost' || match[1] === '127.0.0.1' ? 0 : 1 ];
-        // If it's localhost, we still need the real IP for the backend
-        if (machineIp === 'localhost' || machineIp === '127.0.0.1') {
-           machineIp = '192.168.0.100';
+        const detectedIp = match[1];
+        // If detected IP is local, use our known LAN IP as better fallback
+        if (detectedIp === 'localhost' || detectedIp === '127.0.0.1') {
+           machineIp = '192.168.0.109';
         } else {
-           machineIp = match[1];
+           machineIp = detectedIp;
         }
       }
     }
@@ -49,13 +48,12 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
-// Response interceptor: auto-clear stale tokens on 401
+// Response interceptor: log errors for debugging
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (error.response?.status === 401) {
-      // Silently remove invalid token — AuthContext will handle redirect
-      await AsyncStorage.removeItem('token');
+      console.log('[API] 401 Unauthorized detected');
     }
     return Promise.reject(error);
   }

@@ -141,7 +141,6 @@ const AcceptedHistoryScreen = ({ navigation }) => {
                     </TouchableOpacity>
                 )}
             </ScrollView>
-
             <View style={styles.cardFooter}>
                 <View>
                     <Text allowFontScaling={false} style={styles.footerTime}>{new Date(item.inTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}</Text>

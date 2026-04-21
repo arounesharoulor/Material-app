@@ -579,7 +579,6 @@ const DashboardScreen = ({ navigation, route }) => {
                     </TouchableOpacity>
                 ) : null}
             </ScrollView>
-
             {item.adminComment && (
                 <Animated.View style={[
                     styles.noteBox,

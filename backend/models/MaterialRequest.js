@@ -39,6 +39,7 @@ const MaterialRequestSchema = new mongoose.Schema({
     inTime: { type: Date, default: Date.now },
     outTime: { type: Date },
     insufficientStock: { type: Boolean, default: false },
+    remark: { type: String },
     date: { type: Date, default: Date.now }
 });
 

@@ -42,13 +42,29 @@ const RejectedHistoryScreen = ({ navigation }) => {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
-  useEffect(() => {
-    fetchRequests();
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+        fetchRequests();
 
-  const fetchRequests = async () => {
+        // Real-time synchronization
+        const socket = io(BASE_URL, { transports: ['websocket'] });
+        socket.on('requestUpdated', (data) => {
+            // Refresh if a request is rejected
+            if (data?.request?.status === 'Rejected') {
+                console.log('[REJECTED-SOCKET] Auto-refreshing history...');
+                fetchRequests(true); 
+            }
+        });
+
+        return () => {
+            if (socket) socket.disconnect();
+        };
+    }, [])
+  );
+
+  const fetchRequests = async (silent = false) => {
     try {
-      setIsLoading(true);
+      if (!silent) setIsLoading(true);
       const res = await api.get('/requests');
       
       // History shows Rejected items
@@ -78,9 +94,16 @@ const RejectedHistoryScreen = ({ navigation }) => {
 
   const getFullImageUrl = (path) => {
     if (!path) return null;
-    const cleanPath = path.toString().trim().replace(/\\/g, '/');
-    const finalPath = cleanPath.startsWith('/') ? cleanPath.substring(1) : cleanPath;
-    return `${BASE_URL}/${finalPath}`;
+    let cleanPath = path.toString().trim().replace(/\\/g, '/');
+    const uploadsIndex = cleanPath.indexOf('uploads/');
+    if (uploadsIndex !== -1) {
+        cleanPath = cleanPath.substring(uploadsIndex);
+    } else {
+        const filename = cleanPath.split('/').pop();
+        cleanPath = `uploads/${filename}`;
+    }
+    const encodedPath = cleanPath.split('/').map(segment => encodeURIComponent(segment)).join('/');
+    return `${BASE_URL}/${encodedPath}`;
   };
 
   const openViewer = (path, title) => {
@@ -113,10 +136,20 @@ const RejectedHistoryScreen = ({ navigation }) => {
                         {item.employeeEmail ? <Text allowFontScaling={false} style={{ fontSize: 10, color: '#64748b' }}>{item.employeeEmail}</Text> : null}
                     </View>
                 </View>
-                <View style={styles.detailRow}>
-                    <Text allowFontScaling={false} style={styles.detailLabel}>QUANTITY</Text>
-                    <Text allowFontScaling={false} style={styles.detailValue}>{item.quantity} Units</Text>
-                </View>
+                {!item.materialName.toLowerCase().includes('general inquiry') && (
+                    <View style={styles.detailRow}>
+                        <Text allowFontScaling={false} style={styles.detailLabel}>QUANTITY</Text>
+                        <Text allowFontScaling={false} style={styles.detailValue}>{item.quantity} Units</Text>
+                    </View>
+                )}
+                {((item.remark || '').toString().trim() !== '') ? (
+                    <View style={styles.remarkBubble}>
+                        <Ionicons name="chatbubble-ellipses" size={16} color="#0891b2" />
+                        <Text allowFontScaling={false} style={styles.remarkBubbleText}>
+                            {(item.remark || '').toString().trim()}
+                        </Text>
+                    </View>
+                ) : null}
             </View>
 
             {item.rejectionReason && (
@@ -227,6 +260,24 @@ const styles = StyleSheet.create({
   detailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10, gap: 12 },
   detailLabel: { fontSize: 9, fontWeight: '700', color: '#94a3b8', flexShrink: 0, width: '35%' },
   detailValue: { fontSize: 13, fontWeight: '700', color: '#334155', flex: 1, textAlign: 'right' },
+  remarkBubble: {
+    backgroundColor: '#ecfeff',
+    padding: 12,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#cffafe',
+  },
+  remarkBubbleText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#0e7490',
+    fontWeight: '600',
+    fontStyle: 'italic',
+  },
   rejectionBox: { backgroundColor: '#fff1f2', padding: 16, marginHorizontal: 20, borderRadius: 16, marginBottom: 16 },
   rejectionLabel: { fontSize: 9, fontWeight: '800', color: '#e11d48' },
   rejectionText: { fontSize: 12, color: '#9f1239' },
@@ -259,6 +310,32 @@ const styles = StyleSheet.create({
   dateSection: { marginBottom: 24 },
   dateHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, paddingHorizontal: 4 },
   dateHeaderText: { fontSize: 11, fontWeight: '800', color: '#64748b', letterSpacing: 1 },
+  employeeRemarkBox: {
+    backgroundColor: '#ecfeff',
+    padding: 12,
+    marginTop: 10,
+    borderRadius: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#0891b2',
+  },
+  remarkHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+    gap: 6,
+  },
+  remarkLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#0891b2',
+    letterSpacing: 0.5,
+  },
+  remarkText: {
+    fontSize: 12,
+    color: '#164e63',
+    lineHeight: 18,
+    fontWeight: '500',
+  },
 });
 
 export default RejectedHistoryScreen;

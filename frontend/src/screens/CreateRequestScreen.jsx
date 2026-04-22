@@ -1,4 +1,5 @@
 import React, { useState, useContext, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { View, Text, TextInput, Image, Alert, Modal, ScrollView, TouchableOpacity, ActivityIndicator, Platform, StyleSheet, KeyboardAvoidingView, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import tw from 'twrnc';
@@ -15,6 +16,7 @@ const CreateRequestScreen = ({ navigation }) => {
   const { user } = useContext(AuthContext);
   const [materialName, setMaterialName] = useState('');
   const [quantity, setQuantity] = useState('');
+  const [remark, setRemark] = useState('');
   const [photo, setPhoto] = useState(null);
   
   const [availableStock, setAvailableStock] = useState([]);
@@ -132,10 +134,17 @@ const CreateRequestScreen = ({ navigation }) => {
   };
 
   const handleSubmit = () => {
-    if (!materialName || !quantity) {
-      Toast.show({ type: 'error', text1: 'Error', text2: 'Please select a material and enter quantity' });
+    if (!materialName) {
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Please select a material first' });
       return;
     }
+    
+    // If material is selected, quantity is still required
+    if (materialName && !quantity) {
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Please enter a quantity for the selected material' });
+      return;
+    }
+
     // Always show custom modal — Alert.alert is broken on web
     setShowConfirmModal(true);
   };
@@ -152,8 +161,13 @@ const CreateRequestScreen = ({ navigation }) => {
         formData.append('employeeEmail', user.email || '');
       }
 
+      const finalQuantity = quantity || "0";
+
       formData.append('materialName', materialName);
-      formData.append('quantity', quantity);
+      formData.append('quantity', finalQuantity);
+      formData.append('remark', remark || '');
+
+      console.log(`[DEBUG] Submission Data: material="${materialName}", quantity="${finalQuantity}", remark="${remark}"`);
 
       if (photo) {
         if (Platform.OS === 'web') {
@@ -174,22 +188,33 @@ const CreateRequestScreen = ({ navigation }) => {
         }
       }
 
-      console.log(`[UPLOAD] Starting submission to ${SERVER_URL}/requests...`, {
+      console.log(`[UPLOAD] Starting submission (Hybrid Mode)...`, {
         material: materialName,
         quantity: quantity,
+        remark: remark,
         hasPhoto: !!photo
       });
 
-      const res = await api.post('/requests', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        timeout: 60000,
-      });
+      // SMART HYBRID: Use JSON for text-only, FormData for photos
+      // This prevents 'Network Error' on some devices when sending empty FormData
+      let res;
+      if (photo) {
+          res = await api.post('/requests', formData);
+      } else {
+          res = await api.post('/requests', {
+            employeeId: user?.employeeId,
+            employeeName: user?.name,
+            employeeEmail: user?.email,
+            materialName: materialName,
+            quantity: finalQuantity,
+            remark: remark || ''
+          });
+      }
 
-      console.log('[UPLOAD] Success Response:', res.status, res.data);
+      const resData = res.data;
+      console.log('[UPLOAD] Success Response:', res.status, resData);
 
-      if (res.data.insufficientStock) {
+      if (resData.insufficientStock) {
         Toast.show({
           type: 'error',
           text1: 'Material Out of Stock',
@@ -201,12 +226,12 @@ const CreateRequestScreen = ({ navigation }) => {
 
       navigation.navigate('Dashboard', { reload: Date.now() });
     } catch (err) {
-      console.log('Upload Error:', err);
-      const errorMsg = err.response?.data?.msg || err.message || 'Failed to submit request';
+      console.log('Upload Error:', err.message || err);
+      const errorMsg = err.message || 'Failed to submit request';
       Toast.show({
         type: 'error',
         text1: 'Submission Error',
-        text2: err.message === 'Network Error' ? 'Network Error: Cannot connect to server.' : errorMsg,
+        text2: errorMsg,
       });
     } finally {
       setIsSubmitting(false);
@@ -334,6 +359,21 @@ const CreateRequestScreen = ({ navigation }) => {
                 </View>
               )}
   
+              <View style={tw`mb-5`}>
+                  <Text style={tw`text-slate-500 text-xs font-bold mb-2 uppercase tracking-wider`}>Remark / Note</Text>
+                  <View style={tw`flex-row items-center bg-slate-50 border border-slate-200 rounded-2xl px-4 h-24`}>
+                      <Ionicons name="create-outline" size={20} color="#64748b" style={tw`mr-3 self-start mt-4`} />
+                      <TextInput
+                          style={[tw`flex-1 text-slate-800 text-base h-full py-3`, { textAlignVertical: 'top' }]}
+                          placeholder="Add any extra details here..."
+                          placeholderTextColor="#94a3b8"
+                          value={remark}
+                          onChangeText={setRemark}
+                          multiline
+                      />
+                  </View>
+              </View>
+
               <TextInput 
                   style={styles.readOnlyInput}
                   placeholder="Selected Material" 
@@ -369,7 +409,7 @@ const CreateRequestScreen = ({ navigation }) => {
                   activeOpacity={0.7}
               >
                   {photo ? (
-                      <Image source={{ uri: photo.uri }} style={styles.previewImage} resizeMode="cover" />
+                      <Image source={{ uri: photo.uri }} style={styles.previewImage} resizeMode="contain" />
                   ) : (
                       <View style={styles.uploadPlaceholder}>
                           <Ionicons name="camera" size={42} color="#94a3b8" />

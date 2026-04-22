@@ -50,17 +50,14 @@ const RequestHistoryScreen = ({ navigation }) => {
       setIsLoading(true);
       const res = await api.get('/requests');
 
-      const startOfToday = new Date();
-      startOfToday.setHours(0, 0, 0, 0);
-
-      // Archive strictly shows items BEFORE today
-      let archive = res.data.filter(r => new Date(r.date) < startOfToday);
+      // Show ALL items in the comprehensive history
+      let archive = res.data;
 
       if (user?.role === 'Employee' && user?.employeeId) {
-          // Employee sees their own old requests
+          // Employee sees their own requests
           archive = archive.filter(r => r.employeeId === user.employeeId);
       }
-      // Admins see EVERYTHING in archive (already filtered by date)
+      // Admins see EVERYTHING in history
       
       // Group by date with DAY NAME (e.g., 'Monday, 4/20/2026')
       const grouped = archive.reduce((acc, req) => {
@@ -84,9 +81,16 @@ const RequestHistoryScreen = ({ navigation }) => {
 
   const getFullImageUrl = (path) => {
     if (!path) return null;
-    const cleanPath = path.toString().trim().replace(/\\/g, '/');
-    const finalPath = cleanPath.startsWith('/') ? cleanPath.substring(1) : cleanPath;
-    return `${BASE_URL}/${finalPath}`;
+    let cleanPath = path.toString().trim().replace(/\\/g, '/');
+    const uploadsIndex = cleanPath.indexOf('uploads/');
+    if (uploadsIndex !== -1) {
+        cleanPath = cleanPath.substring(uploadsIndex);
+    } else {
+        const filename = cleanPath.split('/').pop();
+        cleanPath = `uploads/${filename}`;
+    }
+    const encodedPath = cleanPath.split('/').map(segment => encodeURIComponent(segment)).join('/');
+    return `${BASE_URL}/${encodedPath}`;
   };
 
   const openViewer = (path, title) => {
@@ -130,10 +134,20 @@ const RequestHistoryScreen = ({ navigation }) => {
                     <Text allowFontScaling={false} style={styles.detailLabel}>REQUESTED BY</Text>
                     <Text allowFontScaling={false} style={styles.detailValue}>{item.employeeName}</Text>
                 </View>
-                <View style={styles.detailRow}>
-                    <Text allowFontScaling={false} style={styles.detailLabel}>QUANTITY</Text>
-                    <Text allowFontScaling={false} style={styles.detailValue}>{item.quantity} Units</Text>
-                </View>
+                {!item.materialName.toLowerCase().includes('general inquiry') && (
+                    <View style={styles.detailRow}>
+                        <Text allowFontScaling={false} style={styles.detailLabel}>QUANTITY</Text>
+                        <Text allowFontScaling={false} style={styles.detailValue}>{item.quantity} Units</Text>
+                    </View>
+                )}
+                {((item.remark || '').toString().trim() !== '') ? (
+                    <View style={styles.remarkBubble}>
+                        <Ionicons name="chatbubble-ellipses" size={16} color="#0891b2" />
+                        <Text allowFontScaling={false} style={styles.remarkBubbleText}>
+                            {(item.remark || '').toString().trim()}
+                        </Text>
+                    </View>
+                ) : null}
             </View>
 
             {/* Photo Section */}
@@ -326,6 +340,24 @@ const styles = StyleSheet.create({
   dateSection: { marginBottom: 24 },
   dateHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, paddingHorizontal: 4 },
   dateHeaderText: { fontSize: 11, fontWeight: '800', color: '#64748b', letterSpacing: 1 },
+  remarkBubble: {
+    backgroundColor: '#ecfeff',
+    padding: 12,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#cffafe',
+  },
+  remarkBubbleText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#0e7490',
+    fontWeight: '600',
+    fontStyle: 'italic',
+  },
 });
 
 export default RequestHistoryScreen;

@@ -50,6 +50,9 @@ const StockScreen = ({ navigation }) => {
     socketRef.current.on('requestUpdated', () => {
         fetchStock();
     });
+    socketRef.current.on('stockUpdated', () => {
+        fetchStock();
+    });
 
     const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
     const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));

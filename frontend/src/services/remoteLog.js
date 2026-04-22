@@ -16,8 +16,11 @@ const initRemoteLogging = () => {
     };
 
     console.warn = (...args) => {
-        // Filter out annoying React Native Web deprecation warnings from 3rd party libs
-        if (args.length > 0 && typeof args[0] === 'string' && args[0].includes('props.pointerEvents is deprecated')) {
+        // Filter out annoying React Native Web environment/noise warnings
+        if (args.length > 0 && typeof args[0] === 'string' && (
+            args[0].includes('props.pointerEvents is deprecated') ||
+            args[0].includes('Cannot record touch end without a touch start')
+        )) {
             return;
         }
         originalWarn(...args);

@@ -10,11 +10,13 @@ const fs = require('fs');
 const app = express();
 const server = http.createServer(app);
 
-// ✅ Socket.io setup
+// ✅ Socket.io setup - permissive for dev tunnels
 const io = new Server(server, {
     cors: {
         origin: '*',
-        methods: ['GET', 'POST']
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'x-auth-token', 'X-Tunnel-Skip-AntiPhishing-Page'],
+        credentials: true
     }
 });
 
@@ -26,7 +28,22 @@ const setupCronJobs = require('./utils/cronJobs');
 setupCronJobs(io);
 
 // ✅ Middlewares
-app.use(cors());
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, x-auth-token, X-Tunnel-Skip-AntiPhishing-Page');
+    if (req.method === 'OPTIONS') {
+        return res.sendStatus(200);
+    }
+    next();
+});
+
+app.use(cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'x-auth-token', 'X-Tunnel-Skip-AntiPhishing-Page'],
+    credentials: true
+}));
 app.use(express.json({ extended: false }));
 
 // ✅ ROOT ROUTE (FIXED ISSUE)
@@ -75,6 +92,12 @@ app.post('/api/debug-log', (req, res) => {
 });
 
 // ✅ Routes
+// CRITICAL: Penalty oversight routes
+const auth = require('./middleware/authMiddleware');
+const authController = require('./controllers/authController');
+app.get('/api/admin/high-penalty', auth, authController.getHighPenaltyUsers);
+app.get('/api/status', (req, res) => res.json({ status: 'API is healthy and updated', version: '2.0' }));
+
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/requests', require('./routes/requestRoutes'));
 app.use('/api/stock', require('./routes/stockRoutes'));
@@ -96,7 +119,12 @@ app.use((err, req, res, next) => {
 });
 
 // ✅ PORT (IMPORTANT FOR CLOUD)
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5005;
+// ✅ Catch-all 404 for API routes
+app.use('/api/*', (req, res) => {
+    console.log(`[404-UNMATCHED] ${req.method} ${req.originalUrl}`);
+    res.status(404).json({ msg: `Route ${req.originalUrl} not found` });
+});
 
 // ✅ Start Server
 server.listen(PORT, '0.0.0.0', () => {

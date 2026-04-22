@@ -149,3 +149,30 @@ exports.finalizeEmailUpdate = async (req, res) => {
         res.status(500).send('Server Error');
     }
 };
+
+exports.getHighPenaltyUsers = async (req, res) => {
+    try {
+        const User = require('../models/User');
+        const MaterialRequest = require('../models/MaterialRequest');
+        
+        // Fetch users with at least 1 penalty, sorted by the highest score first
+        const users = await User.find({ penaltyScore: { $gt: 0 } }).select('-password').sort({ penaltyScore: -1 });
+        
+        const usersWithRequests = await Promise.all(users.map(async (user) => {
+            const requests = await MaterialRequest.find({ 
+                user: user._id, 
+                status: 'Penalized' 
+            }).sort({ penaltyIssuedAt: -1 });
+            
+            return {
+                ...user.toObject(),
+                penalizedRequests: requests
+            };
+        }));
+
+        res.json(usersWithRequests);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+};

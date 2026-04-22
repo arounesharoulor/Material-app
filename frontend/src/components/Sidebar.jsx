@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Animated, Platform, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import api, { BASE_URL } from '../services/api';
 import io from 'socket.io-client';
 import Toast from 'react-native-toast-message';
+import { AuthContext } from '../context/AuthContext';
 
 const SidebarItem = ({ label, iconName, targetScreen, isActive, badgeCount = 0, navigation, toggleSidebar, user }) => {
     const [isHovered, setIsHovered] = useState(false);
@@ -67,10 +68,12 @@ const Sidebar = ({
     toggleSidebar, 
     activeScreen 
 }) => {
+    const { refreshUser } = useContext(AuthContext);
     const [pendingCount, setPendingCount] = useState(0);       // Admin: awaiting decision
     const [employeePickupCount, setEmployeePickupCount] = useState(0);  // Employee: approved, needs pickup / feedback
     const [employeeReturnCount, setEmployeeReturnCount] = useState(0);  // Employee: picked up, needs return
     const [lowStockCount, setLowStockCount] = useState(0);      // Admin: Stock below threshold
+    const [highPenaltyUsers, setHighPenaltyUsers] = useState([]); // Admin: users with score >= 10
     const socketRef = useRef(null);
 
     const fetchCounts = async () => {
@@ -94,6 +97,10 @@ const Sidebar = ({
                 
                 const uniqueNeedsUpdate = [...new Set([...lowStockMaterials, ...blockedMaterials])].length;
                 setLowStockCount(uniqueNeedsUpdate);
+
+                // Fetch High Penalty Users
+                const penaltyRes = await api.get('/admin/high-penalty');
+                setHighPenaltyUsers(penaltyRes.data);
 
             } else {
                 // Employee: APPROVED from today → go pick it up
@@ -130,8 +137,19 @@ const Sidebar = ({
     useEffect(() => {
         fetchCounts();
         
-        socketRef.current = io(BASE_URL);
+        if (!socketRef.current) {
+            socketRef.current = io(BASE_URL, {
+                transports: ['websocket'],
+                reconnection: true,
+            });
+        }
+
         socketRef.current.on('requestUpdated', fetchCounts);
+        socketRef.current.on('roleUpdated', fetchCounts);
+        socketRef.current.on('userUpdated', () => {
+            fetchCounts();
+            refreshUser();
+        });
         
         socketRef.current.on('returnReminder', (data) => {
             if (user?.employeeId === data.employeeId) {
@@ -141,6 +159,33 @@ const Sidebar = ({
                     text2: data.message,
                     visibilityTime: 6000,
                 });
+            }
+        });
+
+        socketRef.current.on('notification', (data) => {
+            console.log('[SIDEBAR-SOCKET] Incoming notification:', data);
+            if (user?.role === 'Admin' && data.role === 'Admin') {
+                console.log('[SIDEBAR-SOCKET] Admin alert accepted and showing Toast');
+                Toast.show({
+                    type: data.type === 'critical' ? 'error' : 'info',
+                    text1: data.title,
+                    text2: data.message,
+                    visibilityTime: 8000,
+                });
+                fetchCounts(); // Refresh counts when notification received
+            } else if (user?.role === 'Employee' && data.type === 'penalty' && data.userId === user._id) {
+                // Targeted notification for current employee
+                console.log('[SIDEBAR-SOCKET] Employee penalty alert accepted');
+                Toast.show({
+                    type: 'error',
+                    text1: data.title,
+                    text2: data.message,
+                    visibilityTime: 8000,
+                });
+                fetchCounts(); 
+                refreshUser(); // Update user object to show new score in sidebar
+            } else {
+                console.log(`[SIDEBAR-SOCKET] Alert rejected. Admin role: ${user?.role}, Data role: ${data.role}`);
             }
         });
 
@@ -428,6 +473,57 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 12,
     textAlign: 'center',
+  },
+  flaggedItem: {
+    backgroundColor: 'rgba(255, 68, 68, 0.1)',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 68, 68, 0.2)',
+  },
+  flaggedName: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  flaggedDetail: {
+    color: '#94a3b8',
+    fontSize: 9,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  highestPenaltyItem: {
+    borderColor: '#ffc61c',
+    borderWidth: 1.5,
+    backgroundColor: 'rgba(255, 198, 28, 0.05)',
+  },
+  highestBadge: {
+    backgroundColor: '#ffc61c',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginLeft: 8,
+  },
+  highestBadgeText: {
+    color: '#1b264a',
+    fontSize: 7,
+    fontWeight: '900',
+  },
+  penaltySummary: {
+    marginTop: 4,
+    paddingTop: 4,
+    borderTopWidth: 0.5,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+  },
+  penaltySummaryText: {
+    color: '#94a3b8',
+    fontSize: 8,
+    fontWeight: '500',
+    marginBottom: 1,
   },
 });
 

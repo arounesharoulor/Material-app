@@ -58,6 +58,18 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   };
 
+  const refreshUser = async () => {
+    const token = await AsyncStorage.getItem('token');
+    if (token) {
+      try {
+        const res = await api.get('/auth');
+        setUser(res.data);
+      } catch (err) {
+        console.log('[AUTH] Refresh failed');
+      }
+    }
+  };
+
   const login = async (email, password, captcha) => {
     const res = await api.post('/auth/login', { email, password, captcha });
     await AsyncStorage.setItem('token', res.data.token);
@@ -80,7 +92,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUserState }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUserState, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

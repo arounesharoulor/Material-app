@@ -13,6 +13,11 @@ exports.updateStock = async (req, res) => {
     let { materialName, quantity } = req.body;
     if (!materialName) return res.status(400).json({ msg: 'Material name is required' });
     materialName = materialName.trim();
+
+    // Prevent stock updates for 'General Inquiry' system labels
+    if (materialName.toLowerCase().includes('general inquiry')) {
+        return res.status(400).json({ msg: 'Cannot update stock for General Inquiry labels' });
+    }
     try {
         let stock = await Stock.findOne({ materialName: { $regex: new RegExp('^' + materialName + '$', 'i') } });
         if (stock) {
@@ -39,9 +44,12 @@ exports.updateStock = async (req, res) => {
             }
         }
 
-        // Emit socket event to refresh sidebars
+        // Emit socket events to refresh everything instantly
         const io = req.app.get('io');
-        if (io) io.emit('requestUpdated');
+        if (io) {
+            io.emit('stockUpdated', { materialName: stock.materialName, quantity: stock.quantity });
+            io.emit('requestUpdated', { type: 'STOCK_SYNC' });
+        }
 
         res.json(stock);
     } catch (err) {

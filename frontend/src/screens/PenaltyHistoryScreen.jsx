@@ -1,31 +1,22 @@
-import React, { useContext, useEffect, useState, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Platform, Animated, Modal, StyleSheet, Dimensions, ActivityIndicator, Image, BackHandler } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import React, { useState, useEffect, useRef, useContext } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, Platform, ActivityIndicator, FlatList, Image, Modal, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import tw from 'twrnc';
-import { AuthContext } from '../context/AuthContext';
 import api, { BASE_URL } from '../services/api';
 import Sidebar from '../components/Sidebar';
+import { AuthContext } from '../context/AuthContext';
+import { useFocusEffect } from '@react-navigation/native';
+import io from 'socket.io-client';
 
 const PenaltyHistoryScreen = ({ navigation }) => {
   const { user, logout } = useContext(AuthContext);
-  const [requests, setRequests] = useState([]);
+  const [requests, setRequests] = useState({});
+  const [employeeGroups, setEmployeeGroups] = useState([]);
+  const [stats, setStats] = useState({ total: 0, distinctEmployees: 0, last24h: 0 });
   const [isLoading, setIsLoading] = useState(true);
-  
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const sidebarAnim = useRef(new Animated.Value(-280)).current;
-
-  useFocusEffect(
-    React.useCallback(() => {
-        if (Platform.OS === 'web') return;
-        const onBackPress = () => {
-            navigation.navigate('Dashboard');
-            return true;
-        };
-        const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
-        return () => subscription.remove();
-    }, [navigation])
-  );
+  const [isSidebarOpen, setIsSidebarOpen] = useState(Platform.OS === 'web');
+  const sidebarAnim = useRef(new Animated.Value(Platform.OS === 'web' ? 0 : -280)).current;
+  const [activeTab, setActiveTab] = useState('Timeline'); // Timeline or Leaderboard
+  const [expandedEmpId, setExpandedEmpId] = useState(null);
 
   // Image Viewer State
   const [viewerVisible, setViewerVisible] = useState(false);
@@ -42,33 +33,81 @@ const PenaltyHistoryScreen = ({ navigation }) => {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
-  useEffect(() => {
-    fetchRequests();
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+        fetchRequests();
 
-  const fetchRequests = async () => {
+        // Real-time synchronization
+        const socket = io(BASE_URL, { transports: ['websocket'] });
+        socket.on('requestUpdated', (data) => {
+            // Refresh if a request is penalized
+            if (data?.request?.status === 'Penalized') {
+                console.log('[PENALTY-SOCKET] Auto-refreshing history...');
+                fetchRequests(true); 
+            }
+        });
+
+        return () => {
+            if (socket) socket.disconnect();
+        };
+    }, [])
+  );
+
+  const fetchRequests = async (silent = false) => {
     try {
-      setIsLoading(true);
+      if (!silent) setIsLoading(true);
       const res = await api.get('/requests');
       
-      // History shows Penalized items
-      const sorted = res.data.filter(r => r.status === 'Penalized');
+      const penalized = res.data.filter(r => r.status === 'Penalized');
 
-      // Filter by user if Employee
-      let filtered = sorted;
+      // Calculate Stats
+      const now = new Date();
+      const oneDayAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+      const last24hCount = penalized.filter(r => new Date(r.penaltyIssuedAt || r.date) > oneDayAgo).length;
+      const distinctEmps = new Set(penalized.map(r => r.employeeId)).size;
+      
+      setStats({
+        total: penalized.length,
+        distinctEmployees: distinctEmps,
+        last24h: last24hCount
+      });
+
+      // 1. Timeline Grouping
+      let timelineFiltered = penalized;
       if (user?.role === 'Employee' && user?.employeeId) {
-        filtered = sorted.filter(r => r.employeeId === user.employeeId);
+        timelineFiltered = penalized.filter(r => r.employeeId === user.employeeId);
       }
 
-      // Group by date
-      const grouped = filtered.reduce((acc, req) => {
+      const timelineGrouped = timelineFiltered.reduce((acc, req) => {
         const date = new Date(req.penaltyIssuedAt || req.date).toLocaleDateString();
         if (!acc[date]) acc[date] = [];
         acc[date].push(req);
         return acc;
       }, {});
+      setRequests(timelineGrouped);
 
-      setRequests(grouped);
+      // 2. Leaderboard Grouping (Only for Admin)
+      if (user?.role === 'Admin') {
+        const empMap = penalized.reduce((acc, req) => {
+            const key = req.employeeId || 'Unknown';
+            if (!acc[key]) {
+                acc[key] = {
+                    id: key,
+                    name: req.employeeName || 'Unknown Employee',
+                    email: req.employeeEmail || '',
+                    penalties: [],
+                    totalCount: 0
+                };
+            }
+            acc[key].penalties.push(req);
+            acc[key].totalCount += 1;
+            return acc;
+        }, {});
+
+        const sortedEmployees = Object.values(empMap).sort((a,b) => b.totalCount - a.totalCount);
+        setEmployeeGroups(sortedEmployees);
+      }
+
     } catch (err) {
       console.log('Error fetching requests');
     } finally {
@@ -78,9 +117,16 @@ const PenaltyHistoryScreen = ({ navigation }) => {
 
   const getFullImageUrl = (path) => {
     if (!path) return null;
-    const cleanPath = path.toString().trim().replace(/\\/g, '/');
-    const finalPath = cleanPath.startsWith('/') ? cleanPath.substring(1) : cleanPath;
-    return `${BASE_URL}/${finalPath}`;
+    let cleanPath = path.toString().trim().replace(/\\/g, '/');
+    const uploadsIndex = cleanPath.indexOf('uploads/');
+    if (uploadsIndex !== -1) {
+        cleanPath = cleanPath.substring(uploadsIndex);
+    } else {
+        const filename = cleanPath.split('/').pop();
+        cleanPath = `uploads/${filename}`;
+    }
+    const encodedPath = cleanPath.split('/').map(segment => encodeURIComponent(segment)).join('/');
+    return `${BASE_URL}/${encodedPath}`;
   };
 
   const openViewer = (path, title) => {
@@ -91,83 +137,105 @@ const PenaltyHistoryScreen = ({ navigation }) => {
     setViewerVisible(true);
   };
 
-  const HistoryCard = ({ item }) => {
-    return (
-        <View style={styles.card}>
-            <View style={[styles.cardAccent, { backgroundColor: '#f43f5e' }]} />
-            <View style={styles.cardHeader}>
-                <View style={{ flex: 1 }}>
-                    <Text allowFontScaling={false} style={styles.cardTitle}>{item.materialName}</Text>
-                    <Text allowFontScaling={false} style={styles.cardSubtitle}>ID: {item.requestId}</Text>
-                </View>
-                <View style={[styles.statusBadge, { backgroundColor: '#fff1f2' }]}>
-                    <Text allowFontScaling={false} style={[styles.badgeText, { color: '#f43f5e' }]}>PENALIZED</Text>
-                </View>
+  const HistoryCard = ({ item }) => (
+    <View style={styles.card}>
+        <View style={styles.cardMain}>
+            <View style={styles.iconContainer}>
+                <Ionicons name="alert-circle" size={20} color="#f43f5e" />
             </View>
-
-            <View style={styles.cardDetails}>
-                <View style={styles.detailRow}>
-                    <Text allowFontScaling={false} style={styles.detailLabel}>REQUESTED BY</Text>
-                    <View style={{ alignItems: 'flex-end' }}>
-                        <Text allowFontScaling={false} style={styles.detailValue}>{item.employeeName} ({item.employeeId})</Text>
-                        {item.employeeEmail ? <Text allowFontScaling={false} style={{ fontSize: 10, color: '#64748b' }}>{item.employeeEmail}</Text> : null}
+            <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text allowFontScaling={false} style={styles.materialName}>{item.materialName}</Text>
+                    <View style={styles.idBadge}>
+                        <Text allowFontScaling={false} style={styles.idText}>{item.requestId}</Text>
                     </View>
                 </View>
-                <View style={styles.detailRow}>
-                    <Text allowFontScaling={false} style={styles.detailLabel}>QUANTITY</Text>
-                    <Text allowFontScaling={false} style={styles.detailValue}>{item.quantity} Units</Text>
+                <Text allowFontScaling={false} style={styles.employeeInfo}>
+                    By {item.employeeName} ({item.employeeId})
+                </Text>
+                <View style={styles.penaltyDetailBox}>
+                    <Text allowFontScaling={false} style={styles.penaltyMsg}>"{item.penalty || 'Violation of return policy'}"</Text>
                 </View>
-            </View>
 
-            {item.penalty && (
-                <View style={styles.penaltyBox}>
-                    <Text allowFontScaling={false} style={styles.penaltyLabel}>PENALTY DETAILS</Text>
-                    <Text allowFontScaling={false} style={styles.penaltyText}>{item.penalty}</Text>
+                {((item.remark || '').toString().trim() !== '') ? (
+                    <View style={styles.remarkBubble}>
+                        <Ionicons name="chatbubble-ellipses" size={16} color="#0891b2" />
+                        <Text allowFontScaling={false} style={styles.remarkBubbleText}>
+                            {(item.remark || '').toString().trim()}
+                        </Text>
+                    </View>
+                ) : null}
+
+                <View style={styles.photoSectionHeader}>
+                    <Text style={styles.photoSectionTitle}>EVIDENCE ARCHIVE</Text>
                 </View>
-            )}
-
-            <View style={styles.photoSectionHeader}>
-                <Text style={styles.photoSectionTitle}>ATTACHMENTS</Text>
-            </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photoContainer}>
-                {item.photoUrl && (
-                    <TouchableOpacity style={styles.photoBox} onPress={() => openViewer(item.photoUrl, 'Reference Photo')}>
-                        <Text style={styles.photoLabel}>Ref</Text>
-                        <Image source={{ uri: getFullImageUrl(item.photoUrl) }} style={styles.cardImage} />
-                    </TouchableOpacity>
-                )}
-                {item.pickupPhotoUrl && (
-                    <TouchableOpacity style={styles.photoBox} onPress={() => openViewer(item.pickupPhotoUrl, 'Pickup Proof')}>
-                        <Text style={styles.photoLabel}>Pickup</Text>
-                        <Image source={{ uri: getFullImageUrl(item.pickupPhotoUrl) }} style={styles.cardImage} />
-                    </TouchableOpacity>
-                )}
-            </ScrollView>
-
-            <View style={styles.cardFooter}>
-                <Text allowFontScaling={false} style={styles.footerDate}>Penalty issued: {new Date(item.penaltyIssuedAt || item.date).toLocaleString()}</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photoContainer}>
+                    {item.photoUrl && (
+                        <TouchableOpacity style={styles.photoBox} onPress={() => openViewer(item.photoUrl, 'Reference Photo')}>
+                            <Text style={styles.photoLabel}>Ref</Text>
+                            <Image source={{ uri: getFullImageUrl(item.photoUrl) }} style={styles.cardImage} resizeMode="contain" />
+                        </TouchableOpacity>
+                    )}
+                    {item.pickupPhotoUrl && (
+                        <TouchableOpacity style={styles.photoBox} onPress={() => openViewer(item.pickupPhotoUrl, 'Pickup Proof')}>
+                            <Text style={styles.photoLabel}>Pickup</Text>
+                            <Image source={{ uri: getFullImageUrl(item.pickupPhotoUrl) }} style={styles.cardImage} resizeMode="contain" />
+                        </TouchableOpacity>
+                    )}
+                    {item.returnPhotoUrl && (
+                        <TouchableOpacity style={styles.photoBox} onPress={() => openViewer(item.returnPhotoUrl, 'Return Proof')}>
+                            <Text style={styles.photoLabel}>Return</Text>
+                            <Image source={{ uri: getFullImageUrl(item.returnPhotoUrl) }} style={styles.cardImage} resizeMode="contain" />
+                        </TouchableOpacity>
+                    )}
+                </ScrollView>
             </View>
         </View>
-    );
-  };
+
+        <View style={styles.cardFooter}>
+            <Text allowFontScaling={false} style={styles.footerDate}>Issued: {new Date(item.penaltyIssuedAt || item.date).toLocaleString()}</Text>
+        </View>
+    </View>
+  );
+
+  const StatCard = ({ label, value, icon, color }) => (
+    <View style={styles.statCard}>
+        <View style={[styles.statIconContainer, { backgroundColor: color + '15' }]}>
+            <Ionicons name={icon} size={18} color={color} />
+        </View>
+        <View>
+            <Text style={styles.statValue}>{value}</Text>
+            <Text style={styles.statLabel}>{label}</Text>
+        </View>
+    </View>
+  );
 
   if (isLoading) return (
     <View style={styles.loadingContainer}>
       <ActivityIndicator size="large" color="#1b264a" />
-      <Text style={styles.loadingText}>Accessing Compliance Archives...</Text>
+      <Text style={styles.loadingText}>Accessing Analytics...</Text>
     </View>
   );
 
   return (
     <View style={[styles.container, Platform.OS === 'web' ? { flexDirection: 'row', height: '100vh', overflow: 'hidden' } : { flex: 1 }]}>
       <Sidebar 
-          user={user} 
+          user={user}
           navigation={navigation} 
-          logout={logout} 
-          sidebarAnim={sidebarAnim} 
-          toggleSidebar={toggleSidebar} 
+          logout={logout}
+          sidebarAnim={sidebarAnim}
+          toggleSidebar={toggleSidebar}
           activeScreen="PenaltyHistory" 
       />
+      
+      {isSidebarOpen && Platform.OS !== 'web' ? (
+        <TouchableOpacity 
+            activeOpacity={1} 
+            onPress={toggleSidebar} 
+            style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 90 }]} 
+        />
+      ) : null}
+
       <View style={{ flex: 1, height: Platform.OS === 'web' ? '100vh' : 'auto' }}>
         <ScrollView style={[styles.scrollView, Platform.OS === 'web' ? { height: '100vh' } : {}]} contentContainerStyle={[styles.scrollContent, { minHeight: '100%' }]} >
         <View style={styles.paddingContainer}>
@@ -175,96 +243,213 @@ const PenaltyHistoryScreen = ({ navigation }) => {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                 {Platform.OS !== 'web' && (
                     <TouchableOpacity onPress={toggleSidebar} style={styles.mobileMenuBtn}>
-                        <Ionicons name="menu" size={24} color="#1b264a" />
+                      <Ionicons name="menu" size={24} color="#1b264a" />
                     </TouchableOpacity>
                 )}
                 <View>
-                    <Text allowFontScaling={false} style={styles.headerLabel}>TERMINAL RECORD</Text>
-                    <Text allowFontScaling={false} style={styles.headerTitle}>Penalty History</Text>
+                    <Text allowFontScaling={false} style={styles.headerLabel}>COMPLIANCE ANALYTICS</Text>
+                    <Text allowFontScaling={false} style={styles.headerTitle}>Penalty Oversight</Text>
                 </View>
             </View>
           </View>
 
-          {Object.keys(requests).sort((a,b) => new Date(b) - new Date(a)).map(date => (
-            <View key={date} style={styles.dateSection}>
-                <View style={styles.dateHeader}>
-                    <Ionicons name="alert-circle-outline" size={14} color="#f43f5e" style={{ marginRight: 6 }} />
-                    <Text style={styles.dateHeaderText}>{date === new Date().toLocaleDateString() ? 'TODAY' : date}</Text>
-                </View>
-                {requests[date].map((item) => <HistoryCard key={item._id} item={item} />)}
-            </View>
-          ))}
+          {user?.role?.toLowerCase() === 'admin' && (
+              <View style={styles.tabContainer}>
+                  <TouchableOpacity 
+                      style={[styles.tab, activeTab === 'Timeline' && styles.activeTab]} 
+                      onPress={() => setActiveTab('Timeline')}
+                  >
+                      <Text style={[styles.tabText, activeTab === 'Timeline' && styles.activeTabText]}>TIMELINE LOG</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                      style={[styles.tab, activeTab === 'Leaderboard' && styles.activeTab]} 
+                      onPress={() => setActiveTab('Leaderboard')}
+                  >
+                      <Text style={[styles.tabText, activeTab === 'Leaderboard' && styles.activeTabText]}>ANALYTICS VIEW</Text>
+                  </TouchableOpacity>
+              </View>
+          )}
 
-          {Object.keys(requests).length === 0 ? (
+          {/* Analytics Stats Summary */}
+          {user?.role?.toLowerCase() === 'admin' && (
+            <View style={styles.statsRow}>
+                <StatCard label="TOTAL PENALTIES" value={stats.total} icon="alert-circle" color="#f43f5e" />
+                <StatCard label="OFFENDERS" value={stats.distinctEmployees} icon="people" color="#1b264a" />
+                <StatCard label="LAST 24H" value={stats.last24h} icon="time" color="#ffc61c" />
+            </View>
+          )}
+
+          {activeTab === 'Timeline' ? (
+                Object.keys(requests).sort((a,b) => new Date(b) - new Date(a)).map(date => (
+                    <View key={date} style={styles.dateSection}>
+                        <View style={styles.dateHeader}>
+                            <Ionicons name="alert-circle-outline" size={14} color="#f43f5e" style={{ marginRight: 6 }} />
+                            <Text style={styles.dateHeaderText}>{date === new Date().toLocaleDateString() ? 'TODAY' : date}</Text>
+                        </View>
+                        {requests[date].map((item) => <HistoryCard key={item._id} item={item} />)}
+                    </View>
+                ))
+          ) : (
+                employeeGroups.map((emp) => (
+                    <View key={emp.id} style={styles.employeeSummaryBox}>
+                        <TouchableOpacity 
+                            style={styles.empBoxHeader}
+                            onPress={() => setExpandedEmpId(expandedEmpId === emp.id ? null : emp.id)}
+                            activeOpacity={0.7}
+                        >
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.empName}>{emp.name}</Text>
+                                <Text style={styles.empId}>ID: {emp.id} • {emp.totalCount} items</Text>
+                            </View>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                                <View style={styles.scoreBadge}>
+                                    <Text style={styles.scoreText}>{emp.totalCount}</Text>
+                                    <Text style={styles.scoreLabel}>PENALTIES</Text>
+                                </View>
+                                <Ionicons 
+                                    name={expandedEmpId === emp.id ? "chevron-up" : "chevron-down"} 
+                                    size={20} 
+                                    color="#94a3b8" 
+                                />
+                            </View>
+                        </TouchableOpacity>
+                        
+                        {expandedEmpId === emp.id && (
+                            <View style={styles.penaltyList}>
+                                <Text style={styles.listTitle}>DETAILED HISTORY:</Text>
+                                {emp.penalties.map((p) => (
+                                    <View key={p._id} style={styles.penaltyListItem}>
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <Text style={styles.itemName}>• {p.materialName}</Text>
+                                            <Text style={styles.itemDate}>{new Date(p.penaltyIssuedAt || p.date).toLocaleDateString()}</Text>
+                                        </View>
+                                        <Text style={styles.penaltyDetail}>"{p.penalty || 'Violation'}"</Text>
+                                    </View>
+                                ))}
+                            </View>
+                        )}
+                    </View>
+                ))
+          )}
+
+          {(activeTab === 'Timeline' && Object.keys(requests).length === 0) || (activeTab === 'Leaderboard' && employeeGroups.length === 0) ? (
             <View style={styles.emptyBox}>
-              <Text allowFontScaling={false} style={styles.emptyText}>No penalty records found</Text>
+              <Text allowFontScaling={false} style={styles.emptyText}>No disciplinary records found</Text>
             </View>
           ) : null}
         </View>
-      </ScrollView>
-    </View>
-      <Modal visible={viewerVisible} transparent={true} animationType="fade" onRequestClose={() => setViewerVisible(false)}>
-          <View style={styles.viewerOverlay}>
-              <TouchableOpacity style={styles.viewerClose} onPress={() => setViewerVisible(false)}>
-                  <Ionicons name="close" size={24} color="#ffffff" />
-              </TouchableOpacity>
-              <Text style={styles.viewerTitle}>{viewerTitle}</Text>
-              {viewerImage && <Image source={{ uri: viewerImage }} style={styles.viewerImage} resizeMode="contain" />}
-          </View>
-      </Modal>
+        </ScrollView>
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc' },
-  paddingContainer: { padding: Platform.OS === 'web' ? 20 : 14 },
-  header: { marginBottom: Platform.OS === 'web' ? 30 : 14 },
-  headerLabel: { fontSize: 9, fontWeight: '700', color: '#94a3b8', letterSpacing: 1 },
-  headerTitle: { fontSize: Platform.OS === 'web' ? 24 : 19, fontWeight: 'bold', color: '#0f172a' },
-  card: { backgroundColor: '#ffffff', borderRadius: 24, marginBottom: 16, borderWidth: 1, borderColor: '#f1f5f9', overflow: 'hidden' },
-  cardAccent: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 6 },
-  cardHeader: { padding: Platform.OS === 'web' ? 20 : 14, paddingLeft: Platform.OS === 'web' ? 26 : 18, flexDirection: 'row', justifyContent: 'space-between' },
-  cardTitle: { fontSize: 18, fontWeight: 'bold', color: '#1e293b' },
-  cardSubtitle: { fontSize: 10, fontWeight: '700', color: '#94a3b8' },
-  statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
-  badgeText: { fontSize: 9, fontWeight: '800' },
-  cardDetails: { backgroundColor: '#f8fafc', padding: 16, marginHorizontal: 20, borderRadius: 16, marginBottom: 16 },
-  detailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10, gap: 12 },
-  detailLabel: { fontSize: 9, fontWeight: '700', color: '#94a3b8', flexShrink: 0, width: '35%' },
-  detailValue: { fontSize: 13, fontWeight: '700', color: '#334155', flex: 1, textAlign: 'right' },
-  penaltyBox: { backgroundColor: '#fff1f2', padding: 16, marginHorizontal: 20, borderRadius: 16, marginBottom: 16 },
-  penaltyLabel: { fontSize: 9, fontWeight: '800', color: '#f43f5e' },
-  penaltyText: { fontSize: 12, color: '#9f1239' },
-  photoSectionHeader: { paddingHorizontal: 24, marginBottom: 8 },
-  photoSectionTitle: { fontSize: 9, fontWeight: '800', color: '#94a3b8' },
-  photoContainer: { paddingHorizontal: 20, gap: 12, marginBottom: 16 },
-  photoBox: { alignItems: 'center' },
-  photoLabel: { fontSize: 8, fontWeight: '800', color: '#94a3b8', marginBottom: 4 },
-  cardImage: { width: 60, height: 60, borderRadius: 10, backgroundColor: '#f1f5f9' },
-  cardFooter: { paddingHorizontal: 24, paddingBottom: 20 },
-  footerDate: { fontSize: 9, fontWeight: '700', color: '#94a3b8' },
-  emptyBox: { padding: 60, alignItems: 'center', borderStyle: 'dashed', borderWidth: 1, borderColor: '#e2e8f0' },
-  emptyText: { color: '#94a3b8', fontSize: 14, fontWeight: '600' },
-  viewerOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center', zIndex: 2000 },
-  viewerClose: { position: 'absolute', top: 50, right: 30, backgroundColor: 'rgba(255,255,255,0.1)', width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
-  viewerCloseText: { color: '#ffffff', fontSize: 20 },
-  viewerTitle: { position: 'absolute', top: 60, color: '#ffffff', fontSize: 14, fontWeight: '800' },
-  viewerImage: { width: Dimensions.get('window').width * 0.9, height: Dimensions.get('window').height * 0.7 },
+  container: { backgroundColor: '#f8fafc' },
+  paddingContainer: { padding: 24 },
+  header: { marginBottom: 30 },
+  headerLabel: { fontSize: 10, fontWeight: '800', color: '#ffc61c', letterSpacing: 2, marginBottom: 4 },
+  headerTitle: { fontSize: 28, fontWeight: '900', color: '#1b264a' },
+  
+  statsRow: { 
+    flexDirection: 'row', 
+    gap: 12, 
+    marginBottom: 24,
+    flexWrap: 'wrap'
+  },
+  statCard: {
+    flex: 1,
+    minWidth: 150,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+  },
+  statIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  statValue: { fontSize: 18, fontWeight: '900', color: '#1b264a' },
+  statLabel: { fontSize: 8, fontWeight: '800', color: '#94a3b8', letterSpacing: 0.5 },
+
+  tabContainer: { flexDirection: 'row', backgroundColor: '#e2e8f0', padding: 4, borderRadius: 12, marginTop: 16 },
+  tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 10 },
+  activeTab: { backgroundColor: '#ffffff', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
+  tabText: { fontSize: 10, fontWeight: '900', color: '#64748b' },
+  activeTabText: { color: '#1b264a' },
+
+  card: { backgroundColor: '#ffffff', borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#f1f5f9' },
+  cardMain: { flexDirection: 'row', gap: 12 },
+  iconContainer: { width: 40, height: 40, backgroundColor: '#fff1f2', borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  materialName: { fontSize: 15, fontWeight: '800', color: '#1b264a' },
+  idBadge: { backgroundColor: '#f1f5f9', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  idText: { fontSize: 9, fontWeight: '800', color: '#64748b' },
+  employeeInfo: { fontSize: 11, color: '#94a3b8', marginTop: 2, fontWeight: '600' },
+  penaltyDetailBox: { marginTop: 8, padding: 8, backgroundColor: '#f8fafc', borderRadius: 8, borderLeftWidth: 2, borderLeftColor: '#f43f5e' },
+  penaltyMsg: { fontSize: 11, color: '#64748b', fontStyle: 'italic' },
+  cardFooter: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#f1f5f9' },
+  footerDate: { fontSize: 10, color: '#94a3b8', fontWeight: '600' },
+
+  emptyBox: { padding: 40, alignItems: 'center' },
+  emptyText: { color: '#94a3b8', fontSize: 14, fontWeight: '700' },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8fafc' },
-  loadingText: { marginTop: 12, fontSize: 12, fontWeight: '700', color: '#1b264a' },
+  loadingText: { marginTop: 12, color: '#1b264a', fontWeight: '800', fontSize: 12 },
+
+  employeeSummaryBox: { backgroundColor: '#ffffff', borderRadius: 20, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#f1f5f9' },
+  empBoxHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  empName: { fontSize: 16, fontWeight: 'bold', color: '#1b264a' },
+  empId: { fontSize: 10, color: '#94a3b8', fontWeight: '600', marginTop: 2 },
+  scoreBadge: { backgroundColor: '#fff1f2', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 10, alignItems: 'center' },
+  scoreText: { fontSize: 16, fontWeight: '900', color: '#f43f5e' },
+  scoreLabel: { fontSize: 6, fontWeight: '800', color: '#fb7185' },
+  penaltyList: { marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#f1f5f9', gap: 8 },
+  listTitle: { fontSize: 9, fontWeight: '800', color: '#94a3b8', marginBottom: 4 },
+  penaltyListItem: { backgroundColor: '#f8fafc', padding: 12, borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#f43f5e' },
+  itemName: { fontSize: 12, fontWeight: '700', color: '#334155' },
+  itemDate: { fontSize: 9, color: '#94a3b8', fontWeight: '600' },
+  penaltyDetail: { fontSize: 11, color: '#64748b', marginTop: 4 },
+
   scrollView: { flex: 1 },
   scrollContent: { paddingBottom: 120, flexGrow: 1 },
-  mobileMenuBtn: {
-    backgroundColor: '#ffffff',
-    padding: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
+  mobileMenuBtn: { padding: 8 },
   dateSection: { marginBottom: 24 },
-  dateHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, paddingHorizontal: 4 },
+  dateHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
   dateHeaderText: { fontSize: 11, fontWeight: '800', color: '#64748b', letterSpacing: 1 },
+  remarkBubble: {
+    backgroundColor: '#ecfeff',
+    padding: 12,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#cffafe',
+  },
+  remarkBubbleText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#0e7490',
+    fontWeight: '600',
+    fontStyle: 'italic',
+  },
+  photoSectionHeader: { marginTop: 12, marginBottom: 8 },
+  photoSectionTitle: { fontSize: 8, fontWeight: '800', color: '#94a3b8' },
+  photoContainer: { gap: 12 },
+  photoBox: { alignItems: 'center' },
+  photoLabel: { fontSize: 8, fontWeight: '800', color: '#94a3b8', marginBottom: 4 },
+  cardImage: { width: 50, height: 50, borderRadius: 8, backgroundColor: '#f1f5f9' },
+  viewerOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center', zIndex: 2000 },
+  viewerClose: { position: 'absolute', top: 50, right: 30, backgroundColor: 'rgba(255,255,255,0.1)', width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
+  viewerTitle: { position: 'absolute', top: 60, color: '#ffffff', fontSize: 14, fontWeight: '800' },
+  viewerImage: { width: Dimensions.get('window').width * 0.9, height: Dimensions.get('window').height * 0.7 },
 });
 
 export default PenaltyHistoryScreen;

@@ -1,4 +1,5 @@
 import React, { useContext, useEffect, useState, useRef, useCallback } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { View, Text, ScrollView, TouchableOpacity, Platform, Animated, Modal, TextInput, StyleSheet, Dimensions, KeyboardAvoidingView, ActivityIndicator, Image, Alert, BackHandler } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,7 +7,7 @@ import tw from 'twrnc';
 import Toast from 'react-native-toast-message';
 import * as ImagePicker from 'expo-image-picker';
 import io from 'socket.io-client';
-import { useAudioPlayer } from 'expo-audio';
+import { Audio } from 'expo-av';
 import { AuthContext } from '../context/AuthContext';
 import api, { BASE_URL } from '../services/api';
 import Sidebar from '../components/Sidebar';
@@ -31,427 +32,19 @@ const FEEDBACK_REASONS = [
 
 const POLL_INTERVAL_MS = 10000; // 10 seconds
 
-const DashboardScreen = ({ navigation, route }) => {
-  const { user, logout } = useContext(AuthContext);
-  const [requests, setRequests] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSubmittingPhoto, setIsSubmittingPhoto] = useState(false);
-  
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState('REJECT'); 
-  const [selectedRequestId, setSelectedRequestId] = useState(null);
-  const [commentText, setCommentText] = useState('');
-  const [selectedPreset, setSelectedPreset] = useState('');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isLive, setIsLive] = useState(false);
-  const [ticker, setTicker] = useState(0);
-
-  // Heartbeat for live clock
-  useEffect(() => {
-    const interval = setInterval(() => {
-        setTicker(prev => prev + 1);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
-  const [allRequests, setAllRequests] = useState([]);
-  const sidebarAnim = useRef(new Animated.Value(-280)).current;
-  const socketRef = useRef(null);
-  const isFocusedRef = useRef(true);
-
-  // Image Viewer State
-  const [viewerVisible, setViewerVisible] = useState(false);
-  const [viewerImage, setViewerImage] = useState(null);
-  const [viewerTitle, setViewerTitle] = useState('');
-
-  const penaltyPlayer = useAudioPlayer('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-
-  const playNotificationSound = async () => {
-    try {
-        penaltyPlayer.play();
-    } catch (error) {
-        console.log('Error playing sound:', error);
-    }
-  };
-
-  const toggleSidebar = () => {
-    const toValue = isSidebarOpen ? -280 : 0;
-    Animated.timing(sidebarAnim, {
-        toValue,
-        duration: 300,
-        useNativeDriver: true,
-    }).start();
-    setIsSidebarOpen(!isSidebarOpen);
-  };
-
-  const setupSocket = useCallback(() => {
-    if (socketRef.current) return;
-    
-    // Connect to socket with websocket transport for better stability in Expo/Mobile
-    socketRef.current = io(BASE_URL, {
-        transports: ['websocket'],
-        reconnection: true,
-        reconnectionAttempts: 10,
-    });
-    
-    socketRef.current.on('connect', () => {
-        setIsLive(true);
-    });
-    
-    socketRef.current.on('requestUpdated', (data) => {
-        console.log('[SOCKET] requestUpdated event received:', data?.type);
-        
-        // Instant state update if data is provided
-        if (data && data.request) {
-            setAllRequests(prev => {
-                const index = prev.findIndex(r => r._id === data.request._id);
-                if (index !== -1) {
-                    // Update existing
-                    const updated = [...prev];
-                    updated[index] = data.request;
-                    return updated;
-                } else {
-                    // Prepend new request
-                    return [data.request, ...prev];
-                }
-            });
-        }
-
-        // Still do a background refresh to ensure full sync (badges, filters, etc)
-        fetchRequests(true);
-
-        if (isFocusedRef.current) {
-            if (user?.role === 'Employee' && data?.type === 'UPDATE') {
-                Toast.show({
-                    type: 'success',
-                    text1: '🔔 Dashboard Updated',
-                    text2: 'One of your requests has been updated by the admin.',
-                    visibilityTime: 4000,
-                });
-            } else if (user?.role === 'Admin' && data?.type === 'CREATE') {
-                playNotificationSound();
-                Toast.show({
-                    type: 'info',
-                    text1: '📦 New Request',
-                    text2: `New material request from ${data.request?.employeeName}`,
-                    visibilityTime: 6000,
-                });
-            }
-        }
-    });
-
-    socketRef.current.on('notification', async (data) => {
-        const currentUserId = user?._id || user?.id;
-        if (currentUserId && (data.userId === currentUserId || data.employeeId === user?.employeeId)) {
-            console.log('[SOCKET] Personalized notification received:', data.title);
-            await playNotificationSound();
-            Toast.show({
-                type: data.type === 'penalty' ? 'error' : 'info',
-                text1: data.title,
-                text2: data.message,
-                visibilityTime: 8000,
-            });
-        }
-    });
-
-    socketRef.current.on('disconnect', () => {
-        setIsLive(false);
-    });
-  }, [user]);
-
-  // Sync the filtered "requests" state whenever "allRequests" changes (Instant Update)
-  useEffect(() => {
-    if (allRequests.length > 0 || !isLoading) {
-      // Define active items (not Closed, Rejected, or Penalized)
-      const activeRequests = allRequests.filter(r => !['Closed', 'Rejected', 'Penalized'].includes(r.status));
-      const startOfToday = new Date();
-      startOfToday.setHours(0, 0, 0, 0);
-
-      const activeToday = activeRequests.filter(r => new Date(r.date) >= startOfToday);
-      
-      if (user?.role === 'Employee' && user?.employeeId) {
-          const empToday = activeToday.filter(r => r.employeeId === user.employeeId).sort((a,b) => new Date(b.date) - new Date(a.date));
-          setRequests(empToday);
-      } else {
-          setRequests(activeToday.sort((a,b) => new Date(b.date) - new Date(a.date)));
-      }
-    }
-  }, [allRequests, user]);
-
-  useFocusEffect(
-    useCallback(() => {
-        if (Platform.OS === 'web') return;
-        const onBackPress = () => {
-             Alert.alert(
-                "Exit App",
-                "Are you sure you want to close the application?",
-                [
-                    { text: "Cancel", style: "cancel" },
-                    { text: "Exit", onPress: () => BackHandler.exitApp() }
-                ]
-            );
-            return true;
-        };
-        const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
-        return () => subscription.remove();
-    }, [])
-  );
-
-  useEffect(() => {
-    fetchRequests();
-    setupSocket();
-
-    const unsubFocus = navigation.addListener('focus', () => {
-      isFocusedRef.current = true;
-      fetchRequests();
-    });
-    const unsubBlur = navigation.addListener('blur', () => {
-      isFocusedRef.current = false;
-    });
-
-    return () => {
-        if (socketRef.current) {
-            socketRef.current.disconnect();
-            socketRef.current = null;
-        }
-    };
-  }, []);
-
-
-
-  const fetchRequests = async (silent = false) => {
-    try {
-      if (!silent) setIsLoading(true);
-      const res = await api.get('/requests');
-      setAllRequests(res.data);
-      
-      // Define active items (not Closed, Rejected, or Penalized)
-      const activeRequests = res.data.filter(r => !['Closed', 'Rejected', 'Penalized'].includes(r.status));
-      
-      const startOfToday = new Date();
-      startOfToday.setHours(0, 0, 0, 0);
-
-      // Filter for active items THAT ARE FROM TODAY
-      // Older items (even if active) stay in History as per user's previous request
-      const activeToday = activeRequests.filter(r => new Date(r.date) >= startOfToday);
-      
-      if (user?.role === 'Employee' && user?.employeeId) {
-          // Dashboard strictly shows TODAY's active requests for the current employee
-          const empToday = activeToday.filter(r => r.employeeId === user.employeeId).sort((a,b) => new Date(b.date) - new Date(a.date));
-          setRequests(empToday);
-      } else {
-          // Dashboard strictly shows TODAY's active requests for the Admin
-          setRequests(activeToday.sort((a,b) => new Date(b.date) - new Date(a.date)));
-      }
-    } catch (err) {
-      console.log('Error fetching requests');
-    } finally {
-      if (!silent) setIsLoading(false);
-    }
-  };
-
-  const handleUpdateStatus = async (id, status, reason = '', comment = '') => {
-    if (user?.role !== 'Admin') return;
-
-    try {
-        const res = await api.put(`/requests/${id}`, { 
-            status, 
-            rejectionReason: reason,
-            adminComment: comment 
-        });
-        
-        await fetchRequests(); 
-
-        if (res.data.lowStockWarning) {
-            Toast.show({
-                type: 'error',
-                text1: 'Restock Required!',
-                text2: res.data.lowStockWarning,
-                visibilityTime: 6000,
-            });
-        } else {
-            Toast.show({
-                type: 'success',
-                text1: 'Response Recorded',
-                text2: status === 'Pending' ? 'Comment sent to employee' : `Request ${status}`
-            });
-        }
-        
-        setIsModalOpen(false);
-        setCommentText('');
-        setSelectedPreset('');
-    } catch (error) {
-        Toast.show({
-            type: 'error',
-            text1: 'Update Failed',
-            text2: error.response?.data?.msg || 'Could not save response'
-        });
-    }
-  };
-
-  const processUpload = async (id, uri, endpoint, webFile = null) => {
-    setIsSubmittingPhoto(true);
-    try {
-        const formData = new FormData();
-        
-        if (Platform.OS === 'web') {
-            if (webFile) {
-                formData.append('photo', webFile, webFile.name || 'upload.jpg');
-            } else {
-                const response = await fetch(uri);
-                const blob = await response.blob();
-                formData.append('photo', blob, 'upload.jpg');
-            }
-        } else {
-            const filename = uri.split('/').pop();
-            const match = /\.(\w+)$/.exec(filename);
-            const ext = match ? match[1].toLowerCase() : 'jpg';
-            const type = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
-            formData.append('photo', { uri, name: filename, type });
-        }
-
-        await api.put(`/requests/${id}/${endpoint}`, formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data',
-            },
-            timeout: 30000,
-        });
-        
-        Toast.show({ 
-            type: 'success', 
-            text1: endpoint === 'pickup' ? 'Pickup Recorded' : 'Return Recorded', 
-            text2: 'Status updated successfully' 
-        });
-        fetchRequests();
-    } catch (err) {
-        console.error('Upload Error:', err);
-        const errorMsg = err.response?.data?.msg || err.message || 'Could not upload photo';
-        Toast.show({ 
-            type: 'error', 
-            text1: 'Upload Failed', 
-            text2: err.message === 'Network Error' ? 'Network Error: Backend unreachable.' : errorMsg 
-        });
-    } finally {
-        setIsSubmittingPhoto(false);
-    }
-  };
-
-  const fileInputRef = useRef(null);
-  const [pendingPhotoId, setPendingPhotoId] = useState(null);
-  const [pendingPhotoEndpoint, setPendingPhotoEndpoint] = useState(null);
-
-  const handleWebFileSelect = async (e) => {
-    const file = e.target.files[0];
-    if (file && pendingPhotoId && pendingPhotoEndpoint) {
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        await processUpload(pendingPhotoId, event.target.result, pendingPhotoEndpoint, file);
-        setPendingPhotoId(null);
-        setPendingPhotoEndpoint(null);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handlePhotoAction = async (id, endpoint) => {
-    if (Platform.OS === 'web') {
-        if (fileInputRef.current) {
-            setPendingPhotoId(id);
-            setPendingPhotoEndpoint(endpoint);
-            fileInputRef.current.click();
-        } else {
-            handleLaunchLibrary(id, endpoint);
-        }
-        return;
-    }
-
-    handleLaunchCamera(id, endpoint);
-  };
-
-  const handleLaunchCamera = async (id, endpoint) => {
-    try {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== 'granted') {
-          Toast.show({ type: 'error', text1: 'Permission Denied', text2: 'Camera access is required' });
-          return;
-      }
-
-      let result = await ImagePicker.launchCameraAsync({
-          allowsEditing: false,
-          quality: 0.8,
-      });
-
-      if (!result.canceled) {
-          await processUpload(id, result.assets[0].uri, endpoint);
-      }
-    } catch (err) {
-      Toast.show({ type: 'error', text1: 'Error', text2: 'Could not launch camera' });
-    }
-  };
-
-  const handleLaunchLibrary = async (id, endpoint) => {
-    try {
-        let result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaType.Images,
-            allowsEditing: false,
-            quality: 0.8,
-        });
-
-        if (!result.canceled) {
-            await processUpload(id, result.assets[0].uri, endpoint);
-        }
-    } catch (err) {
-        Toast.show({ type: 'error', text1: 'Selection Error', text2: 'Could not access gallery' });
-    }
-  };
-
-  const handlePickupPhoto = async (id) => {
-    handlePhotoAction(id, 'pickup');
-  };
-
-  const handleReturnPhoto = async (id) => {
-    if (Platform.OS === 'web') {
-        const proceed = window.confirm("Submission Deadline: Reminder: All materials must be submitted and returned before 6:00 PM today to avoid penalties. Do you want to proceed with submission?");
-        if (proceed) handlePhotoAction(id, 'return');
-        return;
-    }
-
-    Alert.alert(
-        "Submission Deadline",
-        "Reminder: All materials must be submitted and returned before 6:00 PM today to avoid penalties. Do you want to proceed with submission?",
-        [
-            { text: "Cancel", style: "cancel" },
-            { text: "Proceed", onPress: () => handlePhotoAction(id, 'return') }
-        ]
-    );
-  };
-
-  const handleIssuePenalty = async (id, penalty) => {
-    try {
-        await api.put(`/requests/${id}/penalty`, { penalty });
-        Toast.show({ type: 'success', text1: 'Penalty Issued', text2: 'Employee has been penalized' });
-        setIsModalOpen(false);
-        fetchRequests();
-    } catch (err) {
-        Toast.show({ type: 'error', text1: 'Failed', text2: 'Could not issue penalty' });
-    }
-  };
-
-  const getFullImageUrl = (path) => {
-    if (!path) return null;
-    const cleanPath = path.toString().trim().replace(/\\/g, '/');
-    const finalPath = cleanPath.startsWith('/') ? cleanPath.substring(1) : cleanPath;
-    return `${BASE_URL}/${finalPath}`;
-  };
-
-  const openViewer = (path, title) => {
-    const url = getFullImageUrl(path);
-    if (!url) return;
-    setViewerImage(url);
-    setViewerTitle(title);
-    setViewerVisible(true);
-  };
-
-  const AnimatedCard = ({ item }) => {
+// Memoized stable card component to prevent shattering/flickering
+const AnimatedCard = React.memo(({ 
+    item, 
+    user, 
+    openViewer, 
+    getFullImageUrl, 
+    handleUpdateStatus, 
+    handlePickupPhoto, 
+    handleReturnPhoto,
+    setSelectedRequestId,
+    setModalMode, 
+    setIsModalOpen
+}) => {
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const translateY = useRef(new Animated.Value(20)).current;
     const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -471,25 +64,11 @@ const DashboardScreen = ({ navigation, route }) => {
         ]).start();
 
         if (item.adminComment && item.status === 'Pending') {
-            pulseAnim.setValue(1); 
-            Animated.loop(
-                Animated.sequence([
-                    Animated.timing(pulseAnim, { 
-                      toValue: 1.05, 
-                      duration: 1000, 
-                      useNativeDriver: Platform.OS === 'web' ? false : true 
-                    }),
-                    Animated.timing(pulseAnim, { 
-                      toValue: 1, 
-                      duration: 1000, 
-                      useNativeDriver: Platform.OS === 'web' ? false : true 
-                    }),
-                ])
-            ).start();
+            pulseAnim.setValue(1.02); 
         } else {
             pulseAnim.setValue(1);
         }
-    }, [item.adminComment, item.status]);
+    }, [item.requestId, item.status]); // Only re-animate if status or ID actually changes
 
     const isOverdue = item.dueDate && new Date(item.dueDate) < new Date() && item.status === 'PendingReturn';
     const hasAnyPhoto = !!(item.photoUrl || item.pickupPhotoUrl || item.returnPhotoUrl);
@@ -503,7 +82,11 @@ const DashboardScreen = ({ navigation, route }) => {
             <View style={styles.cardYellowStrip} />
             <View style={styles.cardHeader}>
                 <View style={{ flex: 1 }}>
-                    <Text allowFontScaling={false} style={styles.cardTitle}>{item.materialName}</Text>
+                    {(!item.materialName.toLowerCase().includes('general inquiry')) && (
+                        <Text allowFontScaling={false} style={styles.cardTitle}>
+                            {item.materialName.split('[')[0].trim()}
+                        </Text>
+                    )}
                     <Text allowFontScaling={false} style={styles.cardSubtitle}>ID: {item.requestId}</Text>
                     {item.dueDate ? (
                         <Text allowFontScaling={false} style={[styles.dueDate, isOverdue ? styles.overdueText : {}]}>
@@ -530,9 +113,13 @@ const DashboardScreen = ({ navigation, route }) => {
                 <View style={styles.penaltyBadge}>
                     <Text allowFontScaling={false} style={styles.penaltyBadgeText}>⚠️ OVERDUE - RETURN IMMEDIATELY</Text>
                 </View>
+            ) : item.status === 'Penalized' ? (
+                <View style={[styles.penaltyBadge, { backgroundColor: '#fff1f2', borderColor: '#fda4af', borderWidth: 1 }]}>
+                    <Text allowFontScaling={false} style={[styles.penaltyBadgeText, { color: '#e11d48' }]}>🚫 PENALTY ISSUED: {item.penalty || 'Violation'}</Text>
+                </View>
             ) : null}
 
-            {item.insufficientStock && item.status === 'Pending' ? (
+            {(item.insufficientStock && item.status === 'Pending' && !item.materialName.toLowerCase().includes('general inquiry')) ? (
                 <View style={user?.role === 'Admin' ? styles.urgentBadge : styles.waitingBadge}>
                     <Text allowFontScaling={false} style={user?.role === 'Admin' ? styles.urgentBadgeText : styles.waitingBadgeText}>
                         {user?.role === 'Admin' ? '⚠️ INSUFFICIENT STOCK - RESTOCK IMMEDIATELY' : '⏳ WAITING FOR WAREHOUSE RESTOCK'}
@@ -541,6 +128,15 @@ const DashboardScreen = ({ navigation, route }) => {
             ) : null}
 
             <View style={styles.cardDetails}>
+                {((item.remark || '').toString().trim() !== '') ? (
+                    <View style={styles.remarkBubble}>
+                        <Ionicons name="chatbubble-ellipses" size={16} color="#0891b2" />
+                        <Text allowFontScaling={false} style={styles.remarkBubbleText}>
+                            Note: {(item.remark || '').toString().trim()}
+                        </Text>
+                    </View>
+                ) : null}
+
                 <View style={styles.detailRow}>
                     <Text allowFontScaling={false} style={styles.detailLabel}>REQUESTED BY</Text>
                     <View>
@@ -548,13 +144,14 @@ const DashboardScreen = ({ navigation, route }) => {
                         {item.employeeEmail ? <Text allowFontScaling={false} style={{ fontSize: 11, color: '#64748b', marginTop: 1 }}>{item.employeeEmail}</Text> : null}
                     </View>
                 </View>
-                <View style={styles.detailRow}>
-                    <Text allowFontScaling={false} style={styles.detailLabel}>QUANTITY</Text>
-                    <Text allowFontScaling={false} style={styles.detailValueIndigo}>{item.quantity} Units</Text>
-                </View>
+                {(!item.materialName.toLowerCase().includes('general inquiry')) && (
+                    <View style={styles.detailRow}>
+                        <Text allowFontScaling={false} style={styles.detailLabel}>QUANTITY</Text>
+                        <Text allowFontScaling={false} style={styles.detailValueIndigo}>{item.quantity} Units</Text>
+                    </View>
+                )}
             </View>
 
-            {/* Photo Section */}
             <View style={styles.photoSectionHeader}>
                 <Text style={styles.photoSectionTitle}>ATTACHMENTS</Text>
                 {!hasAnyPhoto ? <Text style={styles.noPhotoText}>No evidence uploaded yet</Text> : null}
@@ -635,40 +232,48 @@ const DashboardScreen = ({ navigation, route }) => {
                 </View>
             </View>
             
-            {/* Actions for Admin */}
             {user?.role === 'Admin' ? (
                 <View style={styles.actionRow}>
                     {item.status === 'Pending' ? (
                         <>
-                            <TouchableOpacity style={[styles.actionBtn, styles.btnEmerald]} onPress={() => handleUpdateStatus(item._id, 'Approved')}>
-                                <Text allowFontScaling={false} style={styles.btnText}>APPROVE</Text>
-                            </TouchableOpacity>
                             <TouchableOpacity 
-                                style={[styles.actionBtn, styles.btnAmber]} 
-                                onPress={() => { setSelectedRequestId(item._id); setModalMode('PENDING_REASON'); setIsModalOpen(true); }}
+                                style={[
+                                    styles.actionBtn, 
+                                    (item.insufficientStock && !item.materialName.toLowerCase().includes('general inquiry')) ? styles.btnDisabled : styles.btnEmerald
+                                ]} 
+                                onPress={() => {
+                                    if (item.insufficientStock && !item.materialName.toLowerCase().includes('general inquiry')) {
+                                        Toast.show({
+                                            type: 'error',
+                                            text1: 'Cannot Approve',
+                                            text2: 'Insufficient stock. Please restock before approving.',
+                                            visibilityTime: 4000
+                                        });
+                                        return;
+                                    }
+                                    handleUpdateStatus(item._id, 'Approved');
+                                }}
                             >
+                                <Text allowFontScaling={false} style={styles.btnText}>
+                                    {(item.insufficientStock && !item.materialName.toLowerCase().includes('general inquiry')) ? 'STOCK BLOCKED' : 'APPROVE'}
+                                </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={[styles.actionBtn, styles.btnAmber]} onPress={() => { setSelectedRequestId(item._id); setModalMode('PENDING_REASON'); setIsModalOpen(true); }}>
                                 <Text allowFontScaling={false} style={styles.btnText}>FEEDBACK</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity 
-                                style={[styles.actionBtn, styles.btnRose]} 
-                                onPress={() => { setSelectedRequestId(item._id); setModalMode('REJECT'); setIsModalOpen(true); }}
-                            >
+                            <TouchableOpacity style={[styles.actionBtn, styles.btnRose]} onPress={() => { setSelectedRequestId(item._id); setModalMode('REJECT'); setIsModalOpen(true); }}>
                                 <Text allowFontScaling={false} style={styles.btnText}>REJECT</Text>
                             </TouchableOpacity>
                         </>
                     ) : null}
                     {item.status === 'PendingReturn' ? (
-                        <TouchableOpacity 
-                            style={[styles.actionBtn, styles.btnRose]} 
-                            onPress={() => { setSelectedRequestId(item._id); setModalMode('PENALTY'); setIsModalOpen(true); }}
-                        >
+                        <TouchableOpacity style={[styles.actionBtn, styles.btnRose]} onPress={() => { setSelectedRequestId(item._id); setModalMode('PENALTY'); setIsModalOpen(true); }}>
                             <Text allowFontScaling={false} style={styles.btnText}>ISSUE PENALTY</Text>
                         </TouchableOpacity>
                     ) : null}
                 </View>
             ) : null}
 
-            {/* Actions for Employee */}
             {user?.role === 'Employee' ? (
                 <View style={styles.actionRow}>
                     {item.status === 'Approved' ? (
@@ -685,8 +290,595 @@ const DashboardScreen = ({ navigation, route }) => {
             ) : null}
         </Animated.View>
     );
+});
+
+
+const DashboardScreen = ({ navigation, route }) => {
+  const { user, logout } = useContext(AuthContext);
+  const [requests, setRequests] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmittingPhoto, setIsSubmittingPhoto] = useState(false);
+  
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState('REJECT'); 
+  const [selectedRequestId, setSelectedRequestId] = useState(null);
+  const [commentText, setCommentText] = useState('');
+  const [selectedPreset, setSelectedPreset] = useState('');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isLive, setIsLive] = useState(false);
+  const [showTopOffenderPopup, setShowTopOffenderPopup] = useState(false);
+  const [topOffenderPopupData, setTopOffenderPopupData] = useState(null);
+  // Removed ticker state that was causing unnecessary re-renders every second
+  // const [ticker, setTicker] = useState(0);
+
+  // Heartbeat for live clock (Removed as requested to fix blinking/shattering)
+  /*
+  useEffect(() => {
+    const interval = setInterval(() => {
+        setTicker(prev => prev + 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+  */
+  const [allRequests, setAllRequests] = useState([]);
+  const [highPenaltyUsers, setHighPenaltyUsers] = useState([]);
+  const sidebarAnim = useRef(new Animated.Value(-280)).current;
+  const socketRef = useRef(null);
+  const isFocusedRef = useRef(true);
+
+  // Image Viewer State
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [viewerImage, setViewerImage] = useState(null);
+  const [viewerTitle, setViewerTitle] = useState('');
+
+  // Use a Ref for the user object to avoid stale closures in socket listeners
+  const userRef = useRef(user);
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
+  const soundRefs = useRef({
+    default: null,
+    penalty: null,
+    closed: null
+  });
+
+  useEffect(() => {
+    const loadSounds = async () => {
+        try {
+            const sounds = {
+                default: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Samples/master/ding.mp3',
+                penalty: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Samples/master/alert.mp3',
+                closed: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Samples/master/success.mp3'
+            };
+
+            for (const [key, uri] of Object.entries(sounds)) {
+                if (Platform.OS === 'web') {
+                    // On Web, we create a native Audio object for better compatibility
+                    const audio = new window.Audio(uri);
+                    audio.load();
+                    soundRefs.current[key] = audio;
+                } else {
+                    const { sound } = await Audio.Sound.createAsync({ uri }, { volume: 1.0 });
+                    soundRefs.current[key] = sound;
+                }
+            }
+            console.log('[AUDIO] Sounds pre-loaded successfully for', Platform.OS);
+        } catch (err) {
+            console.log('[AUDIO] Pre-load error:', err.message);
+        }
+    };
+    loadSounds(); // Enable for all platforms
+
+    return () => {
+        Object.values(soundRefs.current).forEach(sound => {
+            if (sound) {
+                if (Platform.OS === 'web') {
+                    sound.pause();
+                } else {
+                    sound.unloadAsync().catch(() => {});
+                }
+            }
+        });
+    };
+  }, []);
+
+  const playNotificationSound = async (soundType = 'default') => {
+    try {
+        const sound = soundRefs.current[soundType] || soundRefs.current.default;
+        if (sound) {
+            console.log(`[AUDIO] Playing ${soundType} on ${Platform.OS}...`);
+            if (Platform.OS === 'web') {
+                sound.currentTime = 0;
+                sound.play().catch(err => console.log('[AUDIO] Web Auto-play blocked until user interaction:', err.message));
+            } else {
+                await sound.replayAsync();
+                const { Vibration } = require('react-native');
+                Vibration.vibrate(soundType === 'penalty' ? [0, 500, 200, 500] : 100);
+            }
+        } else {
+            console.log(`[AUDIO] Sound ${soundType} not loaded, falling back to network...`);
+            // Fallback to old behavior if pre-load failed
+            let fallbackUri = 'https://upload.wikimedia.org/wikipedia/commons/5/5c/Notification_sound.mp3';
+            const { sound: fbSound } = await Audio.Sound.createAsync({ uri: fallbackUri }, { shouldPlay: true });
+            setTimeout(() => fbSound.unloadAsync().catch(() => {}), 5000);
+        }
+    } catch (error) {
+        console.log('[AUDIO] Playback Error:', error.message);
+    }
   };
 
+  const toggleSidebar = useCallback(() => {
+    const toValue = isSidebarOpen ? -280 : 0;
+    Animated.timing(sidebarAnim, {
+        toValue,
+        duration: 300,
+        useNativeDriver: true,
+    }).start();
+    setIsSidebarOpen(!isSidebarOpen);
+  }, [isSidebarOpen, sidebarAnim]);
+
+  const fetchHighPenalty = useCallback(async () => {
+    if (user?.role === 'Admin') {
+      try {
+        const penaltyRes = await api.get('/admin/high-penalty');
+        setHighPenaltyUsers(penaltyRes.data);
+      } catch (err) {
+        console.log('[DASHBOARD] High penalty fetch failed');
+      }
+    }
+  }, [user]);
+
+  const fetchRequests = useCallback(async (silent = false) => {
+    try {
+      if (!silent) setIsLoading(true);
+      const res = await api.get('/requests');
+      setAllRequests(res.data);
+      
+      const activeRequests = res.data.filter(r => !['Closed', 'Rejected'].includes(r.status));
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+
+      const activeToday = activeRequests.filter(r => new Date(r.date) >= startOfToday);
+      
+      if (user?.role === 'Employee' && user?.employeeId) {
+          const empToday = activeToday.filter(r => r.employeeId === user.employeeId).sort((a,b) => new Date(b.date) - new Date(a.date));
+          setRequests(empToday);
+      } else {
+          setRequests(activeToday.sort((a,b) => new Date(b.date) - new Date(a.date)));
+      }
+    } catch (err) {
+      console.log('Error fetching requests');
+    } finally {
+      if (!silent) setIsLoading(false);
+    }
+  }, [user]);
+
+  const setupSocket = useCallback(() => {
+    if (socketRef.current) return;
+    
+    // Connect to socket with websocket transport for better stability in Expo/Mobile
+    socketRef.current = io(BASE_URL, {
+        transports: ['websocket'],
+        reconnection: true,
+        reconnectionAttempts: 10,
+    });
+    
+    socketRef.current.on('connect', () => {
+        setIsLive(true);
+    });
+    
+    socketRef.current.on('requestUpdated', (data) => {
+        const currentUser = userRef.current;
+        console.log('[SOCKET] requestUpdated event received:', data?.type, 'Role:', currentUser?.role);
+        
+        // Determine relevancy using the latest user from Ref
+        const isRelevant = currentUser?.role === 'Admin' || (currentUser?.role === 'Employee' && data?.request?.employeeId === currentUser?.employeeId);
+        
+        if (isRelevant) {
+            if (data?.request?.status === 'Penalized') {
+                playNotificationSound('penalty');
+            } else if (data?.request?.status === 'Closed' || data?.type === 'RETURN') {
+                playNotificationSound('closed');
+            } else {
+                playNotificationSound('default');
+            }
+        }
+
+        // Instant state update if data is provided
+        if (data && data.request) {
+            setAllRequests(prev => {
+                const index = prev.findIndex(r => r._id === data.request._id);
+                if (index !== -1) {
+                    // Update existing
+                    const updated = [...prev];
+                    updated[index] = data.request;
+                    return updated;
+                } else {
+                    // Prepend new request
+                    return [data.request, ...prev];
+                }
+            });
+        }
+
+        // Still do a background refresh to ensure full sync (badges, filters, etc)
+        fetchRequests(true);
+
+        if (isFocusedRef.current && isRelevant) {
+            if (user?.role === 'Employee' && data?.type === 'UPDATE') {
+                Toast.show({
+                    type: 'success',
+                    text1: '🔔 Dashboard Updated',
+                    text2: 'One of your requests has been updated.',
+                    visibilityTime: 4000,
+                });
+            } else if (user?.role === 'Admin' && data?.type === 'CREATE') {
+                Toast.show({
+                    type: 'info',
+                    text1: '📦 New Request',
+                    text2: `New material request from ${data?.request?.employeeName}`,
+                    visibilityTime: 6000,
+                });
+            } else if (user?.role === 'Admin' && data?.type === 'UPDATE') {
+                 Toast.show({
+                    type: 'info',
+                    text1: '🔄 Request Updated',
+                    text2: `Update on ${data?.request?.materialName} by ${data?.request?.employeeName}`,
+                    visibilityTime: 4000,
+                });
+            }
+        }
+    });
+
+    socketRef.current.on('notification', async (data) => {
+        const currentUserId = user?._id || user?.id;
+        // Allow if it matches personal ID OR if it's an Admin notification and current user is Admin
+        const isPersonal = currentUserId && (data.userId === currentUserId || data.employeeId === user?.employeeId);
+        const isAdminAlert = user?.role === 'Admin' && data.role === 'Admin';
+
+        console.log(`[DASHBOARD-SOCKET] Incoming notification. Personal: ${isPersonal}, AdminAlert: ${isAdminAlert}`);
+
+        if (isPersonal || isAdminAlert) {
+            console.log('[DASHBOARD-SOCKET] Showing Toast for:', data.title);
+            const isPenaltyEvent = data.type === 'penalty' || data.type === 'critical';
+            
+            // Only play penalty/critical sound for Employees, as requested
+            if (isPenaltyEvent) {
+                if (user?.role === 'Employee') {
+                    await playNotificationSound('penalty');
+                }
+            } else {
+                await playNotificationSound('default');
+            }
+                Toast.show({
+                    type: data.type === 'critical' ? 'error' : (data.type === 'penalty' ? 'error' : 'info'),
+                    text1: data.title,
+                    text2: data.message,
+                    visibilityTime: (data.type === 'critical' || data.type === 'penalty') ? 300000 : 8000, 
+                });
+        }
+    });
+
+    socketRef.current.on('disconnect', () => {
+        setIsLive(false);
+    });
+
+    socketRef.current.on('userUpdated', (data) => {
+        console.log('[SOCKET] userUpdated event received:', data?.type);
+        if (user?.role === 'Admin') {
+            fetchHighPenalty();
+            
+            // Show 10-second alert for highest penalty
+            if (data.isHighest) {
+                setTopOffenderPopupData(data);
+                setShowTopOffenderPopup(true);
+                setTimeout(() => {
+                    setShowTopOffenderPopup(false);
+                }, 10000);
+            }
+        }
+    });
+
+    socketRef.current.on('stockUpdated', (data) => {
+        console.log('[SOCKET] stockUpdated event received:', data?.materialName);
+        // Stats are derived from requests, but we might want to refresh to be safe
+        fetchRequests(true);
+    });
+  }, [user, fetchHighPenalty, fetchRequests]);
+
+  // Sync the filtered "requests" state whenever "allRequests" changes (Instant Update)
+  useEffect(() => {
+    if (allRequests.length > 0 || !isLoading) {
+      // Define active items (not Closed, Rejected, or Penalized)
+      const activeRequests = allRequests.filter(r => !['Closed', 'Rejected', 'Penalized'].includes(r.status));
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+
+      const activeToday = activeRequests.filter(r => new Date(r.date) >= startOfToday);
+      
+      if (user?.role === 'Employee' && user?.employeeId) {
+          const empToday = activeToday.filter(r => r.employeeId === user.employeeId).sort((a,b) => new Date(b.date) - new Date(a.date));
+          setRequests(empToday);
+      } else {
+          setRequests(activeToday.sort((a,b) => new Date(b.date) - new Date(a.date)));
+      }
+    }
+  }, [allRequests, user]);
+
+  useFocusEffect(
+    useCallback(() => {
+        if (Platform.OS === 'web') return;
+        const onBackPress = () => {
+             Alert.alert(
+                "Exit App",
+                "Are you sure you want to close the application?",
+                [
+                    { text: "Cancel", style: "cancel" },
+                    { text: "Exit", onPress: () => BackHandler.exitApp() }
+                ]
+            );
+            return true;
+        };
+        const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+        return () => subscription.remove();
+    }, [])
+  );
+
+  useEffect(() => {
+    fetchRequests();
+    fetchHighPenalty();
+    setupSocket();
+
+    const unsubFocus = navigation.addListener('focus', () => {
+      isFocusedRef.current = true;
+      fetchRequests();
+      fetchHighPenalty();
+    });
+    const unsubBlur = navigation.addListener('blur', () => {
+      isFocusedRef.current = false;
+    });
+
+    // Configure Global Audio Mode once on mount
+    if (Platform.OS !== 'web') {
+        Audio.setAudioModeAsync({
+            playsInSilentModeIOS: true,
+            staysActiveInBackground: true,
+            shouldDuckAndroid: true,
+            playThroughEarpieceAndroid: false,
+        }).catch(err => console.log('Audio Mode Error:', err));
+    }
+
+    return () => {
+        if (socketRef.current) {
+            socketRef.current.disconnect();
+            socketRef.current = null;
+        }
+    };
+  }, []);
+
+
+
+  const handleUpdateStatus = useCallback(async (id, status, reason = '', comment = '') => {
+    if (user?.role !== 'Admin') return;
+
+    try {
+        const res = await api.put(`/requests/${id}`, { 
+            status, 
+            rejectionReason: reason,
+            adminComment: comment 
+        });
+        
+        await fetchRequests(); 
+
+        if (res.data.lowStockWarning) {
+            Toast.show({
+                type: 'error',
+                text1: 'Restock Required!',
+                text2: res.data.lowStockWarning,
+                visibilityTime: 6000,
+            });
+        } else {
+            Toast.show({
+                type: 'success',
+                text1: 'Response Recorded',
+                text2: status === 'Pending' ? 'Comment sent to employee' : `Request ${status}`
+            });
+        }
+        
+        setIsModalOpen(false);
+        setCommentText('');
+        setSelectedPreset('');
+    } catch (error) {
+        Toast.show({
+            type: 'error',
+            text1: 'Update Failed',
+            text2: error.response?.data?.msg || 'Could not save response'
+        });
+    }
+  }, [user, fetchRequests]);
+
+  const processUpload = async (id, uri, endpoint, webFile = null) => {
+    setIsSubmittingPhoto(true);
+    try {
+        const formData = new FormData();
+        
+        if (Platform.OS === 'web') {
+            if (webFile) {
+                formData.append('photo', webFile, webFile.name || 'upload.jpg');
+            } else {
+                const response = await fetch(uri);
+                const blob = await response.blob();
+                formData.append('photo', blob, 'upload.jpg');
+            }
+        } else {
+            const filename = uri.split('/').pop();
+            const match = /\.(\w+)$/.exec(filename);
+            const ext = match ? match[1].toLowerCase() : 'jpg';
+            const type = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+            formData.append('photo', { uri, name: filename, type });
+        }
+
+        // Retry logic to handle transient "Network Error" on first attempts (common with tunnels)
+        let retryCount = 0;
+        let res;
+        while (retryCount < 2) {
+            try {
+                res = await api.put(`/requests/${id}/${endpoint}`, formData, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                    },
+                    timeout: 30000 // Increase timeout for large photos
+                });
+                break; // Success!
+            } catch (err) {
+                retryCount++;
+                if (retryCount >= 2) throw err; // Re-throw if all retries fail
+                console.log(`[UPLOAD] Retry ${retryCount} after error:`, err.message);
+                await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s before retry
+            }
+        }
+
+        Toast.show({ 
+            type: 'success', 
+            text1: endpoint === 'pickup' ? 'Pickup Recorded' : 'Return Recorded', 
+            text2: 'Status updated successfully' 
+        });
+        fetchRequests();
+    } catch (err) {
+        console.error('Upload Error:', err);
+        const errorMsg = (err.response?.data?.msg) || err.message || 'Could not upload photo';
+        Toast.show({ 
+            type: 'error', 
+            text1: 'Upload Failed', 
+            text2: errorMsg 
+        });
+    } finally {
+        setIsSubmittingPhoto(false);
+    }
+  };
+
+  const fileInputRef = useRef(null);
+  const [pendingPhotoId, setPendingPhotoId] = useState(null);
+  const [pendingPhotoEndpoint, setPendingPhotoEndpoint] = useState(null);
+
+  const handleWebFileSelect = async (e) => {
+    const file = e.target.files[0];
+    if (file && pendingPhotoId && pendingPhotoEndpoint) {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        await processUpload(pendingPhotoId, event.target.result, pendingPhotoEndpoint, file);
+        setPendingPhotoId(null);
+        setPendingPhotoEndpoint(null);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handlePhotoAction = useCallback(async (id, endpoint) => {
+    if (Platform.OS === 'web') {
+        if (fileInputRef.current) {
+            setPendingPhotoId(id);
+            setPendingPhotoEndpoint(endpoint);
+            fileInputRef.current.click();
+        } else {
+            handleLaunchLibrary(id, endpoint);
+        }
+        return;
+    }
+
+    handleLaunchCamera(id, endpoint);
+  }, []);
+
+  const handleLaunchCamera = async (id, endpoint) => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+          Toast.show({ type: 'error', text1: 'Permission Denied', text2: 'Camera access is required' });
+          return;
+      }
+
+      let result = await ImagePicker.launchCameraAsync({
+          allowsEditing: false,
+          quality: 0.8,
+      });
+
+      if (!result.canceled) {
+          await processUpload(id, result.assets[0].uri, endpoint);
+      }
+    } catch (err) {
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Could not launch camera' });
+    }
+  };
+
+  const handleLaunchLibrary = async (id, endpoint) => {
+    try {
+        let result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaType.Images,
+            allowsEditing: false,
+            quality: 0.8,
+        });
+
+        if (!result.canceled) {
+            await processUpload(id, result.assets[0].uri, endpoint);
+        }
+    } catch (err) {
+        Toast.show({ type: 'error', text1: 'Selection Error', text2: 'Could not access gallery' });
+    }
+  };
+
+  const handlePickupPhoto = useCallback(async (id) => {
+    handlePhotoAction(id, 'pickup');
+  }, [handlePhotoAction]);
+
+  const handleReturnPhoto = useCallback(async (id) => {
+    if (Platform.OS === 'web') {
+        const proceed = window.confirm("Submission Deadline: Reminder: All materials must be submitted and returned before 6:00 PM today to avoid penalties. Do you want to proceed with submission?");
+        if (proceed) handlePhotoAction(id, 'return');
+        return;
+    }
+
+    Alert.alert(
+        "Submission Deadline",
+        "Reminder: All materials must be submitted and returned before 6:00 PM today to avoid penalties. Do you want to proceed with submission?",
+        [
+            { text: "Cancel", style: "cancel" },
+            { text: "Proceed", onPress: () => handlePhotoAction(id, 'return') }
+        ]
+    );
+  }, [handlePhotoAction]);
+
+  const handleIssuePenalty = async (id, penalty) => {
+    try {
+        await api.put(`/requests/${id}/penalty`, { penalty });
+        Toast.show({ type: 'success', text1: 'Penalty Issued', text2: 'Employee has been penalized' });
+        setIsModalOpen(false);
+        fetchRequests();
+    } catch (err) {
+        Toast.show({ type: 'error', text1: 'Failed', text2: 'Could not issue penalty' });
+    }
+  };
+
+  const getFullImageUrl = useCallback((path) => {
+    if (!path) return null;
+    let cleanPath = path.toString().trim().replace(/\\/g, '/');
+    const uploadsIndex = cleanPath.indexOf('uploads/');
+    if (uploadsIndex !== -1) {
+        cleanPath = cleanPath.substring(uploadsIndex);
+    } else {
+        const filename = cleanPath.split('/').pop();
+        cleanPath = `uploads/${filename}`;
+    }
+    const encodedPath = cleanPath.split('/').map(segment => encodeURIComponent(segment)).join('/');
+    return `${BASE_URL}/${encodedPath}`;
+  }, []);
+
+  const openViewer = useCallback((path, title) => {
+    const url = getFullImageUrl(path);
+    if (!url) return;
+    setViewerImage(url);
+    setViewerTitle(title);
+    setViewerVisible(true);
+  }, [getFullImageUrl]);
 
   if (isLoading) return (
     <View style={styles.loadingContainer}>
@@ -791,7 +983,43 @@ const DashboardScreen = ({ navigation, route }) => {
               </View>
               <Ionicons name="cube" size={28} color="#ffc61c" />
             </TouchableOpacity>
-          ) : null}
+          ) : (
+            /* Top Offender Widget for Admin */
+            highPenaltyUsers.length > 0 && (
+                <View style={[styles.topOffenderWidget, { marginBottom: 24 }]}>
+                    <View style={styles.topOffenderHeader}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Ionicons name="warning-outline" size={22} color="#ffc61c" style={{ marginRight: 10 }} />
+                            <Text style={styles.topOffenderTitle}>CRITICAL ATTENTION: TOP OFFENDER</Text>
+                        </View>
+                    </View>
+                    <View style={styles.topOffenderBody}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                            <View>
+                                <Text style={styles.topOffenderName}>{highPenaltyUsers[0].name}</Text>
+                                <Text style={styles.topOffenderDetail}>Emp ID: {highPenaltyUsers[0].employeeId}</Text>
+                            </View>
+                            <View style={styles.topScoreBadge}>
+                                <Text style={styles.topScoreValue}>{highPenaltyUsers[0].penaltyScore}</Text>
+                                <Text style={styles.topScoreLabel}>PENALTIES</Text>
+                            </View>
+                        </View>
+                        
+                        {highPenaltyUsers[0].penalizedRequests && highPenaltyUsers[0].penalizedRequests.length > 0 && (
+                            <View style={styles.infractionList}>
+                                <Text style={styles.infractionHeader}>RECENT PENALIZED REQUESTS:</Text>
+                                {highPenaltyUsers[0].penalizedRequests.slice(0, 3).map((r, i) => (
+                                    <View key={r._id} style={styles.infractionRow}>
+                                        <View style={styles.infractionDot} />
+                                        <Text style={styles.infractionText}>{r.materialName} - {r.penalty || 'Returned Late'}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                        )}
+                    </View>
+                </View>
+            )
+          )}
 
           <View style={styles.sectionHeader}>
             <Text allowFontScaling={false} style={styles.sectionTitle}>
@@ -807,21 +1035,35 @@ const DashboardScreen = ({ navigation, route }) => {
           </View>
 
           {(() => {
-              const grouped = requests.reduce((acc, req) => {
+              const groupedMemo = requests.reduce((acc, req) => {
                   const date = new Date(req.date).toLocaleDateString();
                   if (!acc[date]) acc[date] = [];
                   acc[date].push(req);
                   return acc;
               }, {});
 
-              return Object.keys(grouped).sort((a,b) => new Date(b) - new Date(a)).map(date => (
+              return Object.keys(groupedMemo).sort((a,b) => new Date(b) - new Date(a)).map(date => (
                   <View key={date} style={styles.dateSection}>
                       <View style={styles.dateHeader}>
                           <Ionicons name="calendar-outline" size={14} color="#64748b" style={{ marginRight: 6 }} />
                           <Text style={styles.dateHeaderText}>{date === new Date().toLocaleDateString() ? 'ACTIVE TODAY' : date}</Text>
                       </View>
-                      {grouped[date].map(item => <AnimatedCard key={item._id} item={item} />)}
-                  </View>
+                      {groupedMemo[date].map(item => (
+                        <AnimatedCard 
+                          key={item._id} 
+                          item={item} 
+                          user={user}
+                          openViewer={openViewer}
+                          getFullImageUrl={getFullImageUrl}
+                          handleUpdateStatus={handleUpdateStatus}
+                          handlePickupPhoto={handlePickupPhoto}
+                          handleReturnPhoto={handleReturnPhoto}
+                          setSelectedRequestId={setSelectedRequestId}
+                          setModalMode={setModalMode}
+                          setIsModalOpen={setIsModalOpen}
+                        />
+                      ))}
+                    </View>
               ));
           })()}
 
@@ -832,6 +1074,32 @@ const DashboardScreen = ({ navigation, route }) => {
           ) : null}
         </View>
       </ScrollView>
+
+      {/* 10-Second Highest Penalty Trigger Popup */}
+      {showTopOffenderPopup && topOffenderPopupData && (
+          <Animated.View style={styles.topOffenderPopup}>
+              <View style={styles.popupInner}>
+                  <View style={styles.popupLeft}>
+                      <View style={styles.popupIconBg}>
+                          <Ionicons name="flash" size={32} color="#ffffff" />
+                      </View>
+                  </View>
+                  <View style={styles.popupRight}>
+                      <Text style={styles.popupBadgeText}>🚨 CRITICAL: NEW TOP OFFENDER 🚨</Text>
+                      <Text style={styles.popupName}>{topOffenderPopupData.name}</Text>
+                      <Text style={styles.popupId}>Employee ID: {topOffenderPopupData.employeeId}</Text>
+                      <View style={styles.popupScoreRow}>
+                          <Text style={styles.popupScoreLabel}>TOTAL PENALTIES:</Text>
+                          <Text style={styles.popupScoreValue}>{topOffenderPopupData.penaltyScore}</Text>
+                      </View>
+                  </View>
+                  <TouchableOpacity style={styles.popupClose} onPress={() => setShowTopOffenderPopup(false)}>
+                      <Ionicons name="close" size={24} color="#64748b" />
+                  </TouchableOpacity>
+              </View>
+              <View style={styles.popupProgressBar} />
+          </Animated.View>
+      )}
     </View>
 
       <Modal visible={isModalOpen} transparent={true} animationType="fade" onRequestClose={() => setIsModalOpen(false)}>
@@ -1050,21 +1318,95 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#334155',
+  sectionTitle: { fontSize: 13, fontWeight: '800', color: '#1e293b', letterSpacing: 0.5 },
+  pendingBadge: { backgroundColor: '#fff1f2', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  pendingBadgeText: { fontSize: 9, fontWeight: '800', color: '#e11d48' },
+  topOffenderWidget: {
+    backgroundColor: '#1b264a',
+    borderRadius: 24,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: '#ffc61c',
+    elevation: 8,
+    shadowColor: '#ffc61c',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
   },
-  pendingBadge: {
-    backgroundColor: '#fef3c7',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
+  topOffenderHeader: {
+    backgroundColor: 'rgba(255, 198, 28, 0.1)',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 198, 28, 0.2)',
   },
-  pendingBadgeText: {
-    color: '#b45309',
-    fontSize: 9,
+  topOffenderTitle: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#ffc61c',
+    letterSpacing: 1,
+  },
+  topOffenderBody: {
+    padding: 20,
+  },
+  topOffenderName: {
+    fontSize: 20,
     fontWeight: 'bold',
+    color: '#ffffff',
+  },
+  topOffenderDetail: {
+    fontSize: 11,
+    color: '#94a3b8',
+    marginTop: 2,
+    fontWeight: '600',
+  },
+  topScoreBadge: {
+    backgroundColor: '#ffc61c',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    alignItems: 'center',
+  },
+  topScoreValue: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#1b264a',
+  },
+  topScoreLabel: {
+    fontSize: 7,
+    fontWeight: '900',
+    color: '#1b264a',
+    marginTop: -2,
+  },
+  infractionList: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(148, 163, 184, 0.2)',
+  },
+  infractionHeader: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: '#94a3b8',
+    marginBottom: 10,
+    letterSpacing: 0.5,
+  },
+  infractionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  infractionDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#ffc61c',
+    marginRight: 10,
+  },
+  infractionText: {
+    fontSize: 11,
+    color: '#cbd5e1',
+    fontWeight: '600',
   },
   card: {
     backgroundColor: '#ffffff',
@@ -1148,6 +1490,24 @@ const styles = StyleSheet.create({
   detailLabel: { fontSize: 9, fontWeight: '700', color: '#94a3b8', flexShrink: 0, width: '35%' },
   detailValue: { fontSize: 13, fontWeight: '700', color: '#334155', flex: 1, textAlign: 'right' },
   detailValueIndigo: { fontSize: 13, fontWeight: '800', color: '#1b264a', flex: 1, textAlign: 'right' },
+  remarkBubble: {
+    backgroundColor: '#ecfeff',
+    padding: 12,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#cffafe',
+  },
+  remarkBubbleText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#0e7490',
+    fontWeight: '600',
+    fontStyle: 'italic',
+  },
   photoSectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1252,6 +1612,33 @@ const styles = StyleSheet.create({
   },
   rejectLabel: { fontSize: 9, fontWeight: '800', color: '#64748b', marginBottom: 6 },
   rejectText: { fontSize: 12, color: '#1e293b', lineHeight: 18 },
+  employeeRemarkBox: {
+    backgroundColor: '#ecfeff',
+    padding: 12,
+    marginHorizontal: 20,
+    borderRadius: 16,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#0891b2',
+  },
+  remarkHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+    gap: 6,
+  },
+  remarkLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#0891b2',
+    letterSpacing: 0.5,
+  },
+  remarkText: {
+    fontSize: 12,
+    color: '#155e75',
+    lineHeight: 18,
+    fontWeight: '600',
+  },
   cardFooter: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 16, borderTopWidth: 1, borderTopColor: '#f1f5f9', paddingTop: 12 },
   footerTime: { fontSize: 10, fontWeight: '700', color: '#1e293b' },
   footerDate: { fontSize: 9, fontWeight: '600', color: '#94a3b8', marginTop: 1 },
@@ -1262,6 +1649,7 @@ const styles = StyleSheet.create({
   btnEmerald: { backgroundColor: '#10b981' },
   btnAmber: { backgroundColor: '#f59e0b' },
   btnRose: { backgroundColor: '#e11d48' },
+  btnDisabled: { backgroundColor: '#475569', opacity: 0.6 },
   btnIndigo: { backgroundColor: '#4f46e5' },
   btnGreen: { backgroundColor: '#059669' },
   btnText: { color: '#ffffff', fontSize: 10, fontWeight: '800' },
@@ -1317,6 +1705,89 @@ const styles = StyleSheet.create({
   dateSection: { marginBottom: 24 },
   dateHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, paddingHorizontal: 4 },
   dateHeaderText: { fontSize: 11, fontWeight: '800', color: '#64748b', letterSpacing: 1 },
+  // Top Offender 10-second Popup
+  topOffenderPopup: {
+    position: 'absolute',
+    top: 20,
+    left: Platform.OS === 'web' ? '30%' : 20,
+    right: Platform.OS === 'web' ? '30%' : 20,
+    zIndex: 9999,
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: '#e11d48',
+    elevation: 20,
+    overflow: 'hidden',
+    shadowColor: '#e11d48',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
+    ...(Platform.OS === 'web' ? { boxShadow: '0 12px 30px rgba(225, 29, 72, 0.4)' } : {}),
+  },
+  popupInner: {
+    flexDirection: 'row',
+    padding: 24,
+    alignItems: 'center',
+  },
+  popupLeft: {
+    marginRight: 20,
+  },
+  popupIconBg: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#e11d48',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  popupRight: {
+    flex: 1,
+  },
+  popupBadgeText: {
+    color: '#e11d48',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+    marginBottom: 4,
+  },
+  popupName: {
+    color: '#0f172a',
+    fontSize: 22,
+    fontWeight: 'bold',
+  },
+  popupId: {
+    color: '#64748b',
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  popupScoreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  popupScoreLabel: {
+    color: '#94a3b8',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  popupScoreValue: {
+    color: '#e11d48',
+    fontSize: 18,
+    fontWeight: '900',
+    backgroundColor: '#fff1f2',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  popupClose: {
+    padding: 8,
+  },
+  popupProgressBar: {
+    height: 5,
+    backgroundColor: '#e11d48',
+    width: '100%',
+  },
 });
 
 export default DashboardScreen;

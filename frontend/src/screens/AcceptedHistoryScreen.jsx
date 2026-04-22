@@ -42,13 +42,29 @@ const AcceptedHistoryScreen = ({ navigation }) => {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
-  useEffect(() => {
-    fetchRequests();
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+        fetchRequests();
 
-  const fetchRequests = async () => {
+        // Real-time synchronization
+        const socket = io(BASE_URL, { transports: ['websocket'] });
+        socket.on('requestUpdated', (data) => {
+            // Refresh if the updated request is now Closed/Accepted
+            if (data?.request?.status === 'Closed' || data?.request?.status === 'PendingReturn' || data?.request?.status === 'Approved') {
+                console.log('[ACCEPTED-SOCKET] Auto-refreshing history...');
+                fetchRequests(true); 
+            }
+        });
+
+        return () => {
+            if (socket) socket.disconnect();
+        };
+    }, [])
+  );
+
+  const fetchRequests = async (silent = false) => {
     try {
-      setIsLoading(true);
+      if (!silent) setIsLoading(true);
       const res = await api.get('/requests');
       
       const sorted = res.data.filter(r => r.status === 'Closed');
@@ -77,9 +93,16 @@ const AcceptedHistoryScreen = ({ navigation }) => {
 
   const getFullImageUrl = (path) => {
     if (!path) return null;
-    const cleanPath = path.toString().trim().replace(/\\/g, '/');
-    const finalPath = cleanPath.startsWith('/') ? cleanPath.substring(1) : cleanPath;
-    return `${BASE_URL}/${finalPath}`;
+    let cleanPath = path.toString().trim().replace(/\\/g, '/');
+    const uploadsIndex = cleanPath.indexOf('uploads/');
+    if (uploadsIndex !== -1) {
+        cleanPath = cleanPath.substring(uploadsIndex);
+    } else {
+        const filename = cleanPath.split('/').pop();
+        cleanPath = `uploads/${filename}`;
+    }
+    const encodedPath = cleanPath.split('/').map(segment => encodeURIComponent(segment)).join('/');
+    return `${BASE_URL}/${encodedPath}`;
   };
 
   const openViewer = (path, title) => {
@@ -112,10 +135,20 @@ const AcceptedHistoryScreen = ({ navigation }) => {
                         {item.employeeEmail ? <Text allowFontScaling={false} style={{ fontSize: 10, color: '#64748b' }}>{item.employeeEmail}</Text> : null}
                     </View>
                 </View>
-                <View style={styles.detailRow}>
-                    <Text allowFontScaling={false} style={styles.detailLabel}>QUANTITY</Text>
-                    <Text allowFontScaling={false} style={styles.detailValue}>{item.quantity} Units</Text>
-                </View>
+                {!item.materialName.toLowerCase().includes('general inquiry') && (
+                    <View style={styles.detailRow}>
+                        <Text allowFontScaling={false} style={styles.detailLabel}>QUANTITY</Text>
+                        <Text allowFontScaling={false} style={styles.detailValue}>{item.quantity} Units</Text>
+                    </View>
+                )}
+                {((item.remark || '').toString().trim() !== '') ? (
+                    <View style={styles.remarkBubble}>
+                        <Ionicons name="chatbubble-ellipses" size={16} color="#0891b2" />
+                        <Text allowFontScaling={false} style={styles.remarkBubbleText}>
+                            {(item.remark || '').toString().trim()}
+                        </Text>
+                    </View>
+                ) : null}
             </View>
 
             <View style={styles.photoSectionHeader}>
@@ -247,6 +280,24 @@ const styles = StyleSheet.create({
   detailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10, gap: 12 },
   detailLabel: { fontSize: 9, fontWeight: '700', color: '#94a3b8', flexShrink: 0, width: '35%' },
   detailValue: { fontSize: 13, fontWeight: '700', color: '#334155', flex: 1, textAlign: 'right' },
+  remarkBubble: {
+    backgroundColor: '#ecfeff',
+    padding: 12,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#cffafe',
+  },
+  remarkBubbleText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#0e7490',
+    fontWeight: '600',
+    fontStyle: 'italic',
+  },
   photoSectionHeader: { paddingHorizontal: 24, marginBottom: 8 },
   photoSectionTitle: { fontSize: 9, fontWeight: '800', color: '#94a3b8' },
   photoContainer: { paddingHorizontal: 20, gap: 12, marginBottom: 16 },
@@ -279,6 +330,32 @@ const styles = StyleSheet.create({
   dateSection: { marginBottom: 24 },
   dateHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, paddingHorizontal: 4 },
   dateHeaderText: { fontSize: 11, fontWeight: '800', color: '#64748b', letterSpacing: 1 },
+  employeeRemarkBox: {
+    backgroundColor: '#ecfeff',
+    padding: 12,
+    marginTop: 10,
+    borderRadius: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#0891b2',
+  },
+  remarkHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+    gap: 6,
+  },
+  remarkLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#0891b2',
+    letterSpacing: 0.5,
+  },
+  remarkText: {
+    fontSize: 12,
+    color: '#164e63',
+    lineHeight: 18,
+    fontWeight: '500',
+  },
 });
 
 export default AcceptedHistoryScreen;

@@ -4,8 +4,7 @@ import { NativeModules } from 'react-native';
 
 // 1. SET YOUR CLOUD URL HERE after deploying the backend
 // Hardcoding this URL directly prevents the Vercel build from falling back to your local IP address.
-const ENV_API_URL = process.env.VITE_API_URL || process.env.EXPO_PUBLIC_API_URL;
-const CLOUD_URL = ENV_API_URL || "https://material-app-zhm4.onrender.com"; 
+const CLOUD_URL = "https://material-app-zhm4.onrender.com"; 
 
 const getBaseUrl = () => {
   // 1. If CLOUD_URL is provided via Env Var or hardcoded, ALWAYS use it first (this fixes Vercel deployment)

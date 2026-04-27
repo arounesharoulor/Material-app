@@ -2,6 +2,7 @@ import React, { useState, useContext, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Alert, ScrollView, Platform, StyleSheet, KeyboardAvoidingView, Keyboard, ActivityIndicator } from 'react-native';
 
 import tw from 'twrnc';
+import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../context/AuthContext';
 import api from '../services/api';
 
@@ -11,6 +12,7 @@ const RegisterScreen = ({ navigation }) => {
   const [employeeId, setEmployeeId] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState('Employee');
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -151,14 +153,22 @@ const RegisterScreen = ({ navigation }) => {
                       
                       <View style={styles.inputGroup}>
                         <Text allowFontScaling={false} style={styles.inputLabel}>SECURE PASSWORD</Text>
-                        <TextInput 
-                          style={[styles.input, errors.password && styles.inputError]}
-                          placeholder="••••••••" 
-                          placeholderTextColor="#94a3b8"
-                          secureTextEntry 
-                          value={password} 
-                          onChangeText={(val) => { setPassword(val); setErrors({ ...errors, password: null, auth: null }); }} 
-                        />
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <TextInput 
+                            style={[styles.input, { flex: 1 }, errors.password && styles.inputError]}
+                            placeholder="••••••••" 
+                            placeholderTextColor="#94a3b8"
+                            secureTextEntry={!showPassword} 
+                            value={password} 
+                            onChangeText={(val) => { setPassword(val); setErrors({ ...errors, password: null, auth: null }); }} 
+                          />
+                          <TouchableOpacity 
+                            style={{ position: 'absolute', right: 16, height: '100%', justifyContent: 'center' }}
+                            onPress={() => setShowPassword(!showPassword)}
+                          >
+                            <Ionicons name={showPassword ? "eye-off" : "eye"} size={20} color="#94a3b8" />
+                          </TouchableOpacity>
+                        </View>
                         {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
                         {errors.auth ? <Text style={styles.authErrorText}>{errors.auth}</Text> : null}
                       </View>

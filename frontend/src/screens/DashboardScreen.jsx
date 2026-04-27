@@ -308,6 +308,10 @@ const DashboardScreen = ({ navigation, route }) => {
   const [isLive, setIsLive] = useState(false);
   const [showTopOffenderPopup, setShowTopOffenderPopup] = useState(false);
   const [topOffenderPopupData, setTopOffenderPopupData] = useState(null);
+  const [showTopOffenderWidget, setShowTopOffenderWidget] = useState(false);
+  const topOffenderTimerRef = useRef(null);
+  const widgetTimerRef = useRef(null);
+  const topOffenderProgress = useRef(new Animated.Value(1)).current;
   // Removed ticker state that was causing unnecessary re-renders every second
   // const [ticker, setTicker] = useState(0);
 
@@ -344,67 +348,88 @@ const DashboardScreen = ({ navigation, route }) => {
   });
 
   useEffect(() => {
-    const loadSounds = async () => {
+    const setupAudio = async () => {
         try {
+            // Explicitly enable audio and set mode
+            // Rely on Expo's default Audio Session configuration to avoid silent failures on custom ROMs
+
             const sounds = {
-                default: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Samples/master/ding.mp3',
-                penalty: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Samples/master/alert.mp3',
-                closed: 'https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Samples/master/success.mp3'
+                default: 'https://www.myinstants.com/media/sounds/iphone-notification.mp3', // Loud, clean, professional ping
+                penalty: 'https://www.myinstants.com/media/sounds/windows-error.mp3', // Loud, professional system error
+                closed: 'https://www.myinstants.com/media/sounds/success.mp3' // Clean, professional success chime
             };
 
             for (const [key, uri] of Object.entries(sounds)) {
-                if (Platform.OS === 'web') {
-                    // On Web, we create a native Audio object for better compatibility
-                    const audio = new window.Audio(uri);
-                    audio.load();
-                    soundRefs.current[key] = audio;
-                } else {
-                    const { sound } = await Audio.Sound.createAsync({ uri }, { volume: 1.0 });
+                try {
+                    const { sound } = await Audio.Sound.createAsync(
+                        { uri },
+                        { shouldPlay: false, volume: 1.0 }
+                    );
                     soundRefs.current[key] = sound;
+                    console.log(`[AUDIO] Loaded ${key}`);
+                } catch (err) {
+                    console.log(`[AUDIO] Failed to load ${key}:`, err.message);
                 }
             }
-            console.log('[AUDIO] Sounds pre-loaded successfully for', Platform.OS);
         } catch (err) {
-            console.log('[AUDIO] Pre-load error:', err.message);
+            console.log('[AUDIO] Setup error:', err.message);
         }
     };
-    loadSounds(); // Enable for all platforms
+    setupAudio();
 
     return () => {
         Object.values(soundRefs.current).forEach(sound => {
             if (sound) {
-                if (Platform.OS === 'web') {
-                    sound.pause();
-                } else {
-                    sound.unloadAsync().catch(() => {});
-                }
+                sound.unloadAsync().catch(() => {});
             }
         });
     };
   }, []);
 
+  const showWebNotification = (title, message) => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && 'Notification' in window) {
+        if (Notification.permission === 'granted') {
+            new Notification(title, { body: message });
+        } else if (Notification.permission !== 'denied') {
+            Notification.requestPermission().then(permission => {
+                if (permission === 'granted') {
+                    new Notification(title, { body: message });
+                }
+            });
+        }
+    }
+  };
+
   const playNotificationSound = async (soundType = 'default') => {
     try {
+        console.log(`[AUDIO] Attempting to play ${soundType}...`);
+
         const sound = soundRefs.current[soundType] || soundRefs.current.default;
         if (sound) {
-            console.log(`[AUDIO] Playing ${soundType} on ${Platform.OS}...`);
-            if (Platform.OS === 'web') {
-                sound.currentTime = 0;
-                sound.play().catch(err => console.log('[AUDIO] Web Auto-play blocked until user interaction:', err.message));
-            } else {
-                await sound.replayAsync();
-                const { Vibration } = require('react-native');
-                Vibration.vibrate(soundType === 'penalty' ? [0, 500, 200, 500] : 100);
-            }
+            // 2. Reset and Play safely
+            await sound.setVolumeAsync(1.0);
+            const status = await sound.replayAsync();
+            console.log(`[AUDIO] Primary playback status:`, status.isPlaying ? 'Success' : 'Failed');
         } else {
-            console.log(`[AUDIO] Sound ${soundType} not loaded, falling back to network...`);
-            // Fallback to old behavior if pre-load failed
-            let fallbackUri = 'https://upload.wikimedia.org/wikipedia/commons/5/5c/Notification_sound.mp3';
-            const { sound: fbSound } = await Audio.Sound.createAsync({ uri: fallbackUri }, { shouldPlay: true });
-            setTimeout(() => fbSound.unloadAsync().catch(() => {}), 5000);
+            console.log(`[AUDIO] Pre-loaded sound missing, using emergency direct play`);
+            const uri = soundType === 'penalty' 
+                ? 'https://www.myinstants.com/media/sounds/windows-error.mp3'
+                : 'https://www.myinstants.com/media/sounds/iphone-notification.mp3';
+            
+            const { sound: directSound } = await Audio.Sound.createAsync(
+                { uri }, 
+                { shouldPlay: true, volume: 1.0 }
+            );
+            setTimeout(() => directSound.unloadAsync().catch(() => {}), 15000);
+        }
+
+        // 3. Vibration
+        if (Platform.OS !== 'web') {
+            const { Vibration } = require('react-native');
+            Vibration.vibrate(soundType === 'penalty' ? [0, 500, 200, 500] : 100);
         }
     } catch (error) {
-        console.log('[AUDIO] Playback Error:', error.message);
+        console.log('[AUDIO] Critical Playback Error:', error.message);
     }
   };
 
@@ -423,6 +448,15 @@ const DashboardScreen = ({ navigation, route }) => {
       try {
         const penaltyRes = await api.get('/admin/high-penalty');
         setHighPenaltyUsers(penaltyRes.data);
+        
+        if (penaltyRes.data && penaltyRes.data.length > 0) {
+            setShowTopOffenderWidget(true);
+            if (widgetTimerRef.current) clearTimeout(widgetTimerRef.current);
+            widgetTimerRef.current = setTimeout(() => {
+                setShowTopOffenderWidget(false);
+                widgetTimerRef.current = null;
+            }, 10000);
+        }
       } catch (err) {
         console.log('[DASHBOARD] High penalty fetch failed');
       }
@@ -506,24 +540,33 @@ const DashboardScreen = ({ navigation, route }) => {
 
         if (isFocusedRef.current && isRelevant) {
             if (user?.role === 'Employee' && data?.type === 'UPDATE') {
+                const title = '🔔 Dashboard Updated';
+                const msg = 'One of your requests has been updated.';
+                showWebNotification(title, msg);
                 Toast.show({
                     type: 'success',
-                    text1: '🔔 Dashboard Updated',
-                    text2: 'One of your requests has been updated.',
+                    text1: title,
+                    text2: msg,
                     visibilityTime: 4000,
                 });
             } else if (user?.role === 'Admin' && data?.type === 'CREATE') {
+                const title = '📦 New Request';
+                const msg = `New material request from ${data?.request?.employeeName}`;
+                showWebNotification(title, msg);
                 Toast.show({
                     type: 'info',
-                    text1: '📦 New Request',
-                    text2: `New material request from ${data?.request?.employeeName}`,
+                    text1: title,
+                    text2: msg,
                     visibilityTime: 6000,
                 });
             } else if (user?.role === 'Admin' && data?.type === 'UPDATE') {
-                 Toast.show({
+                const title = '🔄 Request Updated';
+                const msg = `Update on ${data?.request?.materialName} by ${data?.request?.employeeName}`;
+                showWebNotification(title, msg);
+                Toast.show({
                     type: 'info',
-                    text1: '🔄 Request Updated',
-                    text2: `Update on ${data?.request?.materialName} by ${data?.request?.employeeName}`,
+                    text1: title,
+                    text2: msg,
                     visibilityTime: 4000,
                 });
             }
@@ -542,14 +585,12 @@ const DashboardScreen = ({ navigation, route }) => {
             console.log('[DASHBOARD-SOCKET] Showing Toast for:', data.title);
             const isPenaltyEvent = data.type === 'penalty' || data.type === 'critical';
             
-            // Only play penalty/critical sound for Employees, as requested
             if (isPenaltyEvent) {
-                if (user?.role === 'Employee') {
-                    await playNotificationSound('penalty');
-                }
+                await playNotificationSound('penalty');
             } else {
                 await playNotificationSound('default');
             }
+                showWebNotification(data.title, data.message);
                 Toast.show({
                     type: data.type === 'critical' ? 'error' : (data.type === 'penalty' ? 'error' : 'info'),
                     text1: data.title,
@@ -565,15 +606,42 @@ const DashboardScreen = ({ navigation, route }) => {
 
     socketRef.current.on('userUpdated', (data) => {
         console.log('[SOCKET] userUpdated event received:', data?.type);
-        if (user?.role === 'Admin') {
-            fetchHighPenalty();
+        
+        const isMe = (user?._id && data.userId === user._id) || (user?.employeeId && data.employeeId === user.employeeId);
+
+        if (user?.role === 'Admin' || isMe) {
+            if (user?.role === 'Admin') fetchHighPenalty();
             
-            // Show 10-second alert for highest penalty
-            if (data.isHighest) {
+            // Show 10-second alert for highest penalty OR if it is the current employee's penalty update
+            if (data.isHighest || isMe) {
                 setTopOffenderPopupData(data);
+                
+                // Show both popup and widget
+                setShowTopOffenderWidget(true);
+                if (widgetTimerRef.current) clearTimeout(widgetTimerRef.current);
+                widgetTimerRef.current = setTimeout(() => {
+                    setShowTopOffenderWidget(false);
+                    widgetTimerRef.current = null;
+                }, 10000);
+
+                // Reset and start animation for popup
+                topOffenderProgress.setValue(1);
                 setShowTopOffenderPopup(true);
-                setTimeout(() => {
+                
+                // Clear any existing timer
+                if (topOffenderTimerRef.current) clearTimeout(topOffenderTimerRef.current);
+                
+                // Animate progress bar (shrink from 1 to 0 over 10s)
+                Animated.timing(topOffenderProgress, {
+                    toValue: 0,
+                    duration: 10000,
+                    useNativeDriver: false, // width cannot use native driver
+                }).start();
+
+                // Set close timer
+                topOffenderTimerRef.current = setTimeout(() => {
                     setShowTopOffenderPopup(false);
+                    topOffenderTimerRef.current = null;
                 }, 10000);
             }
         }
@@ -638,7 +706,8 @@ const DashboardScreen = ({ navigation, route }) => {
       isFocusedRef.current = false;
     });
 
-    // Configure Global Audio Mode once on mount
+    // Audio mode is now handled in the setup effect above
+    /*
     if (Platform.OS !== 'web') {
         Audio.setAudioModeAsync({
             playsInSilentModeIOS: true,
@@ -647,12 +716,15 @@ const DashboardScreen = ({ navigation, route }) => {
             playThroughEarpieceAndroid: false,
         }).catch(err => console.log('Audio Mode Error:', err));
     }
+    */
 
     return () => {
         if (socketRef.current) {
             socketRef.current.disconnect();
             socketRef.current = null;
         }
+        if (topOffenderTimerRef.current) clearTimeout(topOffenderTimerRef.current);
+        if (widgetTimerRef.current) clearTimeout(widgetTimerRef.current);
     };
   }, []);
 
@@ -889,6 +961,8 @@ const DashboardScreen = ({ navigation, route }) => {
 
   const reasons = modalMode === 'REJECT' ? REJECTION_REASONS : modalMode === 'PENALTY' ? ["Late Return", "Damaged Material", "Missing Item"] : FEEDBACK_REASONS;
 
+  const widgetData = (user?.role === 'Admin' && highPenaltyUsers?.length > 0) ? highPenaltyUsers[0] : topOffenderPopupData;
+
   return (
     <View style={[styles.container, Platform.OS === 'web' ? { flexDirection: 'row', height: '100vh', overflow: 'hidden' } : { flex: 1 }]}>
       <Sidebar 
@@ -971,6 +1045,47 @@ const DashboardScreen = ({ navigation, route }) => {
             </View>
           ) : null}
 
+          {/* Top Offender Widget (Visible to Admin AND the specific penalized Employee) */}
+          {widgetData && showTopOffenderWidget && (
+              <View style={[styles.topOffenderWidget, { marginBottom: 24 }]}>
+                  <View style={styles.topOffenderHeader}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                          <Ionicons name="warning-outline" size={22} color="#ffc61c" style={{ marginRight: 10 }} />
+                          <Text style={styles.topOffenderTitle}>
+                              {user?.role === 'Admin' ? 'CRITICAL ATTENTION: TOP OFFENDER' : '⚠️ PENALTY WARNING'}
+                          </Text>
+                      </View>
+                      <TouchableOpacity onPress={() => setShowTopOffenderWidget(false)}>
+                          <Ionicons name="close-circle" size={24} color="#ffffff80" />
+                      </TouchableOpacity>
+                  </View>
+                  <View style={styles.topOffenderBody}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                          <View>
+                              <Text style={styles.topOffenderName}>{widgetData.name}</Text>
+                              <Text style={styles.topOffenderDetail}>Emp ID: {widgetData.employeeId}</Text>
+                          </View>
+                          <View style={styles.topScoreBadge}>
+                              <Text style={styles.topScoreValue}>{widgetData.penaltyScore}</Text>
+                              <Text style={styles.topScoreLabel}>PENALTIES</Text>
+                          </View>
+                      </View>
+                      
+                      {widgetData.penalizedRequests && widgetData.penalizedRequests.length > 0 && (
+                          <View style={styles.infractionList}>
+                              <Text style={styles.infractionHeader}>RECENT PENALIZED REQUESTS:</Text>
+                              {widgetData.penalizedRequests.slice(0, 3).map((r, i) => (
+                                  <View key={r._id} style={styles.infractionRow}>
+                                      <View style={styles.infractionDot} />
+                                      <Text style={styles.infractionText}>{r.materialName} - {r.penalty || 'Returned Late'}</Text>
+                                  </View>
+                              ))}
+                          </View>
+                      )}
+                  </View>
+              </View>
+          )}
+
           {user?.role === 'Employee' ? (
             <TouchableOpacity
               style={styles.createBtn}
@@ -983,43 +1098,7 @@ const DashboardScreen = ({ navigation, route }) => {
               </View>
               <Ionicons name="cube" size={28} color="#ffc61c" />
             </TouchableOpacity>
-          ) : (
-            /* Top Offender Widget for Admin */
-            highPenaltyUsers.length > 0 && (
-                <View style={[styles.topOffenderWidget, { marginBottom: 24 }]}>
-                    <View style={styles.topOffenderHeader}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <Ionicons name="warning-outline" size={22} color="#ffc61c" style={{ marginRight: 10 }} />
-                            <Text style={styles.topOffenderTitle}>CRITICAL ATTENTION: TOP OFFENDER</Text>
-                        </View>
-                    </View>
-                    <View style={styles.topOffenderBody}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                            <View>
-                                <Text style={styles.topOffenderName}>{highPenaltyUsers[0].name}</Text>
-                                <Text style={styles.topOffenderDetail}>Emp ID: {highPenaltyUsers[0].employeeId}</Text>
-                            </View>
-                            <View style={styles.topScoreBadge}>
-                                <Text style={styles.topScoreValue}>{highPenaltyUsers[0].penaltyScore}</Text>
-                                <Text style={styles.topScoreLabel}>PENALTIES</Text>
-                            </View>
-                        </View>
-                        
-                        {highPenaltyUsers[0].penalizedRequests && highPenaltyUsers[0].penalizedRequests.length > 0 && (
-                            <View style={styles.infractionList}>
-                                <Text style={styles.infractionHeader}>RECENT PENALIZED REQUESTS:</Text>
-                                {highPenaltyUsers[0].penalizedRequests.slice(0, 3).map((r, i) => (
-                                    <View key={r._id} style={styles.infractionRow}>
-                                        <View style={styles.infractionDot} />
-                                        <Text style={styles.infractionText}>{r.materialName} - {r.penalty || 'Returned Late'}</Text>
-                                    </View>
-                                ))}
-                            </View>
-                        )}
-                    </View>
-                </View>
-            )
-          )}
+          ) : null}
 
           <View style={styles.sectionHeader}>
             <Text allowFontScaling={false} style={styles.sectionTitle}>
@@ -1093,11 +1172,22 @@ const DashboardScreen = ({ navigation, route }) => {
                           <Text style={styles.popupScoreValue}>{topOffenderPopupData.penaltyScore}</Text>
                       </View>
                   </View>
-                  <TouchableOpacity style={styles.popupClose} onPress={() => setShowTopOffenderPopup(false)}>
-                      <Ionicons name="close" size={24} color="#64748b" />
-                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.popupClose} onPress={() => {
+                      if (topOffenderTimerRef.current) clearTimeout(topOffenderTimerRef.current);
+                      setShowTopOffenderPopup(false);
+                   }}>
+                       <Ionicons name="close" size={24} color="#64748b" />
+                   </TouchableOpacity>
               </View>
-              <View style={styles.popupProgressBar} />
+              <Animated.View style={[
+                   styles.popupProgressBar, 
+                   { 
+                       width: topOffenderProgress.interpolate({
+                           inputRange: [0, 1],
+                           outputRange: ['0%', '100%']
+                       }) 
+                   }
+               ]} />
           </Animated.View>
       )}
     </View>

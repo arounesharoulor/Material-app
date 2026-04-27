@@ -31,22 +31,30 @@ const getBaseUrl = () => {
 
   // On Mobile: Extract the IP address from the scriptURL (the IP of the dev machine)
   // Fallback updated to the detected IP from logs
-  let machineIp = '192.168.0.118'; 
+  let machineIp = '192.168.0.110'; 
   
   try {
     const scriptURL = NativeModules?.SourceCode?.scriptURL;
     if (scriptURL) {
+      console.log('[API] Detected scriptURL:', scriptURL);
       const match = scriptURL.match(/http:\/\/([\d\.]+):/);
       if (match && match[1]) {
          const detectedIp = match[1];
          if (detectedIp !== 'localhost' && detectedIp !== '127.0.0.1') {
+           console.log('[API] Detected IP from scriptURL:', detectedIp);
            machineIp = detectedIp;
          }
       }
+    } else {
+      console.log('[API] NativeModules.SourceCode.scriptURL is null, using fallback:', machineIp);
     }
-  } catch (e) {}
+  } catch (e) {
+    console.error('[API] Error detecting IP:', e);
+  }
 
-  return `http://${machineIp}:5005`;
+  const finalUrl = `http://${machineIp}:5005`;
+  console.log('[API] Final Backend URL:', finalUrl);
+  return finalUrl;
 };
 
 export const BASE_URL = getBaseUrl();

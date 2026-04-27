@@ -6,6 +6,7 @@ import tw from 'twrnc';
 import { AuthContext } from '../context/AuthContext';
 import api, { BASE_URL } from '../services/api';
 import Sidebar from '../components/Sidebar';
+import io from 'socket.io-client';
 
 const AcceptedHistoryScreen = ({ navigation }) => {
   const { user, logout } = useContext(AuthContext);

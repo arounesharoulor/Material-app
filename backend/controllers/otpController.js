@@ -14,11 +14,9 @@ exports.sendOtp = async (req, res) => {
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         const newOtp = new Otp({ email, otp });
 
-        // Parallel: Delete existing OTP and save new one simultaneously
-        await Promise.all([
-            Otp.deleteMany({ email }),
-            newOtp.save()
-        ]);
+        // Delete existing OTP first, THEN save the new one to prevent race conditions
+        await Otp.deleteMany({ email });
+        await newOtp.save();
 
         if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
             // Fire-and-forget — do NOT await, respond immediately

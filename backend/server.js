@@ -95,13 +95,23 @@ app.post('/api/debug-log', (req, res) => {
 // CRITICAL: Penalty oversight routes
 const auth = require('./middleware/authMiddleware');
 const authController = require('./controllers/authController');
-app.get('/api/admin/high-penalty', auth, authController.getHighPenaltyUsers);
-app.get('/api/status', (req, res) => res.json({ status: 'API is healthy and updated', version: '2.0' }));
-
+// ✅ Route Definitions
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/requests', require('./routes/requestRoutes'));
 app.use('/api/stock', require('./routes/stockRoutes'));
 app.use('/api/otp', require('./routes/otpRoutes'));
+
+// ✅ Admin Routes (Consolidated)
+app.get('/api/admin/high-penalty', auth, authController.getHighPenaltyUsers);
+
+// ✅ Debugging Route
+app.get('/api/status', (req, res) => {
+    res.json({ 
+        status: 'API is healthy', 
+        timestamp: new Date(),
+        version: '2.1'
+    });
+});
 
 // ✅ Static Uploads Folder
 const uploadPath = path.join(__dirname, 'uploads');

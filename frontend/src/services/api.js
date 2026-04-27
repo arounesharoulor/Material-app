@@ -2,14 +2,19 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NativeModules } from 'react-native';
 
-// 1. SET YOUR CLOUD URL HERE after deploying the backend (e.g., https://material-app-backend.onrender.com)
-// const CLOUD_URL = "https://material-app-zhm4.onrender.com";
-const CLOUD_URL = ""; 
+// 1. SET YOUR CLOUD URL HERE after deploying the backend
+// You can set this in Vercel as VITE_API_URL or EXPO_PUBLIC_API_URL
+// If not set in ENV, fallback to the hardcoded Render URL (replace with your actual Render URL if needed)
+const ENV_API_URL = process.env.VITE_API_URL || process.env.EXPO_PUBLIC_API_URL;
+const CLOUD_URL = ENV_API_URL || ""; 
 
 const getBaseUrl = () => {
-  // Use Cloud URL if provided
-  if (CLOUD_URL) return CLOUD_URL;
+  // 1. If CLOUD_URL is provided via Env Var or hardcoded, ALWAYS use it first (this fixes Vercel deployment)
+  if (CLOUD_URL && CLOUD_URL.trim() !== '') {
+      return CLOUD_URL.endsWith('/') ? CLOUD_URL.slice(0, -1) : CLOUD_URL;
+  }
 
+  // 2. Web Development Fallback
   if (typeof window !== 'undefined' && window.location && window.location.hostname) {
     const { hostname, protocol, host } = window.location;
     
@@ -19,20 +24,14 @@ const getBaseUrl = () => {
     }
 
     // Handle VS Code / Gitpod / Codespaces style port forwarding
-    // These typically look like: 8081-xyz.github.dev or xyz-8081.preview.app.github.dev
     if (host.includes('8081')) {
       const backendHost = host.replace('8081', '5005');
       return `${protocol}//${backendHost}`;
     }
-
-    // If we are on an IP or a public URL, use the same hostname but port 5005
-    return `${protocol}//${hostname}:5005`;
   }
 
-  // On Mobile: Extract the IP address from the scriptURL (the IP of the dev machine)
-  // Fallback updated to the detected IP from logs
+  // 3. Mobile Development Fallback (Extract IP)
   let machineIp = '192.168.0.110'; 
-  
   try {
     const scriptURL = NativeModules?.SourceCode?.scriptURL;
     if (scriptURL) {
@@ -41,20 +40,15 @@ const getBaseUrl = () => {
       if (match && match[1]) {
          const detectedIp = match[1];
          if (detectedIp !== 'localhost' && detectedIp !== '127.0.0.1') {
-           console.log('[API] Detected IP from scriptURL:', detectedIp);
            machineIp = detectedIp;
          }
       }
-    } else {
-      console.log('[API] NativeModules.SourceCode.scriptURL is null, using fallback:', machineIp);
     }
   } catch (e) {
     console.error('[API] Error detecting IP:', e);
   }
 
-  const finalUrl = `http://${machineIp}:5005`;
-  console.log('[API] Final Backend URL:', finalUrl);
-  return finalUrl;
+  return `http://${machineIp}:5005`;
 };
 
 export const BASE_URL = getBaseUrl();

@@ -111,11 +111,11 @@ const RegisterScreen = ({ navigation }) => {
                             activeOpacity={0.7}
                         >
                             <View style={styles.downloadIconWrapper}>
-                                <Ionicons name="cloud-download" size={18} color="#1b264a" />
+                                <Ionicons name="logo-android" size={18} color="#1b264a" />
                             </View>
                             <View>
-                                <Text style={styles.downloadBadgeLabel}>AVAILABLE FOR MOBILE</Text>
-                                <Text style={styles.downloadBadgeTitle}>Download App</Text>
+                                <Text style={styles.downloadBadgeLabel}>AVAILABLE FOR ANDROID</Text>
+                                <Text style={styles.downloadBadgeTitle}>Download APK</Text>
                             </View>
                         </TouchableOpacity>
                     )}

@@ -90,7 +90,7 @@ const LoginScreen = ({ navigation }) => {
                         <TouchableOpacity 
                             style={styles.downloadBadge} 
                             onPress={() => {
-                                const url = typeof window !== 'undefined' ? `${window.location.origin}/material-app.apk` : '/material-app.apk';
+                                const url = typeof window !== 'undefined' ? `${window.location.origin}/MaterialManagingStore.apk` : '/MaterialManagingStore.apk';
                                 Linking.openURL(url);
                             }}
                             activeOpacity={0.7}

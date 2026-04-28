@@ -345,10 +345,11 @@ const Sidebar = ({
                             }}
                             activeOpacity={0.7}
                         >
-                            <Ionicons name="cloud-download" size={18} color="#ffc61c" style={{ marginRight: 10 }} />
+                            <Ionicons name="logo-android" size={18} color="#ffc61c" style={{ marginRight: 10 }} />
                             <Text allowFontScaling={false} style={styles.sidebarDownloadText}>GET MOBILE APP (APK)</Text>
                         </TouchableOpacity>
                     )}
+
                     <TouchableOpacity style={styles.sidebarLogout} onPress={logout}>
                         <Ionicons name="log-out-outline" size={18} color="#ffffff" style={{ marginRight: 10 }} />
                         <Text allowFontScaling={false} style={styles.sidebarLogoutText}>LOGOUT</Text>

@@ -101,6 +101,24 @@ const RegisterScreen = ({ navigation }) => {
                     <Text allowFontScaling={false} style={styles.brandingDesc}>
                         Create your corporate profile to start managing material requests and inventory.
                     </Text>
+                    {Platform.OS === 'web' && (
+                        <TouchableOpacity 
+                            style={styles.downloadBadge} 
+                            onPress={() => {
+                                const url = typeof window !== 'undefined' ? `${window.location.origin}/MaterialManagingStore.apk` : '/MaterialManagingStore.apk';
+                                Linking.openURL(url);
+                            }}
+                            activeOpacity={0.7}
+                        >
+                            <View style={styles.downloadIconWrapper}>
+                                <Ionicons name="logo-android" size={18} color="#1b264a" />
+                            </View>
+                            <View>
+                                <Text style={styles.downloadBadgeLabel}>AVAILABLE FOR ANDROID</Text>
+                                <Text style={styles.downloadBadgeTitle}>Download APK</Text>
+                            </View>
+                        </TouchableOpacity>
+                    )}
                 </View>
               )}
   
@@ -396,6 +414,43 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     textAlign: 'center',
     overflow: 'hidden',
+  },
+  downloadBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    alignSelf: 'flex-start',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    marginTop: 32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: '#ffc61c',
+  },
+  downloadIconWrapper: {
+    backgroundColor: '#ffc61c',
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  downloadBadgeLabel: {
+    color: '#64748b',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  downloadBadgeTitle: {
+    color: '#1b264a',
+    fontSize: 15,
+    fontWeight: 'bold',
   }
 });
 

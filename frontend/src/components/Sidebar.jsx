@@ -330,12 +330,14 @@ const Sidebar = ({
                         <TouchableOpacity 
                             style={styles.sidebarDownload} 
                             onPress={() => {
-                                const url = typeof window !== 'undefined' ? `${window.location.origin}/material-app.apk` : '/material-app.apk';
+                                // Explicitly trigger download by targeting the renamed APK
+                                const url = typeof window !== 'undefined' ? `${window.location.origin}/MaterialManagingStore.apk` : '/MaterialManagingStore.apk';
                                 Linking.openURL(url);
                             }}
+                            activeOpacity={0.7}
                         >
-                            <Ionicons name="logo-android" size={18} color="#ffc61c" style={{ marginRight: 10 }} />
-                            <Text allowFontScaling={false} style={styles.sidebarDownloadText}>GET MOBILE APP</Text>
+                            <Ionicons name="cloud-download" size={18} color="#ffc61c" style={{ marginRight: 10 }} />
+                            <Text allowFontScaling={false} style={styles.sidebarDownloadText}>GET MOBILE APP (APK)</Text>
                         </TouchableOpacity>
                     )}
                     <TouchableOpacity style={styles.sidebarLogout} onPress={logout}>

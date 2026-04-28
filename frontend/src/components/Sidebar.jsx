@@ -345,8 +345,8 @@ const Sidebar = ({
                             }}
                             activeOpacity={0.7}
                         >
-                            <Ionicons name="logo-android" size={18} color="#ffc61c" style={{ marginRight: 10 }} />
-                            <Text allowFontScaling={false} style={styles.sidebarDownloadText}>GET MOBILE APP (APK)</Text>
+                            <Ionicons name="cloud-download" size={18} color="#ffc61c" style={{ marginRight: 10 }} />
+                            <Text allowFontScaling={false} style={styles.sidebarDownloadText}>GET MOBILE APP</Text>
                         </TouchableOpacity>
                     )}
 

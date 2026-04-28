@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback } from 'react';
+import { useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import tw from 'twrnc';
 import Svg, { Circle, G, Text as SvgText } from 'react-native-svg';
@@ -135,7 +136,11 @@ const DonutChart = ({ stats, size = 220 }) => {
 
 const ReportScreen = ({ navigation }) => {
     const { user, logout } = useContext(AuthContext);
-    const sidebarAnim = useRef(new Animated.Value(Platform.OS === 'web' ? 0 : -280)).current;
+    const { width } = useWindowDimensions();
+    const isMobile = width < 768;
+    const sidebarWidth = Platform.OS === 'web' ? Math.min(280, width * 0.85) : 280;
+    const sidebarVisible = Platform.OS === 'web' && !isMobile;
+    const sidebarAnim = useRef(new Animated.Value(sidebarVisible ? 0 : -sidebarWidth)).current;
 
     useFocusEffect(
         useCallback(() => {
@@ -154,7 +159,7 @@ const ReportScreen = ({ navigation }) => {
     const [activeTab, setActiveTab] = useState('OVERVIEW');
     
     const toggleSidebar = () => {
-        const toValue = isSidebarOpen ? -280 : 0;
+        const toValue = isSidebarOpen ? -sidebarWidth : 0;
         Animated.spring(sidebarAnim, {
             toValue,
             useNativeDriver: true,
@@ -219,7 +224,7 @@ const ReportScreen = ({ navigation }) => {
     const sortedAllItems = Object.entries(stats.itemCounts).sort((a, b) => b[1] - a[1]);
 
     return (
-        <View style={[styles.container, Platform.OS === 'web' ? { flexDirection: 'row', height: '100vh', overflow: 'hidden' } : { flex: 1 }]}>
+        <View style={[styles.container, Platform.OS === 'web' ? { flexDirection: isMobile ? 'column' : 'row', height: '100vh', overflow: 'hidden' } : { flex: 1 }]}>
             <Sidebar 
                 user={user} 
                 navigation={navigation} 
@@ -228,7 +233,7 @@ const ReportScreen = ({ navigation }) => {
                 toggleSidebar={toggleSidebar} 
                 activeScreen="Reports" 
             />
-            {isSidebarOpen && Platform.OS !== 'web' && (
+            {isSidebarOpen && (Platform.OS !== 'web' || isMobile) && (
                 <TouchableOpacity 
                     activeOpacity={1} 
                     onPress={toggleSidebar} 
@@ -243,7 +248,7 @@ const ReportScreen = ({ navigation }) => {
                     <View style={styles.paddingContainer}>
                         <View style={styles.header}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                                {Platform.OS !== 'web' && (
+                                {(Platform.OS !== 'web' || isMobile) && (
                                     <TouchableOpacity onPress={toggleSidebar} style={styles.mobileMenuBtn}>
                                         <Ionicons name="menu" size={24} color="#1b264a" />
                                     </TouchableOpacity>
@@ -321,7 +326,7 @@ const ReportScreen = ({ navigation }) => {
                                             </View>
                                         </View>
         
-                                        <View style={[styles.chartWrapper, Platform.OS === 'web' ? styles.chartWrapperWeb : styles.chartWrapperMobile]}>
+                                        <View style={[styles.chartWrapper, Platform.OS === 'web' ? (isMobile ? styles.chartWrapperMobile : styles.chartWrapperWeb) : styles.chartWrapperMobile]}>
                                             <DonutChart stats={stats} />
                                         </View>
                                     </View>
@@ -699,7 +704,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   breakdownGridCard: {
-    width: Platform.OS === 'web' ? '23%' : '48%',
+    width: Platform.OS === 'web' ? (isMobile ? '48%' : '23%') : '48%',
     backgroundColor: '#f8fafc',
     padding: 12,
     borderRadius: 14,

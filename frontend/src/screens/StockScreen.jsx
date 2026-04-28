@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useContext, useCallback } from 'react';
-import { View, Text, TouchableOpacity, TextInput, ActivityIndicator, ScrollView, Platform, StyleSheet, KeyboardAvoidingView, Keyboard, Animated, BackHandler } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, ActivityIndicator, ScrollView, Platform, StyleSheet, KeyboardAvoidingView, Keyboard, Animated, BackHandler, useWindowDimensions } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import tw from 'twrnc';
@@ -15,12 +15,15 @@ const StockScreen = ({ navigation }) => {
   const [newItemName, setNewItemName] = useState('');
   const [newItemQty, setNewItemQty] = useState('');
   const { user, logout } = useContext(AuthContext);
-  const sidebarAnim = useRef(new Animated.Value(-280)).current;
+  const { width } = useWindowDimensions();
+  const isMobile = width < 768;
+  const sidebarWidth = Platform.OS === 'web' ? Math.min(280, width * 0.85) : 280;
+  const sidebarAnim = useRef(new Animated.Value(-sidebarWidth)).current;
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
 
   const toggleSidebar = () => {
-    const toValue = isSidebarOpen ? -280 : 0;
+    const toValue = isSidebarOpen ? -sidebarWidth : 0;
     Animated.spring(sidebarAnim, {
         toValue,
         useNativeDriver: true,
@@ -110,7 +113,7 @@ const StockScreen = ({ navigation }) => {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
       style={{ flex: 1 }}
     >
-    <View style={[tw`bg-slate-50`, Platform.OS === 'web' ? { flexDirection: 'row', height: '100vh', overflow: 'hidden' } : { flex: 1 }]}>
+    <View style={[styles.container, Platform.OS === 'web' ? { flexDirection: isMobile ? 'column' : 'row', height: '100vh', overflow: 'hidden' } : { flex: 1 }]}>
       <Sidebar 
           user={user} 
           navigation={navigation} 
@@ -119,7 +122,7 @@ const StockScreen = ({ navigation }) => {
           toggleSidebar={toggleSidebar} 
           activeScreen="Stock" 
       />
-      {isSidebarOpen && Platform.OS !== 'web' && (
+      {isSidebarOpen && (Platform.OS !== 'web' || isMobile) && (
         <TouchableOpacity 
             activeOpacity={1} 
             onPress={toggleSidebar} 
@@ -138,7 +141,7 @@ const StockScreen = ({ navigation }) => {
               {(!isKeyboardVisible || Platform.OS === 'web') && (
                 <View style={styles.header}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                        {Platform.OS !== 'web' && (
+                        {(Platform.OS !== 'web' || isMobile) && (
                             <TouchableOpacity onPress={toggleSidebar} style={styles.mobileMenuBtn}>
                                 <Ionicons name="menu" size={24} color="#1b264a" />
                             </TouchableOpacity>
@@ -507,7 +510,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   stockGridCard: {
-    width: Platform.OS === 'web' ? '23%' : '48%', // 4 columns on web, 2 on mobile
+    width: Platform.OS === 'web' ? (isMobile ? '48%' : '23%') : '48%', // 4 columns on web desktop, 2 on mobile
     backgroundColor: '#ffffff',
     padding: 12,
     borderRadius: 14,

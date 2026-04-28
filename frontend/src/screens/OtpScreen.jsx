@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext, useCallback } from 'react';
 import {
     View, Text, TextInput, TouchableOpacity, StyleSheet,
-    KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView
+    KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView, useWindowDimensions
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../context/AuthContext';
@@ -10,6 +10,8 @@ import api from '../services/api';
 const OtpScreen = ({ navigation, route }) => {
     const registrationData = route.params?.registrationData;
     const email = registrationData?.email || '';
+    const { width } = useWindowDimensions();
+    const isMobile = width < 768;
 
     const [otp, setOtp] = useState('');
     const [loading, setLoading] = useState(false);
@@ -87,9 +89,9 @@ const OtpScreen = ({ navigation, route }) => {
                     keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}
                 >
-                    <View style={[styles.row, Platform.OS === 'web' ? styles.rowWeb : styles.rowMobile]}>
+                    <View style={[styles.row, Platform.OS === 'web' ? (isMobile ? styles.rowMobile : styles.rowWeb) : styles.rowMobile]}>
                         {/* Branding Panel */}
-                        {Platform.OS === 'web' && (
+                        {Platform.OS === 'web' && !isMobile && (
                             <View style={[styles.branding, styles.panelWeb]}>
                                 <Text allowFontScaling={false} style={styles.brandingLabel}>ACCOUNT VERIFICATION</Text>
                                 <Text allowFontScaling={false} style={styles.brandingTitle}>Almost There</Text>
@@ -101,7 +103,7 @@ const OtpScreen = ({ navigation, route }) => {
                         )}
 
                         {/* OTP Form */}
-                        <View style={[styles.formSection, Platform.OS === 'web' ? styles.panelWeb : styles.panelMobile]}>
+                        <View style={[styles.formSection, Platform.OS === 'web' ? (isMobile ? styles.panelMobile : styles.panelWeb) : styles.panelMobile]}>
                             <View style={styles.formContent}>
                                 {/* Header */}
                                 <View style={styles.headerBox}>

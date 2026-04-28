@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Platform, Animated, Modal, StyleSheet, Dimensions, ActivityIndicator, Image, BackHandler } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Platform, Animated, Modal, StyleSheet, Dimensions, ActivityIndicator, Image, BackHandler, useWindowDimensions } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import tw from 'twrnc';
@@ -12,8 +12,11 @@ const RequestHistoryScreen = ({ navigation }) => {
   const [requests, setRequests] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   
+  const { width } = useWindowDimensions();
+  const isMobile = width < 768;
+  const sidebarWidth = Platform.OS === 'web' ? Math.min(280, width * 0.85) : 280;
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const sidebarAnim = useRef(new Animated.Value(-280)).current;
+  const sidebarAnim = useRef(new Animated.Value(-sidebarWidth)).current;
 
   useFocusEffect(
     React.useCallback(() => {
@@ -32,7 +35,7 @@ const RequestHistoryScreen = ({ navigation }) => {
   const [viewerTitle, setViewerTitle] = useState('');
 
   const toggleSidebar = () => {
-    const toValue = isSidebarOpen ? -280 : 0;
+    const toValue = isSidebarOpen ? -sidebarWidth : 0;
     Animated.timing(sidebarAnim, {
         toValue,
         duration: 300,
@@ -214,7 +217,7 @@ const RequestHistoryScreen = ({ navigation }) => {
   );
 
   return (
-    <View style={[styles.container, Platform.OS === 'web' ? { flexDirection: 'row', height: '100vh', overflow: 'hidden' } : { flex: 1 }]}>
+    <View style={[styles.container, Platform.OS === 'web' ? { flexDirection: isMobile ? 'column' : 'row', height: '100vh', overflow: 'hidden' } : { flex: 1 }]}>
       <Sidebar 
           user={user} 
           navigation={navigation} 
@@ -223,6 +226,13 @@ const RequestHistoryScreen = ({ navigation }) => {
           toggleSidebar={toggleSidebar} 
           activeScreen="History" 
       />
+      {isSidebarOpen && (Platform.OS !== 'web' || isMobile) && (
+          <TouchableOpacity 
+              activeOpacity={1} 
+              onPress={toggleSidebar} 
+              style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 90 }]} 
+          />
+      )}
       <View style={{ flex: 1, height: Platform.OS === 'web' ? '100vh' : 'auto' }}>
         <ScrollView 
           style={[styles.scrollView, Platform.OS === 'web' ? { height: '100vh' } : {}]}
@@ -231,7 +241,7 @@ const RequestHistoryScreen = ({ navigation }) => {
         <View style={styles.paddingContainer}>
           <View style={styles.header}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                {Platform.OS !== 'web' && (
+                {(Platform.OS !== 'web' || isMobile) && (
                     <TouchableOpacity onPress={toggleSidebar} style={styles.mobileMenuBtn}>
                         <Ionicons name="menu" size={24} color="#1b264a" />
                     </TouchableOpacity>

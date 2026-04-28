@@ -214,7 +214,11 @@ const Sidebar = ({
         ]}>
             <ScrollView 
                 style={[{ flex: 1 }, Platform.OS === 'web' ? { overflowY: 'auto' } : {}]} 
-                contentContainerStyle={{ flexGrow: 1, padding: 30 }}
+                contentContainerStyle={{ 
+                    flexGrow: 1, 
+                    padding: 30, 
+                    paddingBottom: Platform.OS === 'web' ? 100 : 40 
+                }}
                 showsVerticalScrollIndicator={false}
             >
                 <View style={styles.sidebarTop}>

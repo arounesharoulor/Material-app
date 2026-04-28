@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, Platform, ActivityIndicator, FlatList, Image, Modal, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, Platform, ActivityIndicator, FlatList, Image, Modal, Dimensions, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import api, { BASE_URL } from '../services/api';
 import Sidebar from '../components/Sidebar';
@@ -13,8 +13,13 @@ const PenaltyHistoryScreen = ({ navigation }) => {
   const [employeeGroups, setEmployeeGroups] = useState([]);
   const [stats, setStats] = useState({ total: 0, distinctEmployees: 0, last24h: 0 });
   const [isLoading, setIsLoading] = useState(true);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(Platform.OS === 'web');
-  const sidebarAnim = useRef(new Animated.Value(Platform.OS === 'web' ? 0 : -280)).current;
+  
+  const { width } = useWindowDimensions();
+  const isMobile = width < 768;
+  const sidebarWidth = Platform.OS === 'web' ? Math.min(280, width * 0.85) : 280;
+  const sidebarVisible = Platform.OS === 'web' && !isMobile;
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const sidebarAnim = useRef(new Animated.Value(sidebarVisible ? 0 : -sidebarWidth)).current;
   const [activeTab, setActiveTab] = useState('Timeline'); // Timeline or Leaderboard
   const [expandedEmpId, setExpandedEmpId] = useState(null);
 
@@ -24,7 +29,7 @@ const PenaltyHistoryScreen = ({ navigation }) => {
   const [viewerTitle, setViewerTitle] = useState('');
 
   const toggleSidebar = () => {
-    const toValue = isSidebarOpen ? -280 : 0;
+    const toValue = isSidebarOpen ? -sidebarWidth : 0;
     Animated.timing(sidebarAnim, {
         toValue,
         duration: 300,
@@ -218,7 +223,7 @@ const PenaltyHistoryScreen = ({ navigation }) => {
   );
 
   return (
-    <View style={[styles.container, Platform.OS === 'web' ? { flexDirection: 'row', height: '100vh', overflow: 'hidden' } : { flex: 1 }]}>
+    <View style={[styles.container, Platform.OS === 'web' ? { flexDirection: isMobile ? 'column' : 'row', height: '100vh', overflow: 'hidden' } : { flex: 1 }]}>
       <Sidebar 
           user={user}
           navigation={navigation} 
@@ -228,20 +233,20 @@ const PenaltyHistoryScreen = ({ navigation }) => {
           activeScreen="PenaltyHistory" 
       />
       
-      {isSidebarOpen && Platform.OS !== 'web' ? (
+      {isSidebarOpen && (Platform.OS !== 'web' || isMobile) && (
         <TouchableOpacity 
             activeOpacity={1} 
             onPress={toggleSidebar} 
             style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 90 }]} 
         />
-      ) : null}
+      )}
 
       <View style={{ flex: 1, height: Platform.OS === 'web' ? '100vh' : 'auto' }}>
         <ScrollView style={[styles.scrollView, Platform.OS === 'web' ? { height: '100vh' } : {}]} contentContainerStyle={[styles.scrollContent, { minHeight: '100%' }]} >
         <View style={styles.paddingContainer}>
           <View style={styles.header}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                {Platform.OS !== 'web' && (
+                {(Platform.OS !== 'web' || isMobile) && (
                     <TouchableOpacity onPress={toggleSidebar} style={styles.mobileMenuBtn}>
                       <Ionicons name="menu" size={24} color="#1b264a" />
                     </TouchableOpacity>
@@ -346,8 +351,8 @@ const PenaltyHistoryScreen = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: { backgroundColor: '#f8fafc' },
-  paddingContainer: { padding: 24 },
-  header: { marginBottom: 30 },
+  paddingContainer: { padding: Platform.OS === 'web' ? 24 : 16 },
+  header: { marginBottom: Platform.OS === 'web' ? 30 : 16 },
   headerLabel: { fontSize: 10, fontWeight: '800', color: '#ffc61c', letterSpacing: 2, marginBottom: 4 },
   headerTitle: { fontSize: 28, fontWeight: '900', color: '#1b264a' },
   

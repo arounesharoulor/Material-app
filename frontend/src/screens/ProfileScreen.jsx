@@ -1,5 +1,5 @@
 import React, { useContext, useState, useRef, useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet, Platform, ScrollView, TouchableOpacity, Animated, Image, TextInput, ActivityIndicator, Modal, BackHandler } from 'react-native';
+import { View, Text, StyleSheet, Platform, ScrollView, TouchableOpacity, Animated, Image, TextInput, ActivityIndicator, Modal, BackHandler, useWindowDimensions } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -10,8 +10,11 @@ import Toast from 'react-native-toast-message';
 
 const ProfileScreen = ({ navigation }) => {
     const { user, logout, updateUserState } = useContext(AuthContext);
-    const [sidebarVisible, setSidebarVisible] = useState(Platform.OS === 'web');
-    const sidebarAnim = useRef(new Animated.Value(Platform.OS === 'web' ? 0 : -280)).current;
+    const { width } = useWindowDimensions();
+    const isMobile = width < 768;
+    const sidebarWidth = Platform.OS === 'web' ? Math.min(280, width * 0.85) : 280;
+    const sidebarVisible = Platform.OS === 'web' && !isMobile;
+    const sidebarAnim = useRef(new Animated.Value(sidebarVisible ? 0 : -sidebarWidth)).current;
 
     useFocusEffect(
         useCallback(() => {
@@ -43,9 +46,9 @@ const ProfileScreen = ({ navigation }) => {
     const [fetchingPenalties, setFetchingPenalties] = useState(false);
 
     const toggleSidebar = () => {
-        const toValue = sidebarVisible ? -280 : 0;
+        const toValue = isSidebarOpen ? -sidebarWidth : 0;
         Animated.timing(sidebarAnim, { toValue, duration: 300, useNativeDriver: false }).start();
-        setSidebarVisible(!sidebarVisible);
+        setIsSidebarOpen(!isSidebarOpen);
     };
 
     const fetchPenaltyHistory = useCallback(async () => {
@@ -203,6 +206,14 @@ const ProfileScreen = ({ navigation }) => {
                 <input type="file" ref={fileInputRef} style={{ display: 'none' }} accept="image/*" onChange={handleWebFileSelect} />
             )}
             <Sidebar user={user} navigation={navigation} logout={logout} sidebarAnim={sidebarAnim} toggleSidebar={toggleSidebar} activeScreen="Profile" />
+            
+            {isSidebarOpen && (Platform.OS !== 'web' || isMobile) && (
+                <TouchableOpacity 
+                    activeOpacity={1} 
+                    onPress={toggleSidebar} 
+                    style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 90 }]} 
+                />
+            )}
 
             <View style={styles.mainContent}>
                 <ScrollView
@@ -213,7 +224,7 @@ const ProfileScreen = ({ navigation }) => {
                     {/* ── Page Header ── */}
                     <View style={styles.pageHeader}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                            {Platform.OS !== 'web' && (
+                            {(Platform.OS !== 'web' || isMobile) && (
                                 <TouchableOpacity onPress={toggleSidebar} style={styles.mobileMenuBtn}>
                                     <Ionicons name="menu" size={22} color="#1b264a" />
                                 </TouchableOpacity>
@@ -425,7 +436,7 @@ const ProfileScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        flexDirection: Platform.OS === 'web' ? 'row' : 'column',
+        flexDirection: Platform.OS === 'web' ? (width < 768 ? 'column' : 'row') : 'column',
         backgroundColor: '#f1f5f9',
     },
     mainContent: {

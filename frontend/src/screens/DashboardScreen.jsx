@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState, useRef, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { View, Text, ScrollView, TouchableOpacity, Platform, Animated, Modal, TextInput, StyleSheet, Dimensions, KeyboardAvoidingView, ActivityIndicator, Image, Alert, BackHandler } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Platform, Animated, Modal, TextInput, StyleSheet, Dimensions, KeyboardAvoidingView, ActivityIndicator, Image, Alert, BackHandler, useWindowDimensions } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import tw from 'twrnc';
@@ -295,6 +295,10 @@ const AnimatedCard = React.memo(({
 
 const DashboardScreen = ({ navigation, route }) => {
   const { user, logout } = useContext(AuthContext);
+  const { width } = useWindowDimensions();
+  const isMobile = width < 768;
+  const sidebarWidth = Platform.OS === 'web' ? Math.min(280, width * 0.85) : 280;
+  
   const [requests, setRequests] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmittingPhoto, setIsSubmittingPhoto] = useState(false);
@@ -326,7 +330,7 @@ const DashboardScreen = ({ navigation, route }) => {
   */
   const [allRequests, setAllRequests] = useState([]);
   const [highPenaltyUsers, setHighPenaltyUsers] = useState([]);
-  const sidebarAnim = useRef(new Animated.Value(-280)).current;
+  const sidebarAnim = useRef(new Animated.Value(-sidebarWidth)).current;
   const socketRef = useRef(null);
   const isFocusedRef = useRef(true);
 
@@ -434,14 +438,14 @@ const DashboardScreen = ({ navigation, route }) => {
   };
 
   const toggleSidebar = useCallback(() => {
-    const toValue = isSidebarOpen ? -280 : 0;
+    const toValue = isSidebarOpen ? -sidebarWidth : 0;
     Animated.timing(sidebarAnim, {
         toValue,
         duration: 300,
         useNativeDriver: true,
     }).start();
     setIsSidebarOpen(!isSidebarOpen);
-  }, [isSidebarOpen, sidebarAnim]);
+  }, [isSidebarOpen, sidebarAnim, sidebarWidth]);
 
   const fetchHighPenalty = useCallback(async () => {
     if (user?.role === 'Admin') {
@@ -964,7 +968,7 @@ const DashboardScreen = ({ navigation, route }) => {
   const widgetData = (user?.role === 'Admin' && highPenaltyUsers?.length > 0) ? highPenaltyUsers[0] : topOffenderPopupData;
 
   return (
-    <View style={[styles.container, Platform.OS === 'web' ? { flexDirection: 'row', height: '100vh', overflow: 'hidden' } : { flex: 1 }]}>
+    <View style={[styles.container, Platform.OS === 'web' ? { flexDirection: isMobile ? 'column' : 'row', height: '100vh', overflow: 'hidden' } : { flex: 1 }]}>
       <Sidebar 
           user={user} 
           navigation={navigation} 
@@ -1000,7 +1004,7 @@ const DashboardScreen = ({ navigation, route }) => {
         <View style={styles.paddingContainer}>
           <View style={styles.header}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                {Platform.OS !== 'web' ? (
+                {(Platform.OS !== 'web' || isMobile) ? (
                     <TouchableOpacity onPress={toggleSidebar} style={styles.mobileMenuBtn}>
                         <Ionicons name="menu" size={24} color="#1b264a" />
                     </TouchableOpacity>
@@ -1344,13 +1348,15 @@ const styles = StyleSheet.create({
   },
   statsRow: {
     flexDirection: 'row',
-    gap: 6,
+    flexWrap: 'wrap',
+    gap: 8,
     marginBottom: 16,
   },
   statBox: {
     flex: 1,
+    minWidth: '45%',
     backgroundColor: '#ffffff',
-    padding: 10,
+    padding: 12,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: '#f1f5f9',

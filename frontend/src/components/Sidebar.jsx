@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Animated, Platform, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Animated, Platform, StyleSheet, Linking, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import api, { BASE_URL } from '../services/api';
 import io from 'socket.io-client';
@@ -69,6 +69,8 @@ const Sidebar = ({
     activeScreen 
 }) => {
     const { refreshUser } = useContext(AuthContext);
+    const { width } = useWindowDimensions();
+    const isMobile = width < 768;
     const [pendingCount, setPendingCount] = useState(0);       // Admin: awaiting decision
     const [employeePickupCount, setEmployeePickupCount] = useState(0);  // Employee: approved, needs pickup / feedback
     const [employeeReturnCount, setEmployeeReturnCount] = useState(0);  // Employee: picked up, needs return
@@ -200,7 +202,7 @@ const Sidebar = ({
     return (
         <Animated.View style={[
             styles.sidebar,
-            Platform.OS !== 'web' && { 
+            (Platform.OS !== 'web' || isMobile) && { 
                 position: 'absolute', 
                 zIndex: 100, 
                 backgroundColor: '#1b264a',
@@ -221,7 +223,7 @@ const Sidebar = ({
                             <Text allowFontScaling={false} style={styles.sidebarBrand}>SYSTEM</Text>
                             <Text allowFontScaling={false} style={styles.sidebarBrandSub}>PORTAL</Text>
                         </View>
-                        {Platform.OS !== 'web' && (
+                        {(Platform.OS !== 'web' || isMobile) && (
                             <TouchableOpacity onPress={toggleSidebar} style={{ padding: 10 }}>
                                 <Ionicons name="close" size={24} color="#ffc61c" />
                             </TouchableOpacity>
@@ -320,6 +322,18 @@ const Sidebar = ({
                 </View>
 
                 <View style={styles.sidebarBottom}>
+                    {Platform.OS === 'web' && (
+                        <TouchableOpacity 
+                            style={styles.sidebarDownload} 
+                            onPress={() => {
+                                const url = typeof window !== 'undefined' ? `${window.location.origin}/material-app.apk` : '/material-app.apk';
+                                Linking.openURL(url);
+                            }}
+                        >
+                            <Ionicons name="logo-android" size={18} color="#ffc61c" style={{ marginRight: 10 }} />
+                            <Text allowFontScaling={false} style={styles.sidebarDownloadText}>GET MOBILE APP</Text>
+                        </TouchableOpacity>
+                    )}
                     <TouchableOpacity style={styles.sidebarLogout} onPress={logout}>
                         <Ionicons name="log-out-outline" size={18} color="#ffffff" style={{ marginRight: 10 }} />
                         <Text allowFontScaling={false} style={styles.sidebarLogoutText}>LOGOUT</Text>
@@ -332,7 +346,7 @@ const Sidebar = ({
 
 const styles = StyleSheet.create({
   sidebar: {
-    width: 280,
+    width: Platform.OS === 'web' ? 'min(280px, 85%)' : 280,
     backgroundColor: '#1b264a',
     height: Platform.OS === 'web' ? '100vh' : '100%',
     borderRightWidth: 1,
@@ -429,10 +443,26 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.1)',
   },
   sidebarLogoutText: {
-    color: '#ffffff',
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 2,
+  },
+  sidebarDownload: {
+    backgroundColor: 'rgba(255, 198, 28, 0.1)',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 198, 28, 0.2)',
+    marginBottom: 12,
+  },
+  sidebarDownloadText: {
+    color: '#ffc61c',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.5,
   },
   tooltip: {
     position: 'absolute',

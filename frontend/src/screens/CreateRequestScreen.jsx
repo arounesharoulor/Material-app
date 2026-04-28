@@ -1,6 +1,6 @@
 import React, { useState, useContext, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { View, Text, TextInput, Image, Alert, Modal, ScrollView, TouchableOpacity, ActivityIndicator, Platform, StyleSheet, KeyboardAvoidingView, Animated } from 'react-native';
+import { View, Text, TextInput, Image, Alert, Modal, ScrollView, TouchableOpacity, ActivityIndicator, Platform, StyleSheet, KeyboardAvoidingView, Animated, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import tw from 'twrnc';
 import * as ImagePicker from 'expo-image-picker';
@@ -24,10 +24,13 @@ const CreateRequestScreen = ({ navigation }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const sidebarAnim = useRef(new Animated.Value(-280)).current;
+  const { width } = useWindowDimensions();
+  const isMobile = width < 768;
+  const sidebarWidth = Platform.OS === 'web' ? Math.min(280, width * 0.85) : 280;
+  const sidebarAnim = useRef(new Animated.Value(-sidebarWidth)).current;
 
   const toggleSidebar = () => {
-    const toValue = isSidebarOpen ? -280 : 0;
+    const toValue = isSidebarOpen ? -sidebarWidth : 0;
     Animated.timing(sidebarAnim, {
         toValue,
         duration: 300,
@@ -283,7 +286,7 @@ const CreateRequestScreen = ({ navigation }) => {
       style={{ flex: 1 }}
     >
       <ConfirmModal />
-      <View style={[tw`bg-slate-50`, Platform.OS === 'web' ? { flexDirection: 'row', height: '100vh', overflow: 'hidden' } : { flex: 1 }]}>
+      <View style={[styles.container, Platform.OS === 'web' ? { flexDirection: isMobile ? 'column' : 'row', height: '100vh', overflow: 'hidden' } : { flex: 1 }]}>
           <Sidebar 
               user={user} 
               navigation={navigation} 
@@ -292,7 +295,7 @@ const CreateRequestScreen = ({ navigation }) => {
               toggleSidebar={toggleSidebar} 
               activeScreen="CreateRequest" 
           />
-          {isSidebarOpen && Platform.OS !== 'web' && (
+          {isSidebarOpen && (Platform.OS !== 'web' || isMobile) && (
               <TouchableOpacity 
                   activeOpacity={1} 
                   onPress={toggleSidebar} 
@@ -309,7 +312,7 @@ const CreateRequestScreen = ({ navigation }) => {
               <View style={styles.paddingContainer}>
                   <View style={styles.header}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                          {Platform.OS !== 'web' && (
+                          {(Platform.OS !== 'web' || isMobile) && (
                               <TouchableOpacity onPress={toggleSidebar} style={styles.mobileMenuBtn}>
                                   <Ionicons name="menu" size={24} color="#1b264a" />
                               </TouchableOpacity>

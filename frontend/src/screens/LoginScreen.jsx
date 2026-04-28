@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert, ScrollView, Platform, StyleSheet, KeyboardAvoidingView, Keyboard, Linking } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Alert, ScrollView, Platform, StyleSheet, KeyboardAvoidingView, Keyboard, Linking, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import tw from 'twrnc';
 import { AuthContext } from '../context/AuthContext';
@@ -12,6 +12,8 @@ const LoginScreen = ({ navigation }) => {
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
   const [errors, setErrors] = useState({});
   const { login } = useContext(AuthContext);
+  const { width } = useWindowDimensions();
+  const isMobile = width < 768 || Platform.OS !== 'web';
 
   const generateCaptcha = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -69,15 +71,15 @@ const LoginScreen = ({ navigation }) => {
           style={{ flex: 1, ...(Platform.OS === 'web' ? { overflow: 'auto' } : {}) }}
           contentContainerStyle={[
             { flexGrow: 1 },
-            Platform.OS === 'web' ? { paddingBottom: 0 } : { paddingBottom: 120 }
+            !isMobile ? { paddingBottom: 0 } : { paddingBottom: 120 }
           ]}
           showsVerticalScrollIndicator={true}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={Platform.OS === 'web' ? styles.rowWeb : styles.colMobile}>
+          <View style={!isMobile ? styles.rowWeb : styles.colMobile}>
               {/* Branding Section - Hidden on mobile when keyboard is active */}
-              {(!isKeyboardVisible || Platform.OS === 'web') && (
-                <View style={[styles.branding, Platform.OS === 'web' ? styles.panelWeb : styles.panelMobile]}>
+              {(!isKeyboardVisible || !isMobile) && (
+                <View style={[styles.branding, !isMobile ? styles.panelWeb : styles.panelMobile]}>
                     <Text allowFontScaling={false} style={styles.brandingLabel}>ENTERPRISE PORTAL</Text>
                     <Text allowFontScaling={false} style={styles.brandingTitle}>Material Request</Text>
                     <View style={styles.divider} />
@@ -87,17 +89,26 @@ const LoginScreen = ({ navigation }) => {
                     {Platform.OS === 'web' && (
                         <TouchableOpacity 
                             style={styles.downloadBadge} 
-                            onPress={() => Linking.openURL('/material-app.apk')}
+                            onPress={() => {
+                                const url = typeof window !== 'undefined' ? `${window.location.origin}/material-app.apk` : '/material-app.apk';
+                                Linking.openURL(url);
+                            }}
+                            activeOpacity={0.7}
                         >
-                            <Ionicons name="logo-android" size={20} color="#ffc61c" />
-                            <Text style={styles.downloadBadgeText}>GET THE MOBILE APP</Text>
+                            <View style={styles.downloadIconWrapper}>
+                                <Ionicons name="logo-android" size={18} color="#1b264a" />
+                            </View>
+                            <View>
+                                <Text style={styles.downloadBadgeLabel}>AVAILABLE FOR ANDROID</Text>
+                                <Text style={styles.downloadBadgeTitle}>Download APK</Text>
+                            </View>
                         </TouchableOpacity>
                     )}
                 </View>
               )}
   
               {/* Login Form Section */}
-              <View style={[styles.formSection, Platform.OS === 'web' ? styles.panelWeb : styles.panelMobile]}>
+              <View style={[styles.formSection, !isMobile ? styles.panelWeb : styles.panelMobile]}>
                   <View style={styles.formContent}>
                       <View style={styles.headerBox}>
                           <Text allowFontScaling={false} style={styles.headerTitle}>Sign In</Text>
@@ -371,21 +382,39 @@ const styles = StyleSheet.create({
   downloadBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: '#ffffff',
     alignSelf: 'flex-start',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 30,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 16,
     marginTop: 32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: '#ffc61c',
   },
-  downloadBadgeText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: 'bold',
-    marginLeft: 8,
+  downloadIconWrapper: {
+    backgroundColor: '#ffc61c',
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  downloadBadgeLabel: {
+    color: '#64748b',
+    fontSize: 9,
+    fontWeight: '800',
     letterSpacing: 1,
+  },
+  downloadBadgeTitle: {
+    color: '#1b264a',
+    fontSize: 15,
+    fontWeight: 'bold',
   }
 });
 

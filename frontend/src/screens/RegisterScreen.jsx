@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert, ScrollView, Platform, StyleSheet, KeyboardAvoidingView, Keyboard, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Alert, ScrollView, Platform, StyleSheet, KeyboardAvoidingView, Keyboard, ActivityIndicator, useWindowDimensions } from 'react-native';
 
 import tw from 'twrnc';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,6 +19,8 @@ const RegisterScreen = ({ navigation }) => {
   const [errors, setErrors] = useState({});
 
   const { register } = useContext(AuthContext);
+  const { width } = useWindowDimensions();
+  const isMobile = width < 768 || Platform.OS !== 'web';
 
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
@@ -84,15 +86,15 @@ const RegisterScreen = ({ navigation }) => {
           style={{ flex: 1, ...(Platform.OS === 'web' ? { overflow: 'auto' } : {}) }}
           contentContainerStyle={[
             { flexGrow: 1 },
-            Platform.OS === 'web' ? { paddingBottom: 0 } : { paddingBottom: 120 }
+            !isMobile ? { paddingBottom: 0 } : { paddingBottom: 120 }
           ]}
           showsVerticalScrollIndicator={true}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={Platform.OS === 'web' ? styles.rowWeb : styles.colMobile}>
+          <View style={!isMobile ? styles.rowWeb : styles.colMobile}>
               {/* Visual Branding Section - Hidden on mobile when typing */}
-              {(!isKeyboardVisible || Platform.OS === 'web') && (
-                <View style={[styles.branding, Platform.OS === 'web' ? styles.panelWeb : styles.panelMobile]}>
+              {(!isKeyboardVisible || !isMobile) && (
+                <View style={[styles.branding, !isMobile ? styles.panelWeb : styles.panelMobile]}>
                     <Text allowFontScaling={false} style={styles.brandingLabel}>ONBOARDING PORTAL</Text>
                     <Text allowFontScaling={false} style={styles.brandingTitle}>Join the Network</Text>
                     <View style={styles.divider} />
@@ -103,7 +105,7 @@ const RegisterScreen = ({ navigation }) => {
               )}
   
               {/* Registration Form */}
-              <View style={[styles.formSection, Platform.OS === 'web' ? styles.panelWeb : styles.panelMobile]}>
+              <View style={[styles.formSection, !isMobile ? styles.panelWeb : styles.panelMobile]}>
                   <View style={styles.formContent}>
                       <View style={styles.headerBox}>
                           <Text allowFontScaling={false} style={styles.headerTitle}>New Account</Text>

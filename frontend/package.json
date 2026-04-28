@@ -7,6 +7,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "copy-favicon": "node -e \"const fs = require('fs'); const path = require('path'); const src = 'C:/Users/arune/.gemini/antigravity/brain/c458945b-11db-4d7d-ad0f-bbebae87efbf/favicon_recreation_1777366346281.png'; const destDir = path.join(__dirname, 'assets'); if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, {recursive: true}); fs.copyFileSync(src, path.join(destDir, 'favicon.png')); fs.copyFileSync(src, path.join(destDir, 'icon.png')); fs.copyFileSync(src, path.join(destDir, 'adaptive-icon.png')); fs.copyFileSync(src, path.join(destDir, 'splash.png')); console.log('Favicon copied successfully');\"",
     "build": "npx expo export -p web && rm -rf public && mv dist public"
   },
   "dependencies": {

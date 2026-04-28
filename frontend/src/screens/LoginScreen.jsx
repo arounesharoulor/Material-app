@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert, ScrollView, Platform, StyleSheet, KeyboardAvoidingView, Keyboard } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Alert, ScrollView, Platform, StyleSheet, KeyboardAvoidingView, Keyboard, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import tw from 'twrnc';
 import { AuthContext } from '../context/AuthContext';
@@ -84,6 +84,15 @@ const LoginScreen = ({ navigation }) => {
                     <Text allowFontScaling={false} style={styles.brandingDesc}>
                         Secure inventory tracking and request management system.
                     </Text>
+                    {Platform.OS === 'web' && (
+                        <TouchableOpacity 
+                            style={styles.downloadBadge} 
+                            onPress={() => Linking.openURL('/material-app.apk')}
+                        >
+                            <Ionicons name="logo-android" size={20} color="#ffc61c" />
+                            <Text style={styles.downloadBadgeText}>GET THE MOBILE APP</Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
               )}
   
@@ -358,6 +367,25 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     textAlign: 'center',
     overflow: 'hidden',
+  },
+  downloadBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    alignSelf: 'flex-start',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 30,
+    marginTop: 32,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  downloadBadgeText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginLeft: 8,
+    letterSpacing: 1,
   }
 });
 

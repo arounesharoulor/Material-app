@@ -2,12 +2,12 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NativeModules } from 'react-native';
 
-// 1. SET YOUR CLOUD URL HERE after deploying the backend
-// Hardcoding this URL directly prevents the Vercel build from falling back to your local IP address.
+// 1. PRODUCTION CLOUD URL
+// This URL is used for the production Android APK build.
 const CLOUD_URL = "https://material-app-zhm4.onrender.com"; 
 
 const getBaseUrl = () => {
-  // 1. If CLOUD_URL is provided via Env Var or hardcoded, ALWAYS use it first (this fixes Vercel deployment)
+  // Always use CLOUD_URL if available (Production Build)
   if (CLOUD_URL && CLOUD_URL.trim() !== '') {
       return CLOUD_URL.endsWith('/') ? CLOUD_URL.slice(0, -1) : CLOUD_URL;
   }

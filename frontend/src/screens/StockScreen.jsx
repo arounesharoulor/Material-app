@@ -231,7 +231,7 @@ const StockScreen = ({ navigation }) => {
                   {stock.map((item) => {
                       const isLow = item.quantity < 10;
                       return (
-                          <View key={item._id} style={styles.stockGridCard}>
+                        <View key={item._id} style={[styles.stockGridCard, { width: Platform.OS === 'web' ? (isMobile ? '48%' : '23%') : '48%' }]}>
                               <View style={{ flex: 1, marginBottom: 12 }}>
                                   <Text allowFontScaling={false} numberOfLines={1} style={styles.stockGridName}>{item.materialName}</Text>
                                   {isLow ? (
@@ -510,7 +510,6 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   stockGridCard: {
-    width: Platform.OS === 'web' ? (isMobile ? '48%' : '23%') : '48%', // 4 columns on web desktop, 2 on mobile
     backgroundColor: '#ffffff',
     padding: 12,
     borderRadius: 14,

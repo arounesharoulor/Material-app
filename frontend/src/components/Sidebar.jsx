@@ -141,8 +141,17 @@ const Sidebar = ({
         
         if (!socketRef.current) {
             socketRef.current = io(BASE_URL, {
-                transports: ['websocket'],
+                transports: ['polling', 'websocket'],
                 reconnection: true,
+                reconnectionAttempts: 20,
+            });
+
+            socketRef.current.on('connect', () => {
+                console.log('[SIDEBAR-SOCKET] Connected to:', BASE_URL);
+            });
+
+            socketRef.current.on('connect_error', (err) => {
+                console.log('[SIDEBAR-SOCKET] Connection Error:', err.message);
             });
         }
 

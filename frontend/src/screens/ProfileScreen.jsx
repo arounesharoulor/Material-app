@@ -14,6 +14,7 @@ const ProfileScreen = ({ navigation }) => {
     const isMobile = width < 768;
     const sidebarWidth = Platform.OS === 'web' ? Math.min(280, width * 0.85) : 280;
     const sidebarVisible = Platform.OS === 'web' && !isMobile;
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const sidebarAnim = useRef(new Animated.Value(sidebarVisible ? 0 : -sidebarWidth)).current;
 
     useFocusEffect(
@@ -201,7 +202,7 @@ const ProfileScreen = ({ navigation }) => {
     );
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { flexDirection: Platform.OS === 'web' ? (width < 768 ? 'column' : 'row') : 'column' }]}>
             {Platform.OS === 'web' && (
                 <input type="file" ref={fileInputRef} style={{ display: 'none' }} accept="image/*" onChange={handleWebFileSelect} />
             )}
@@ -436,7 +437,6 @@ const ProfileScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        flexDirection: Platform.OS === 'web' ? (width < 768 ? 'column' : 'row') : 'column',
         backgroundColor: '#f1f5f9',
     },
     mainContent: {

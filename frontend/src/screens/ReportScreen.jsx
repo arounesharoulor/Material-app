@@ -346,7 +346,7 @@ const ReportScreen = ({ navigation }) => {
                                         {sortedAllItems.map(([name, count], index) => {
                                             const score = stats.totalRequests > 0 ? (count / stats.totalRequests) * 100 : 0;
                                             return (
-                                                <View key={name} style={styles.breakdownGridCard}>
+                                                <View key={name} style={[styles.breakdownGridCard, { width: Platform.OS === 'web' ? (isMobile ? '48%' : '23%') : '48%' }]}>
                                                     <View style={styles.breakdownHeaderSmall}>
                                                         <View style={styles.indexCircle}>
                                                             <Text style={styles.indexTextSmall}>{index + 1}</Text>
@@ -704,7 +704,6 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   breakdownGridCard: {
-    width: Platform.OS === 'web' ? (isMobile ? '48%' : '23%') : '48%',
     backgroundColor: '#f8fafc',
     padding: 12,
     borderRadius: 14,

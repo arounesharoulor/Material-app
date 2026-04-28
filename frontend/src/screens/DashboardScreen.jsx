@@ -497,13 +497,25 @@ const DashboardScreen = ({ navigation, route }) => {
     
     // Connect to socket with websocket transport for better stability in Expo/Mobile
     socketRef.current = io(BASE_URL, {
-        transports: ['websocket'],
+        transports: ['polling', 'websocket'],
         reconnection: true,
-        reconnectionAttempts: 10,
+        reconnectionAttempts: 20,
+        timeout: 10000,
     });
     
     socketRef.current.on('connect', () => {
+        console.log('[SOCKET] Connected to:', BASE_URL);
         setIsLive(true);
+    });
+
+    socketRef.current.on('connect_error', (err) => {
+        console.log('[SOCKET] Connection Error:', err.message);
+        setIsLive(false);
+    });
+
+    socketRef.current.on('error', (err) => {
+        console.log('[SOCKET] Socket Error:', err);
+        setIsLive(false);
     });
     
     socketRef.current.on('requestUpdated', (data) => {
@@ -1020,7 +1032,12 @@ const DashboardScreen = ({ navigation, route }) => {
                         <View style={styles.liveDot} />
                         <Text allowFontScaling={false} style={styles.liveText}>LIVE</Text>
                     </View>
-                ) : null}
+                ) : (
+                    <View style={[styles.liveIndicator, { backgroundColor: '#fee2e2', borderColor: '#fecaca' }]}>
+                        <View style={[styles.liveDot, { backgroundColor: '#ef4444' }]} />
+                        <Text allowFontScaling={false} style={[styles.liveText, { color: '#dc2626' }]}>OFFLINE</Text>
+                    </View>
+                )}
                 <TouchableOpacity onPress={() => fetchRequests(true)} style={[styles.syncBtn, { marginRight: 10 }]}>
                     <Ionicons name="refresh" size={16} color="#1b264a" />
                 </TouchableOpacity>

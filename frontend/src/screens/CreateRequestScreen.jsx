@@ -24,6 +24,8 @@ const CreateRequestScreen = ({ navigation }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [isLive, setIsLive] = useState(false);
+  const socketRef = useRef(null);
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
   const sidebarWidth = Platform.OS === 'web' ? Math.min(280, width * 0.85) : 280;
@@ -53,6 +55,32 @@ const CreateRequestScreen = ({ navigation }) => {
 
   useEffect(() => {
     fetchStockItems();
+
+    // Socket status monitoring
+    socketRef.current = io(BASE_URL, {
+        transports: ['polling', 'websocket'],
+        reconnection: true,
+        reconnectionAttempts: 20,
+    });
+
+    socketRef.current.on('connect', () => {
+        setIsLive(true);
+    });
+
+    socketRef.current.on('disconnect', () => {
+        setIsLive(false);
+    });
+
+    socketRef.current.on('connect_error', () => {
+        setIsLive(false);
+    });
+
+    return () => {
+        if (socketRef.current) {
+            socketRef.current.disconnect();
+            socketRef.current = null;
+        }
+    };
   }, []);
 
   const fetchStockItems = async () => {
@@ -323,10 +351,17 @@ const CreateRequestScreen = ({ navigation }) => {
                           </View>
                       </View>
                       <View style={styles.headerActions}>
-                          <View style={styles.liveIndicator}>
-                              <View style={styles.liveDot} />
-                              <Text allowFontScaling={false} style={styles.liveText}>LIVE</Text>
-                          </View>
+                          {isLive ? (
+                              <View style={styles.liveIndicator}>
+                                  <View style={styles.liveDot} />
+                                  <Text allowFontScaling={false} style={styles.liveText}>LIVE</Text>
+                              </View>
+                          ) : (
+                              <View style={[styles.liveIndicator, { backgroundColor: '#fee2e2', borderColor: '#fecaca' }]}>
+                                  <View style={[styles.liveDot, { backgroundColor: '#ef4444' }]} />
+                                  <Text allowFontScaling={false} style={[styles.liveText, { color: '#dc2626' }]}>OFFLINE</Text>
+                              </View>
+                          )}
                       </View>
                   </View>
       

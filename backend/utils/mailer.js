@@ -1,10 +1,9 @@
 const nodemailer = require('nodemailer');
 
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    pool: true,
-    maxConnections: 5,
-    maxMessages: 100,
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true, // Use SSL
     auth: {
         user: process.env.EMAIL_USER || 'managemadhura123@gmail.com',
         pass: process.env.EMAIL_PASS || 'eugxkrfdszghuzud'
@@ -16,7 +15,7 @@ transporter.verify((error, success) => {
     if (error) {
         console.log('[MAILER] Connection error:', error.message);
     } else {
-        const user = process.env.EMAIL_USER || 'NOT SET';
+        const user = process.env.EMAIL_USER || 'managemadhura123@gmail.com';
         console.log(`[MAILER] Server ready. Account: ${user.substring(0, 4)}...`);
     }
 });
@@ -28,8 +27,9 @@ transporter.verify((error, success) => {
  * @param {string} text - Plain text body
  */
 const sendEmail = async (to, subject, text) => {
+    const fromEmail = process.env.EMAIL_USER || 'managemadhura123@gmail.com';
     const mailOptions = {
-        from: process.env.EMAIL_USER,
+        from: `"Material App Support" <${fromEmail}>`,
         to,
         subject,
         text

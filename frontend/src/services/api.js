@@ -10,9 +10,11 @@ const getBaseUrl = () => {
   // 1. Check if we are in development mode
   const isDev = typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV === 'development';
 
-  // 2. USE CLOUD BY DEFAULT (Restored for connectivity)
-  // Even in dev, we use Cloud because local IP detection is often blocked by mobile firewalls/subnets.
-  if (CLOUD_URL && CLOUD_URL.trim() !== '') {
+  // SET TO false TO USE CLOUD, true TO USE YOUR COMPUTER IP
+  const FORCE_LOCAL_IN_DEV = false; 
+
+  // 2. USE CLOUD IF NOT FORCED TO LOCAL
+  if ((!isDev || !FORCE_LOCAL_IN_DEV) && CLOUD_URL && CLOUD_URL.trim() !== '') {
       return CLOUD_URL.endsWith('/') ? CLOUD_URL.slice(0, -1) : CLOUD_URL;
   }
 

@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_jwt_key_123';
 
 exports.register = async (req, res) => {
     const { name, employeeId, email, password, role } = req.body;
@@ -30,7 +31,7 @@ exports.register = async (req, res) => {
         await user.save();
 
         const payload = { user: { id: user.id, role: user.role } };
-        jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: 360000 }, (err, token) => {
+        jwt.sign(payload, JWT_SECRET, { expiresIn: 360000 }, (err, token) => {
             if (err) throw err;
             res.json({ 
                 token, 
@@ -62,7 +63,7 @@ exports.login = async (req, res) => {
         if (!isMatch) return res.status(400).json({ msg: 'Invalid Credentials' });
 
         const payload = { user: { id: user.id, role: user.role } };
-        jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: 360000 }, (err, token) => {
+        jwt.sign(payload, JWT_SECRET, { expiresIn: 360000 }, (err, token) => {
             if (err) throw err;
             res.json({ 
                 token, 

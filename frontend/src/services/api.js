@@ -7,7 +7,11 @@ import { NativeModules } from 'react-native';
 const CLOUD_URL = "https://material-app-zhm4.onrender.com"; 
 
 const getBaseUrl = () => {
-  // Always use CLOUD_URL if available (Production Build)
+  // 1. Check if we are in development mode
+  const isDev = typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV === 'development';
+
+  // 2. USE CLOUD BY DEFAULT (Restored for connectivity)
+  // Even in dev, we use Cloud because local IP detection is often blocked by mobile firewalls/subnets.
   if (CLOUD_URL && CLOUD_URL.trim() !== '') {
       return CLOUD_URL.endsWith('/') ? CLOUD_URL.slice(0, -1) : CLOUD_URL;
   }
@@ -29,23 +33,26 @@ const getBaseUrl = () => {
   }
 
   // 3. Mobile Development Fallback (Extract IP)
-  let machineIp = '192.168.0.110'; 
+  // MANUAL OVERRIDE: If your mobile cannot connect, update this IP to your computer's IP
+  let machineIp = '192.168.1.13'; // Tried common alternative, but auto-detect is preferred
+
   try {
     const scriptURL = NativeModules?.SourceCode?.scriptURL;
     if (scriptURL) {
-      console.log('[API] Detected scriptURL:', scriptURL);
       const match = scriptURL.match(/http:\/\/([\d\.]+):/);
       if (match && match[1]) {
          const detectedIp = match[1];
          if (detectedIp !== 'localhost' && detectedIp !== '127.0.0.1') {
-           machineIp = detectedIp;
+           return `http://${detectedIp}:5005`;
          }
       }
     }
   } catch (e) {
-    console.error('[API] Error detecting IP:', e);
+    console.warn('[API] IP detection failed, using fallback:', e.message);
   }
 
+  // Final Fallback: If we can't detect, and it's not web, maybe try Cloud if the local fallback fails?
+  // For now, let's just make the fallback easier to change.
   return `http://${machineIp}:5005`;
 };
 

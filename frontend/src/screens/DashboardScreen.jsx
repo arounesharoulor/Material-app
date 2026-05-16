@@ -723,16 +723,16 @@ const DashboardScreen = ({ navigation, route }) => {
     });
 
     // Audio mode is now handled in the setup effect above
-    /*
     if (Platform.OS !== 'web') {
         Audio.setAudioModeAsync({
             playsInSilentModeIOS: true,
             staysActiveInBackground: true,
+            interruptionModeIOS: 1, // InterruptionModeIOS.DoNotMix
             shouldDuckAndroid: true,
+            interruptionModeAndroid: 1, // InterruptionModeAndroid.DoNotMix
             playThroughEarpieceAndroid: false,
         }).catch(err => console.log('Audio Mode Error:', err));
     }
-    */
 
     return () => {
         if (socketRef.current) {
@@ -956,7 +956,9 @@ const DashboardScreen = ({ navigation, route }) => {
         const filename = cleanPath.split('/').pop();
         cleanPath = `uploads/${filename}`;
     }
-    const encodedPath = cleanPath.split('/').map(segment => encodeURIComponent(segment)).join('/');
+    // Encode filename but preserve the 'uploads/' prefix with a forward slash
+    const parts = cleanPath.split('/');
+    const encodedPath = parts.map(segment => encodeURIComponent(segment)).join('/');
     return `${BASE_URL}/${encodedPath}`;
   }, []);
 

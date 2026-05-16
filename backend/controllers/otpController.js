@@ -18,10 +18,17 @@ exports.sendOtp = async (req, res) => {
         await Otp.deleteMany({ email });
         await newOtp.save();
 
+        const isDev = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
+
         if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
             // Fire-and-forget — do NOT await, respond immediately
-            sendEmail(email, 'Your Verification Code', `Your OTP for verification is: ${otp}. This code will expire in 5 minutes.`);
-            return res.json({ msg: 'Verification code sent to ' + email });
+            sendEmail(email, 'Your Verification Code', `Your OTP for verification is: ${otp}. This code will expire in 5 minutes.`)
+                .catch(err => console.error('[MAILER-ASYNC-ERROR]', err));
+                
+            return res.json({ 
+                msg: 'Verification code sent to ' + email,
+                devOtp: isDev ? otp : undefined // Include OTP in response ONLY for local debugging
+            });
         } else {
             console.log('--- DEV MODE OTP for ' + email + ': ' + otp + ' ---');
             return res.json({ msg: 'OTP generated (dev mode)', devOtp: otp });

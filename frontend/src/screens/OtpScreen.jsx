@@ -115,6 +115,13 @@ const OtpScreen = ({ navigation, route }) => {
                                         A 6-digit code was sent to
                                     </Text>
                                     <Text allowFontScaling={false} style={styles.emailBadge}>{maskedEmail}</Text>
+                                    
+                                    {registrationData?.devOtp && (
+                                        <View style={styles.devOtpContainer}>
+                                            <Text style={styles.devOtpLabel}>DEBUG MODE OTP:</Text>
+                                            <Text style={styles.devOtpValue}>{registrationData.devOtp}</Text>
+                                        </View>
+                                    )}
                                 </View>
 
                                 {/* OTP Input */}
@@ -373,6 +380,28 @@ const styles = StyleSheet.create({
         color: '#94a3b8',
         fontWeight: '600',
         fontSize: 13,
+    },
+    devOtpContainer: {
+        backgroundColor: '#fffbeb',
+        borderWidth: 1,
+        borderColor: '#fef3c7',
+        borderRadius: 12,
+        padding: 12,
+        marginTop: 20,
+        alignItems: 'center',
+        width: '100%',
+    },
+    devOtpLabel: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: '#92400e',
+        marginBottom: 4,
+    },
+    devOtpValue: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: '#b45309',
+        letterSpacing: 4,
     },
 });
 

@@ -7,7 +7,8 @@ dns.setServers(['8.8.8.8', '8.8.4.4']);
 
 const connectDB = async () => {
     try {
-        await mongoose.connect(process.env.MONGO_URI, {
+        const uri = process.env.MONGO_URI || "mongodb+srv://arounesharoulor_db_user:GytVRhtHlKCLwzIG@materialapp.t8wxpqk.mongodb.net/Materialtest?retryWrites=true&w=majority&appName=MaterialApp";
+        await mongoose.connect(uri, {
             useNewUrlParser: true,
             useUnifiedTopology: true,
         });

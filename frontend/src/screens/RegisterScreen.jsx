@@ -52,7 +52,8 @@ const RegisterScreen = ({ navigation }) => {
     try {
 
       // Instead of direct registration, send OTP first
-      await api.post('/otp/send-otp', { email: email.trim() });
+      const response = await api.post('/otp/send-otp', { email: email.trim() });
+      const devOtp = response.data?.devOtp;
       
       // Navigate to OTP screen with registration data
       navigation.navigate('Otp', {
@@ -61,7 +62,8 @@ const RegisterScreen = ({ navigation }) => {
           employeeId: trimmedId,
           email: email.trim(),
           password,
-          role
+          role,
+          devOtp: devOtp // Pass it along for easy testing
         }
       });
     } catch (err) {
@@ -105,17 +107,24 @@ const RegisterScreen = ({ navigation }) => {
                         <TouchableOpacity 
                             style={styles.downloadBadge} 
                             onPress={() => {
-                                const url = typeof window !== 'undefined' ? `${window.location.origin}/MaterialManagingStore.apk` : '/MaterialManagingStore.apk';
-                                Linking.openURL(url);
+                                if (typeof window !== 'undefined') {
+                                    const isIOS = /iPhone|iPad|iPod/i.test(window.navigator.userAgent);
+                                    const url = isIOS 
+                                        ? `${window.location.origin}/ios-install.html`
+                                        : `${window.location.origin}/MaterialManagingStore.apk`;
+                                    Linking.openURL(url);
+                                } else {
+                                    Linking.openURL('/MaterialManagingStore.apk');
+                                }
                             }}
                             activeOpacity={0.7}
                         >
                             <View style={styles.downloadIconWrapper}>
-                                <Ionicons name="logo-android" size={18} color="#1b264a" />
+                                <Ionicons name="cloud-download" size={18} color="#1b264a" />
                             </View>
                             <View>
-                                <Text style={styles.downloadBadgeLabel}>AVAILABLE FOR ANDROID</Text>
-                                <Text style={styles.downloadBadgeTitle}>Download APK</Text>
+                                <Text style={styles.downloadBadgeLabel}>AVAILABLE FOR MOBILE</Text>
+                                <Text style={styles.downloadBadgeTitle}>Download App</Text>
                             </View>
                         </TouchableOpacity>
                     )}

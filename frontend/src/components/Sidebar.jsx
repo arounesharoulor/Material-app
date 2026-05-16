@@ -340,13 +340,20 @@ const Sidebar = ({
                             style={styles.sidebarDownload} 
                             onPress={() => {
                                 // Explicitly trigger download by targeting the renamed APK
-                                const url = typeof window !== 'undefined' ? `${window.location.origin}/MaterialManagingStore.apk` : '/MaterialManagingStore.apk';
-                                Linking.openURL(url);
+                                if (typeof window !== 'undefined') {
+                                    const isIOS = /iPhone|iPad|iPod/i.test(window.navigator.userAgent);
+                                    const url = isIOS 
+                                        ? `${window.location.origin}/ios-install.html`
+                                        : `${window.location.origin}/MaterialManagingStore.apk`;
+                                    Linking.openURL(url);
+                                } else {
+                                    Linking.openURL('/MaterialManagingStore.apk');
+                                }
                             }}
                             activeOpacity={0.7}
                         >
-                            <Ionicons name="logo-android" size={18} color="#ffc61c" style={{ marginRight: 10 }} />
-                            <Text allowFontScaling={false} style={styles.sidebarDownloadText}>GET MOBILE APP (APK)</Text>
+                            <Ionicons name="cloud-download" size={18} color="#ffc61c" style={{ marginRight: 10 }} />
+                            <Text allowFontScaling={false} style={styles.sidebarDownloadText}>GET MOBILE APP</Text>
                         </TouchableOpacity>
                     )}
 

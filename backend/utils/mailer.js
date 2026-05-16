@@ -6,8 +6,18 @@ const transporter = nodemailer.createTransport({
     maxConnections: 5,
     maxMessages: 100,
     auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
+        user: process.env.EMAIL_USER || 'managemadhura123@gmail.com',
+        pass: process.env.EMAIL_PASS || 'eugxkrfdszghuzud'
+    }
+});
+
+// Verify connection configuration
+transporter.verify((error, success) => {
+    if (error) {
+        console.log('[MAILER] Connection error:', error.message);
+    } else {
+        const user = process.env.EMAIL_USER || 'NOT SET';
+        console.log(`[MAILER] Server ready. Account: ${user.substring(0, 4)}...`);
     }
 });
 

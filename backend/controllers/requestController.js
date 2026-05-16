@@ -41,7 +41,8 @@ exports.createRequest = async (req, res) => {
     let photoUrl = '';
     if (req.file) {
         console.log(`[UPLOAD] File received: ${req.file.filename} (${req.file.size} bytes)`);
-        photoUrl = req.file.path.replace(/\\/g, '/');
+        // Save relative path for better portability across dev/prod environments
+        photoUrl = `uploads/${req.file.filename}`;
     } else {
         console.warn('[UPLOAD] No file received in req.file');
     }
@@ -258,7 +259,7 @@ exports.submitPickupPhoto = async (req, res) => {
         }
 
         if (req.file) {
-            request.pickupPhotoUrl = req.file.path.replace(/\\/g, '/');
+            request.pickupPhotoUrl = `uploads/${req.file.filename}`;
             request.pickupTime = new Date();
             request.status = 'PendingReturn';
             await request.save();
@@ -287,7 +288,7 @@ exports.submitReturnPhoto = async (req, res) => {
         }
 
         if (req.file) {
-            request.returnPhotoUrl = req.file.path.replace(/\\/g, '/');
+            request.returnPhotoUrl = `uploads/${req.file.filename}`;
             request.returnTime = new Date();
             request.status = 'Closed';
             await request.save();

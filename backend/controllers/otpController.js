@@ -27,7 +27,7 @@ exports.sendOtp = async (req, res) => {
                 
             return res.json({ 
                 msg: 'Verification code sent to ' + email,
-                devOtp: isDev ? otp : undefined // Include OTP in response ONLY for local debugging
+                devOtp: otp // TEMPORARY BYPASS: Show OTP in yellow box even on Cloud for testing
             });
         } else {
             console.log('--- DEV MODE OTP for ' + email + ': ' + otp + ' ---');

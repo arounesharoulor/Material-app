@@ -33,17 +33,14 @@ const sendEmail = async (to, subject, text) => {
         text
     };
 
-    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-        try {
-            console.log(`[MAILER] Sending email to ${to}...`);
+    // We use the hardcoded fallbacks if process.env is missing, so we don't need the if check here
+    try {
+        console.log(`[MAILER] Sending email to ${to}...`);
             await transporter.sendMail(mailOptions);
             console.log(`[MAILER] Email sent successfully to ${to}`);
         } catch (err) {
             console.error(`[MAILER] Error sending email to ${to}:`, err.message);
         }
-    } else {
-        console.log(`[MAILER-DEV] To: ${to} | Subject: ${subject} | Body: ${text}`);
-    }
 };
 
 module.exports = { sendEmail, transporter };

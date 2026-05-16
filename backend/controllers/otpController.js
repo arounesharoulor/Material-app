@@ -26,12 +26,11 @@ exports.sendOtp = async (req, res) => {
                 .catch(err => console.error('[MAILER-ASYNC-ERROR]', err));
                 
             return res.json({ 
-                msg: 'Verification code sent to ' + email,
-                devOtp: otp // TEMPORARY BYPASS: Show OTP in yellow box even on Cloud for testing
+                msg: 'Verification code sent to ' + email
             });
         } else {
             console.log('--- DEV MODE OTP for ' + email + ': ' + otp + ' ---');
-            return res.json({ msg: 'OTP generated (dev mode)', devOtp: otp });
+            return res.json({ msg: 'OTP generated (dev mode)' });
         }
     } catch (err) {
         console.error('OTP Send Error:', err.message);

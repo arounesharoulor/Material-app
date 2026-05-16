@@ -115,13 +115,6 @@ const OtpScreen = ({ navigation, route }) => {
                                         A 6-digit code was sent to
                                     </Text>
                                     <Text allowFontScaling={false} style={styles.emailBadge}>{maskedEmail}</Text>
-                                    
-                                    {registrationData?.devOtp && (
-                                        <View style={styles.devOtpContainer}>
-                                            <Text style={styles.devOtpLabel}>DEBUG MODE OTP:</Text>
-                                            <Text style={styles.devOtpValue}>{registrationData.devOtp}</Text>
-                                        </View>
-                                    )}
                                 </View>
 
                                 {/* OTP Input */}

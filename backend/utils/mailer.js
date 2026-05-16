@@ -4,7 +4,7 @@ const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
         user: process.env.EMAIL_USER || 'managemadhura123@gmail.com',
-        pass: process.env.EMAIL_PASS || 'eugxkrfdszghuzud'
+        pass: process.env.EMAIL_PASS || 'cnfatmakaqdeijhp'
     }
 });
 
@@ -13,8 +13,7 @@ transporter.verify((error, success) => {
     if (error) {
         console.log('[MAILER] Connection error:', error.message);
     } else {
-        const user = process.env.EMAIL_USER || 'managemadhura123@gmail.com';
-        console.log(`[MAILER] Server ready. Account: ${user.substring(0, 4)}...`);
+        console.log('[MAILER] Server is ready to take messages');
     }
 });
 

@@ -20,17 +20,12 @@ exports.sendOtp = async (req, res) => {
 
         const isDev = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
 
-        if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-            // Fire-and-forget — do NOT await, respond immediately
-            sendEmail(email, 'Your Verification Code', `Your OTP for verification is: ${otp}. This code will expire in 5 minutes.`)
-                .catch(err => console.error('[MAILER-ASYNC-ERROR]', err));
-                
-            return res.json({ 
-                msg: 'Verification code sent to ' + email
-            });
-        } else {
-            console.log('--- DEV MODE OTP for ' + email + ': ' + otp + ' ---');
-            return res.json({ msg: 'OTP generated (dev mode)' });
+        try {
+            await sendEmail(email, 'Your Verification Code', `Your OTP for verification is: ${otp}. This code will expire in 5 minutes.`);
+            return res.json({ msg: 'Verification code sent to ' + email });
+        } catch (err) {
+            console.error('[MAILER-ERROR]', err);
+            return res.status(500).json({ msg: 'Failed to send verification email. Please try again.' });
         }
     } catch (err) {
         console.error('OTP Send Error:', err.message);

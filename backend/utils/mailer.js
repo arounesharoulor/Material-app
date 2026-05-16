@@ -27,7 +27,7 @@ transporter.verify((error, success) => {
 const sendEmail = async (to, subject, text) => {
     const fromEmail = process.env.EMAIL_USER || 'managemadhura123@gmail.com';
     const mailOptions = {
-        from: `"Material App Support" <${fromEmail}>`,
+        from: fromEmail,
         to,
         subject,
         text

@@ -101,6 +101,60 @@ app.use('/api/requests', require('./routes/requestRoutes'));
 app.use('/api/stock', require('./routes/stockRoutes'));
 app.use('/api/otp', require('./routes/otpRoutes'));
 
+// ✅ Attendance Routes (inlined for reliability)
+const Attendance = require('./models/Attendance');
+const User = require('./models/User');
+const authMw = require('./middleware/authMiddleware');
+
+// Mark attendance or leave request
+app.post('/api/attendance/mark', authMw, async (req, res) => {
+    try {
+        const today = new Date().toLocaleDateString('en-CA');
+        const { type = 'Present', reason = '' } = req.body;
+        const existing = await Attendance.findOne({ user: req.user.id, date: today });
+        if (existing) return res.status(400).json({ msg: 'Attendance already marked for today' });
+        const attendance = new Attendance({ user: req.user.id, date: today, type, reason, status: 'Pending' });
+        await attendance.save();
+        const populated = await Attendance.findById(attendance._id).populate('user', ['name', 'employeeId', 'email']);
+        const serverIo = app.get('io');
+        if (serverIo) serverIo.emit('attendanceNew', { attendance: populated });
+        res.json(populated);
+    } catch (err) { console.error(err); res.status(500).send('Server Error'); }
+});
+
+// Get my attendance
+app.get('/api/attendance/my-attendance', authMw, async (req, res) => {
+    try {
+        const records = await Attendance.find({ user: req.user.id }).sort({ date: -1 });
+        res.json(records);
+    } catch (err) { res.status(500).send('Server Error'); }
+});
+
+// Admin: get all attendance
+app.get('/api/attendance/all', authMw, async (req, res) => {
+    try {
+        if (req.user.role !== 'Admin') return res.status(403).json({ msg: 'Access denied' });
+        const records = await Attendance.find().populate('user', ['name', 'employeeId', 'email']).sort({ date: -1 });
+        res.json(records);
+    } catch (err) { res.status(500).send('Server Error'); }
+});
+
+// Admin: approve/reject attendance
+app.put('/api/attendance/:id/action', authMw, async (req, res) => {
+    try {
+        if (req.user.role !== 'Admin') return res.status(403).json({ msg: 'Access denied' });
+        const { status } = req.body;
+        if (!['Approved', 'Rejected'].includes(status)) return res.status(400).json({ msg: 'Invalid status' });
+        const attendance = await Attendance.findById(req.params.id).populate('user', ['name', 'employeeId']);
+        if (!attendance) return res.status(404).json({ msg: 'Not found' });
+        attendance.status = status;
+        await attendance.save();
+        const serverIo = app.get('io');
+        if (serverIo) serverIo.emit('attendanceUpdated', { attendance, userId: attendance.user._id });
+        res.json(attendance);
+    } catch (err) { res.status(500).send('Server Error'); }
+});
+
 // ✅ Admin Routes (Consolidated)
 app.get('/api/admin/high-penalty', auth, authController.getHighPenaltyUsers);
 

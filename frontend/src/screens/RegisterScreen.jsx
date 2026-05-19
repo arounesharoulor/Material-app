@@ -57,14 +57,14 @@ const RegisterScreen = ({ navigation }) => {
       
       // Navigate to OTP screen with registration data
       navigation.navigate('Otp', {
-        registrationData: {
+        registrationData: JSON.stringify({
           name: name.trim(),
           employeeId: trimmedId,
           email: email.trim(),
           password,
           role,
           devOtp: devOtp // Pass it along for easy testing
-        }
+        })
       });
     } catch (err) {
       if (!err.response) {

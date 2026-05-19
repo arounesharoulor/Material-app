@@ -5,7 +5,10 @@ const transporter = nodemailer.createTransport({
     auth: {
         user: process.env.EMAIL_USER || 'managemadhura123@gmail.com',
         pass: process.env.EMAIL_PASS || 'cnfatmakaqdeijhp'
-    }
+    },
+    connectionTimeout: 5000, // Fail fast if SMTP connection hangs
+    greetingTimeout: 5000,
+    socketTimeout: 5000
 });
 
 // Verify connection configuration

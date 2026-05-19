@@ -265,6 +265,18 @@ const Sidebar = ({
                             user={user}
                         />
 
+                        {user?.role !== 'Admin' && (
+                            <SidebarItem 
+                                label="MY ATTENDANCE" 
+                                iconName="calendar" 
+                                targetScreen="Attendance" 
+                                isActive={activeScreen === 'Attendance'}
+                                navigation={navigation}
+                                toggleSidebar={toggleSidebar}
+                                user={user}
+                            />
+                        )}
+
                         {user?.role === 'Admin' && (
                             <>
                                 <SidebarItem 
@@ -273,6 +285,15 @@ const Sidebar = ({
                                     targetScreen="Stock" 
                                     isActive={activeScreen === 'Stock'}
                                     badgeCount={lowStockCount}
+                                    navigation={navigation}
+                                    toggleSidebar={toggleSidebar}
+                                    user={user}
+                                />
+                                <SidebarItem 
+                                    label="ATTENDANCE REVIEW" 
+                                    iconName="calendar" 
+                                    targetScreen="AdminAttendance" 
+                                    isActive={activeScreen === 'AdminAttendance'}
                                     navigation={navigation}
                                     toggleSidebar={toggleSidebar}
                                     user={user}

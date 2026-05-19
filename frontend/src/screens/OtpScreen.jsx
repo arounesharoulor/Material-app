@@ -8,7 +8,14 @@ import { AuthContext } from '../context/AuthContext';
 import api from '../services/api';
 
 const OtpScreen = ({ navigation, route }) => {
-    const registrationData = route.params?.registrationData;
+    let registrationData = null;
+    try {
+        registrationData = typeof route.params?.registrationData === 'string' 
+            ? JSON.parse(route.params.registrationData) 
+            : route.params?.registrationData;
+    } catch (e) {
+        console.error("Failed to parse registration data", e);
+    }
     const email = registrationData?.email || '';
     const { width } = useWindowDimensions();
     const isMobile = width < 768;

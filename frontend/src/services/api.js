@@ -11,7 +11,7 @@ const getBaseUrl = () => {
   const isDev = typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV === 'development';
 
   // SET TO false TO USE CLOUD, true TO USE YOUR COMPUTER IP
-  const FORCE_LOCAL_IN_DEV = false; 
+  const FORCE_LOCAL_IN_DEV = true; 
 
   // 2. USE CLOUD IF NOT FORCED TO LOCAL
   if ((!isDev || !FORCE_LOCAL_IN_DEV) && CLOUD_URL && CLOUD_URL.trim() !== '') {
@@ -36,7 +36,7 @@ const getBaseUrl = () => {
 
   // 3. Mobile Development Fallback (Extract IP)
   // MANUAL OVERRIDE: If your mobile cannot connect, update this IP to your computer's IP
-  let machineIp = '192.168.1.13'; // Tried common alternative, but auto-detect is preferred
+  let machineIp = '192.168.0.112'; // Tried common alternative, but auto-detect is preferred
 
   try {
     const scriptURL = NativeModules?.SourceCode?.scriptURL;

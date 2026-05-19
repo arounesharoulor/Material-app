@@ -17,6 +17,8 @@ import RejectedHistoryScreen from '../screens/RejectedHistoryScreen';
 import PenaltyHistoryScreen from '../screens/PenaltyHistoryScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import RequestHistoryScreen from '../screens/RequestHistoryScreen';
+import AttendanceScreen from '../screens/AttendanceScreen';
+import AdminAttendanceScreen from '../screens/AdminAttendanceScreen';
 
 const Stack = createStackNavigator();
 
@@ -39,6 +41,8 @@ const linking = {
       PenaltyHistory: 'history/penalty',
       Profile: 'profile',
       History: 'history',
+      Attendance: 'attendance',
+      AdminAttendance: 'admin-attendance',
     },
   },
 };
@@ -86,6 +90,8 @@ const AppNavigator = () => {
             <Stack.Screen name="PenaltyHistory" component={PenaltyHistoryScreen} />
             <Stack.Screen name="Profile" component={ProfileScreen} />
             <Stack.Screen name="History" component={RequestHistoryScreen} />
+            <Stack.Screen name="Attendance" component={AttendanceScreen} />
+            <Stack.Screen name="AdminAttendance" component={AdminAttendanceScreen} />
           </>
         ) : (
           <>

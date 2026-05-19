@@ -4,7 +4,8 @@ import { View, Text, TextInput, Image, Alert, Modal, ScrollView, TouchableOpacit
 import { Ionicons } from '@expo/vector-icons';
 import tw from 'twrnc';
 import * as ImagePicker from 'expo-image-picker';
-import api, { SERVER_URL } from '../services/api';
+import io from 'socket.io-client';
+import api, { SERVER_URL, BASE_URL } from '../services/api';
 import { AuthContext } from '../context/AuthContext';
 import Toast from 'react-native-toast-message';
 import Sidebar from '../components/Sidebar';

@@ -15,6 +15,10 @@ const AttendanceSchema = new mongoose.Schema({
         enum: ['Present', 'Leave'],
         default: 'Present'
     },
+    leaveType: {
+        type: String,
+        default: ''
+    },
     reason: {
         type: String,
         default: ''
@@ -24,10 +28,14 @@ const AttendanceSchema = new mongoose.Schema({
         enum: ['Pending', 'Approved', 'Rejected'],
         default: 'Pending'
     },
-    timestamp: {
-        type: Date,
-        default: Date.now
+    // ── Check-out / Work Completion ──────────────────────────
+    checkInTime: { type: Date, default: Date.now },
+    checkOutTime: { type: Date, default: null },
+    checkOutStatus: {
+        type: String,
+        enum: ['NotRequired', 'PendingClose', 'ClosedApproved'],
+        default: 'NotRequired'
     }
-});
+}, { timestamps: true });
 
 module.exports = mongoose.model('Attendance', AttendanceSchema);

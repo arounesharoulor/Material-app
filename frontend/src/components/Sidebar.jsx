@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import api, { BASE_URL } from '../services/api';
 import io from 'socket.io-client';
 import Toast from 'react-native-toast-message';
+import { Audio } from 'expo-av';
 import { AuthContext } from '../context/AuthContext';
 
 const SidebarItem = ({ label, iconName, targetScreen, isActive, badgeCount = 0, navigation, toggleSidebar, user }) => {
@@ -48,6 +49,8 @@ const SidebarItem = ({ label, iconName, targetScreen, isActive, badgeCount = 0, 
                     msg = `${badgeCount} item${badgeCount > 1 ? 's' : ''} pending return`;
                 } else if (label === 'STOCK CONTROL') {
                     msg = 'One or more materials are running low';
+                } else if (label === 'ATTENDANCE REVIEW') {
+                    msg = `${badgeCount} attendance action${badgeCount > 1 ? 's' : ''} pending`;
                 }
                 return (
                     <View style={styles.tooltip}>
@@ -75,6 +78,7 @@ const Sidebar = ({
     const [employeePickupCount, setEmployeePickupCount] = useState(0);  // Employee: approved, needs pickup / feedback
     const [employeeReturnCount, setEmployeeReturnCount] = useState(0);  // Employee: picked up, needs return
     const [lowStockCount, setLowStockCount] = useState(0);      // Admin: Stock below threshold
+    const [attendancePendingCount, setAttendancePendingCount] = useState(0); // Admin: Attendance pending
     const [highPenaltyUsers, setHighPenaltyUsers] = useState([]); // Admin: users with score >= 10
     const socketRef = useRef(null);
 
@@ -103,6 +107,13 @@ const Sidebar = ({
                 // Fetch High Penalty Users
                 const penaltyRes = await api.get('/admin/high-penalty');
                 setHighPenaltyUsers(penaltyRes.data);
+
+                // Fetch Attendance Pending Count
+                try {
+                    const attRes = await api.get('/attendance/all');
+                    const attPending = attRes.data.filter(a => a.status === 'Pending' || a.checkOutStatus === 'PendingClose').length;
+                    setAttendancePendingCount(attPending);
+                } catch (err) { console.log('[SIDEBAR] Error fetching attendance:', err.message); }
 
             } else {
                 // Employee: APPROVED from today → go pick it up
@@ -136,6 +147,32 @@ const Sidebar = ({
         }
     };
 
+    const playSidebarBell = async () => {
+        try {
+            if (Platform.OS === 'web' && typeof window !== 'undefined') {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (AudioCtx) {
+                    const ctx = new AudioCtx();
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.connect(gain); gain.connect(ctx.destination);
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(880, ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.5);
+                    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+                    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.5);
+                }
+            } else {
+                const { sound } = await Audio.Sound.createAsync(
+                    { uri: 'https://www.myinstants.com/media/sounds/iphone-notification.mp3' },
+                    { shouldPlay: true, volume: 1.0 }
+                );
+                setTimeout(() => sound.unloadAsync().catch(() => {}), 5000);
+            }
+        } catch (e) { console.log('[SIDEBAR AUDIO ERROR]', e); }
+    };
+
     useEffect(() => {
         fetchCounts();
         
@@ -157,6 +194,51 @@ const Sidebar = ({
 
         socketRef.current.on('requestUpdated', fetchCounts);
         socketRef.current.on('roleUpdated', fetchCounts);
+        
+        socketRef.current.on('attendanceNew', (data) => {
+            fetchCounts();
+            if (user?.role === 'Admin' && activeScreen !== 'AdminAttendance') {
+                playSidebarBell();
+                const name = data.attendance?.user?.name || 'An employee';
+                const type = data.attendance?.type || 'Present';
+                Toast.show({
+                    type: 'info',
+                    text1: `🔔 New ${type} Request`,
+                    text2: `${name} submitted a ${type.toLowerCase()} request`,
+                    visibilityTime: 6000
+                });
+            }
+        });
+
+        socketRef.current.on('attendanceCheckout', (data) => {
+            fetchCounts();
+            if (user?.role === 'Admin' && activeScreen !== 'AdminAttendance') {
+                playSidebarBell();
+                const name = data.attendance?.user?.name || 'An employee';
+                Toast.show({
+                    type: 'info',
+                    text1: `🔔 Checkout Completed`,
+                    text2: `${name} is waiting for day closure.`,
+                    visibilityTime: 6000
+                });
+            }
+        });
+
+        socketRef.current.on('attendanceUpdated', (data) => {
+            fetchCounts();
+            // Notify employee if they are not on the attendance screen
+            if (user?.role === 'Employee' && activeScreen !== 'Attendance' && data?.userId === user._id) {
+                playSidebarBell();
+                const isClose = data.attendance?.checkOutStatus === 'ClosedApproved';
+                Toast.show({
+                    type: isClose ? 'success' : data.attendance?.status === 'Approved' ? 'success' : 'error',
+                    text1: `🔔 ${isClose ? 'Day Closed!' : `Attendance ${data.attendance?.status}`}`,
+                    text2: isClose ? `Your day was closed.` : `Your request was ${data.attendance?.status}.`,
+                    visibilityTime: 6000
+                });
+            }
+        });
+
         socketRef.current.on('userUpdated', () => {
             fetchCounts();
             refreshUser();
@@ -177,6 +259,7 @@ const Sidebar = ({
             console.log('[SIDEBAR-SOCKET] Incoming notification:', data);
             if (user?.role === 'Admin' && data.role === 'Admin') {
                 console.log('[SIDEBAR-SOCKET] Admin alert accepted and showing Toast');
+                playSidebarBell();
                 Toast.show({
                     type: data.type === 'critical' ? 'error' : 'info',
                     text1: data.title,
@@ -187,6 +270,7 @@ const Sidebar = ({
             } else if (user?.role === 'Employee' && data.type === 'penalty' && data.userId === user._id) {
                 // Targeted notification for current employee
                 console.log('[SIDEBAR-SOCKET] Employee penalty alert accepted');
+                playSidebarBell();
                 Toast.show({
                     type: 'error',
                     text1: data.title,
@@ -294,6 +378,7 @@ const Sidebar = ({
                                     iconName="calendar" 
                                     targetScreen="AdminAttendance" 
                                     isActive={activeScreen === 'AdminAttendance'}
+                                    badgeCount={attendancePendingCount}
                                     navigation={navigation}
                                     toggleSidebar={toggleSidebar}
                                     user={user}

@@ -589,6 +589,58 @@ const DashboardScreen = ({ navigation, route }) => {
         }
     });
 
+    socketRef.current.on('attendanceNew', (data) => {
+        if (data && data.attendance && userRef.current?.role === 'Admin') {
+            playNotificationSound('default');
+            const name = data.attendance?.user?.name || 'An employee';
+            const type = data.attendance?.type || 'Present';
+            const reqDate = data.attendance?.date;
+            const dateObj = reqDate ? new Date(reqDate + 'T00:00:00') : new Date();
+            const formattedDate = dateObj.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+            
+            const reasonStr = data.attendance?.reason ? `\nReason: ${data.attendance.reason}` : '';
+            const leaveTypeStr = data.attendance?.leaveType ? ` (${data.attendance.leaveType})` : '';
+            Toast.show({
+                type: 'info',
+                text1: `🔔 New ${type} Request${leaveTypeStr}`,
+                text2: `${name} requested ${type.toLowerCase()} for ${formattedDate} at ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}${reasonStr}`,
+                visibilityTime: 10000
+            });
+        }
+    });
+
+    socketRef.current.on('attendanceCheckout', (data) => {
+        if (data && data.attendance && userRef.current?.role === 'Admin') {
+            playNotificationSound('default');
+            const name = data.attendance?.user?.name || 'An employee';
+            Toast.show({
+                type: 'info',
+                text1: `🔔 Checkout Completed`,
+                text2: `${name} has completed their work and is waiting for you to close the day.`,
+                visibilityTime: 6000
+            });
+        }
+    });
+
+    socketRef.current.on('attendanceUpdated', (data) => {
+        const currentUser = userRef.current;
+        if (data && currentUser?.role === 'Employee' && (String(data.userId) === String(currentUser?._id) || String(data.userId) === String(currentUser?.id))) {
+            const a = data.attendance;
+            const isClose = a?.checkOutStatus === 'ClosedApproved';
+            if (isClose || a?.status === 'Approved') {
+                playNotificationSound('closed');
+            } else {
+                playNotificationSound('penalty');
+            }
+            Toast.show({
+                type: isClose ? 'success' : a?.status === 'Approved' ? 'success' : 'error',
+                text1: `🔔 ${isClose ? 'Day Closed!' : `Attendance ${a?.status}`}`,
+                text2: isClose ? `Your attendance for ${a?.date} is fully closed.` : `Your ${a?.type} request for ${a?.date} was ${a?.status}.`,
+                visibilityTime: 6000
+            });
+        }
+    });
+
     socketRef.current.on('notification', async (data) => {
         const currentUserId = user?._id || user?.id;
         // Allow if it matches personal ID OR if it's an Admin notification and current user is Admin

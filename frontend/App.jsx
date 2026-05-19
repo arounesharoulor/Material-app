@@ -7,6 +7,7 @@ import initRemoteLogging from './src/services/remoteLog';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 initRemoteLogging();
+console.log('[App] Initializing AppNavigator...');
 
 export default function App() {
   return (

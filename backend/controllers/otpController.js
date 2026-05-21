@@ -20,9 +20,13 @@ exports.sendOtp = async (req, res) => {
 
         const isDev = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
 
-        // Send email in the background to prevent the request from hanging
-        sendEmail(email, 'Your Verification Code', `Your OTP for verification is: ${otp}. This code will expire in 5 minutes.`)
-            .catch(err => console.error('[MAILER-ERROR] Background email failed:', err));
+        // Send email and AWAIT it to ensure it goes out before responding
+        try {
+            await sendEmail(email, 'Your Verification Code', `Your OTP for verification is: ${otp}. This code will expire in 5 minutes.`);
+        } catch (mailError) {
+            console.error('[OTP] Failed to send email:', mailError.message);
+            return res.status(500).json({ msg: 'Failed to send verification email. Please check your internet or mail configuration.' });
+        }
 
         const responsePayload = { msg: 'Verification code sent to ' + email };
         if (isDev) {

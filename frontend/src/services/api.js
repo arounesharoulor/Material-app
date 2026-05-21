@@ -11,7 +11,7 @@ const getBaseUrl = () => {
   const isDev = typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV === 'development';
 
   // SET TO false TO USE CLOUD, true TO USE YOUR COMPUTER IP
-  const FORCE_LOCAL_IN_DEV = true; 
+  const FORCE_LOCAL_IN_DEV = false; 
 
   // 2. USE CLOUD IF NOT FORCED TO LOCAL
   if ((!isDev || !FORCE_LOCAL_IN_DEV) && CLOUD_URL && CLOUD_URL.trim() !== '') {

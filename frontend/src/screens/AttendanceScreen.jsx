@@ -1,10 +1,14 @@
 import React, { useState, useContext, useEffect, useRef } from 'react';
 import { Audio } from 'expo-av';
+import * as Location from 'expo-location';
+import * as ImagePicker from 'expo-image-picker';
+import { Linking, Image } from 'react-native';
 import {
     View, Text, TouchableOpacity, ScrollView, Platform, StyleSheet,
     ActivityIndicator, Animated, useWindowDimensions, TextInput, Modal
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import api, { BASE_URL } from '../services/api';
 import { AuthContext } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
@@ -81,7 +85,7 @@ const AttendanceScreen = ({ navigation }) => {
                     }
                 }
             } else {
-                const uri = 'https://www.myinstants.com/media/sounds/iphone-notification.mp3';
+                const uri = 'https://raw.githubusercontent.com/zmxv/react-native-sound-demo/master/bell.mp3';
                 const { sound } = await Audio.Sound.createAsync(
                     { uri },
                     { shouldPlay: true, volume: 1.0 }
@@ -128,7 +132,7 @@ const AttendanceScreen = ({ navigation }) => {
         const todayStr = new Date().toLocaleDateString('en-CA');
         const checkDate = dateStr || todayStr;
 
-        if (checkDate === todayStr && todayRecord && todayRecord.checkOutStatus === 'ClosedApproved' && type !== 'Leave') {
+        if (checkDate === todayStr && todayRecord && todayRecord.status !== 'Rejected' && todayRecord.checkOutStatus === 'ClosedApproved' && type !== 'Leave') {
             Toast.show({
                 type: 'info',
                 text1: 'Attendance Closed',
@@ -139,15 +143,120 @@ const AttendanceScreen = ({ navigation }) => {
         }
         setSubmitting(true);
         try {
-            await api.post('/attendance/mark', { type, leaveType, reason, date: dateStr || undefined });
+            let locationLat = null;
+            let locationLng = null;
+            let photoUri = null;
+
+            if (type === 'Present') {
+                // Request Location
+                let { status: locStatus } = await Location.requestForegroundPermissionsAsync();
+                if (locStatus !== 'granted') {
+                    Toast.show({ type: 'error', text1: 'Permission Denied', text2: 'Location permission is required to log your attendance.' });
+                    setSubmitting(false);
+                    return;
+                }
+                // Request Location with fallback for speed
+                let location = null;
+                try {
+                    location = await Location.getCurrentPositionAsync({
+                        accuracy: Location.Accuracy.Balanced,
+                    });
+                } catch (locErr) {
+                    console.log('[GPS] Accuracy fetch failed, trying last known:', locErr.message);
+                    location = await Location.getLastKnownPositionAsync({});
+                }
+
+                if (location) {
+                    locationLat = location.coords.latitude;
+                    locationLng = location.coords.longitude;
+                }
+
+                // Request Camera Photo (Evidence)
+                let { status: camStatus } = await ImagePicker.requestCameraPermissionsAsync();
+                if (camStatus === 'granted') {
+                    const result = await ImagePicker.launchCameraAsync({
+                        mediaTypes: ['images'], // Updated from deprecated MediaTypeOptions
+                        allowsEditing: false,
+                        aspect: [4, 3],
+                        quality: 0.5,
+                    });
+                    if (!result.canceled && result.assets && result.assets.length > 0) {
+                        photoUri = result.assets[0].uri;
+                    } else {
+                        Toast.show({ type: 'info', text1: 'No Photo', text2: 'Your attendance will be marked as Waiting for Admin approval since no photo was provided.' });
+                    }
+                } else {
+                    Toast.show({ type: 'info', text1: 'No Camera Access', text2: 'Attendance marked as Waiting for Admin approval.' });
+                }
+            }
+
+            // --- CONSTRUCT FORM DATA ---
+            const formData = new FormData();
+            
+            // 1. Core Fields (Explicitly strings)
+            // Renamed field to attendType to avoid reserved word conflicts in some environments
+            formData.append('attendType', String(type || 'Present'));
+            formData.append('leaveType', String(leaveType || ''));
+            formData.append('reason', String(reason || ''));
+            // Always send date to avoid timezone mismatches with server
+            formData.append('date', String(dateStr || todayStr));
+            
+            // 2. Location Fields
+            if (locationLat) formData.append('locationLat', String(locationLat));
+            if (locationLng) formData.append('locationLng', String(locationLng));
+            
+            // 3. Photo Evidence
+            if (photoUri) {
+                console.log('[ATTENDANCE] Adding photo to FormData:', photoUri);
+                const fileToUpload = {
+                    uri: photoUri,
+                    name: 'attendance.jpg',
+                    type: 'image/jpeg',
+                };
+                formData.append('photo', fileToUpload);
+            }
+
+            console.log('[ATTENDANCE] Native Fetch initiated...');
+
+            console.log('[ATTENDANCE] Submitting via native fetch to:', `${BASE_URL}/api/attendance/mark-v2`);
+            try {
+                // Using native fetch instead of axios for multipart to rule out library bugs
+                const token = await AsyncStorage.getItem('token');
+                const response = await fetch(`${BASE_URL}/api/attendance/mark-v2`, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'Accept': 'application/json',
+                        'x-auth-token': token || ''
+                    },
+                });
+
+                const data = await response.json();
+                console.log('[ATTENDANCE] Fetch Response Status:', response.status);
+
+                if (!response.ok) {
+                    throw new Error(data.msg || `Upload failed with status ${response.status}`);
+                }
+                
+                console.log('[ATTENDANCE] Success:', response.status);
+            } catch (apiErr) {
+                console.error('[ATTENDANCE-FETCH-ERROR]', apiErr.message);
+                throw apiErr;
+            }
+
             Toast.show({
                 type: 'success',
                 text1: type === 'Leave' ? '✅ Leave Requested' : '✅ Checked In',
-                text2: type === 'Leave' ? `Leave requested for ${checkDate}` : 'Welcome! Have a productive day.'
+                text2: type === 'Leave' ? `Leave requested for ${checkDate}` : 'Evidence accepted. Have a productive day!'
             });
             fetchAttendance();
         } catch (err) {
-            Toast.show({ type: 'error', text1: 'Error', text2: err.response?.data?.msg || 'Could not mark attendance' });
+            console.error('[ATTENDANCE-FLOW-ERROR]', err.message);
+            Toast.show({
+                type: 'error',
+                text1: 'Error',
+                text2: err.message || 'Could not mark attendance'
+            });
         } finally {
             setSubmitting(false);
         }
@@ -156,7 +265,25 @@ const AttendanceScreen = ({ navigation }) => {
     const handleCheckout = async (id) => {
         setCheckingOut(id);
         try {
-            await api.put(`/attendance/${id}/checkout`);
+            let locationLat = null;
+            let locationLng = null;
+
+            let { status: locStatus } = await Location.requestForegroundPermissionsAsync();
+            if (locStatus === 'granted') {
+                let location = null;
+                try {
+                    location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+                } catch (e) {
+                    location = await Location.getLastKnownPositionAsync({});
+                }
+                
+                if (location) {
+                    locationLat = location.coords.latitude;
+                    locationLng = location.coords.longitude;
+                }
+            }
+
+            await api.put(`/attendance/${id}/checkout`, { locationLat, locationLng });
             Toast.show({ type: 'success', text1: '✅ Checked Out', text2: 'Work completed. Waiting for Admin to close your attendance.' });
             fetchAttendance();
         } catch (err) {
@@ -264,17 +391,40 @@ const AttendanceScreen = ({ navigation }) => {
                             <Text style={styles.todayDate}>{new Date().toDateString()}</Text>
 
                             {todayRecord && (
-                                <View style={[styles.markedBadge, todayRecord.type === 'Leave' ? styles.leaveBadge : styles.presentBadge, { marginBottom: 12 }]}>
-                                    <Ionicons name="checkmark-circle" size={16} color="#fff" />
-                                    <Text style={styles.markedBadgeText}>
-                                        {todayRecord.leaveType || todayRecord.type} — {todayRecord.status}
-                                    </Text>
+                                <View style={{ width: '100%', gap: 6, marginBottom: 15 }}>
+                                    <View style={[styles.markedBadge, todayRecord.type === 'Leave' ? styles.leaveBadge : styles.presentBadge]}>
+                                        <Ionicons name="checkmark-circle" size={16} color="#fff" />
+                                        <Text style={styles.markedBadgeText}>
+                                            {todayRecord.leaveType || todayRecord.type} — {todayRecord.status}
+                                        </Text>
+                                    </View>
+
+                                    <View style={{ flexDirection: 'row', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+                                        {todayRecord.locationLat && todayRecord.locationLng && (
+                                            <TouchableOpacity 
+                                                onPress={() => Linking.openURL(`https://www.google.com/maps?q=${todayRecord.locationLat},${todayRecord.locationLng}`)}
+                                                style={styles.todayLocationBadge}
+                                            >
+                                                <Ionicons name="location" size={12} color="#3b82f6" />
+                                                <Text style={styles.todayLocationBadgeText}>Check-In Map</Text>
+                                            </TouchableOpacity>
+                                        )}
+                                        {todayRecord.checkOutLat && todayRecord.checkOutLng && (
+                                            <TouchableOpacity 
+                                                onPress={() => Linking.openURL(`https://www.google.com/maps?q=${todayRecord.checkOutLat},${todayRecord.checkOutLng}`)}
+                                                style={[styles.todayLocationBadge, { backgroundColor: '#fdf2f8', borderColor: '#fbcfe8' } ]}
+                                            >
+                                                <Ionicons name="log-out" size={12} color="#db2777" />
+                                                <Text style={[styles.todayLocationBadgeText, { color: '#db2777' }]}>Check-Out Map</Text>
+                                            </TouchableOpacity>
+                                        )}
+                                    </View>
                                 </View>
                             )}
 
-                            {todayRecord && todayRecord.checkOutStatus !== 'ClosedApproved' ? (
+                            {todayRecord && todayRecord.status !== 'Rejected' && todayRecord.checkOutStatus !== 'ClosedApproved' ? (
                                 <View style={{ alignItems: 'center', width: '100%' }}>
-                                    {/* Check-out button */}
+                                    {/* Check-out button (only if not rejected) */}
                                     {(() => {
                                         const co = getCheckoutLabel(todayRecord);
                                         if (!co) return null;
@@ -406,6 +556,10 @@ const AttendanceScreen = ({ navigation }) => {
                     ) : (
                         (Array.isArray(attendance) ? attendance : []).map((record) => {
                             const co = getCheckoutLabel(record);
+                            const hasLocation = record.locationLat && record.locationLng;
+                            const mapsUrl = hasLocation
+                                ? `https://www.google.com/maps?q=${record.locationLat},${record.locationLng}`
+                                : null;
                             return (
                                 <View key={record._id} style={styles.recordItem}>
                                     <View style={[styles.typeIcon, record.type === 'Leave' ? styles.leaveIcon : styles.presentIcon]}>
@@ -417,9 +571,43 @@ const AttendanceScreen = ({ navigation }) => {
                                         {record.checkOutTime && (
                                             <Text style={styles.checkoutTime}>Check-out: {formatTime(record.checkOutTime)}</Text>
                                         )}
+                                        {hasLocation && (
+                                            <TouchableOpacity
+                                                onPress={() => mapsUrl && Linking.openURL(mapsUrl)}
+                                                style={styles.locationBadge}
+                                            >
+                                                <Ionicons name="location" size={11} color="#3b82f6" />
+                                                <Text style={styles.locationBadgeText}>
+                                                    Check-In Location Map
+                                                </Text>
+                                            </TouchableOpacity>
+                                        )}
+                                        {record.checkOutLat && record.checkOutLng && (
+                                            <TouchableOpacity
+                                                onPress={() => Linking.openURL(`https://www.google.com/maps?q=${record.checkOutLat},${record.checkOutLng}`)}
+                                                style={[styles.locationBadge, { backgroundColor: '#fdf2f8' }]}
+                                            >
+                                                <Ionicons name="log-out" size={11} color="#db2777" />
+                                                <Text style={[styles.locationBadgeText, { color: '#db2777' }]}>
+                                                    Check-Out Location Map
+                                                </Text>
+                                            </TouchableOpacity>
+                                        )}
+                                        {record.photoUrl && (
+                                            <View style={styles.photoBadge}>
+                                                <Ionicons name="camera" size={11} color="#10b981" />
+                                                <Text style={styles.photoBadgeText}>Photo Evidence ✓</Text>
+                                            </View>
+                                        )}
+                                        {record.status === 'Waiting' && (
+                                            <View style={styles.waitingBadge}>
+                                                <Ionicons name="time" size={11} color="#f59e0b" />
+                                                <Text style={styles.waitingBadgeText}>Waiting for Admin (No Photo)</Text>
+                                            </View>
+                                        )}
                                     </View>
                                     <View style={{ alignItems: 'flex-end', gap: 4 }}>
-                                        <View style={[styles.statusBadge, record.status === 'Approved' ? styles.badgeApproved : record.status === 'Rejected' ? styles.badgeRejected : styles.badgePending]}>
+                                        <View style={[styles.statusBadge, record.status === 'Approved' ? styles.badgeApproved : record.status === 'Rejected' ? styles.badgeRejected : record.status === 'Waiting' ? styles.badgeWaiting : styles.badgePending]}>
                                             <Text style={styles.statusText}>{record.status}</Text>
                                         </View>
                                         {co && !co.canCheckout && record.date !== todayString && (
@@ -522,6 +710,8 @@ const styles = StyleSheet.create({
     todayCard: { backgroundColor: '#ffffff', borderRadius: 20, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: '#e2e8f0', marginBottom: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 3 },
     todayLabel: { fontSize: 10, fontWeight: '800', color: '#94a3b8', letterSpacing: 2, marginBottom: 4 },
     todayDate: { fontSize: 18, fontWeight: 'bold', color: '#0f172a', marginBottom: 20 },
+    todayLocationBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#eff6ff', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: '#dbeafe', gap: 6 },
+    todayLocationBadgeText: { fontSize: 12, color: '#3b82f6', fontWeight: '700' },
     markedBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, gap: 8, marginBottom: 16 },
     presentBadge: { backgroundColor: '#10b981' },
     leaveBadge: { backgroundColor: '#f59e0b' },
@@ -554,7 +744,14 @@ const styles = StyleSheet.create({
     badgeApproved: { backgroundColor: '#dcfce7' },
     badgeRejected: { backgroundColor: '#fee2e2' },
     badgePending: { backgroundColor: '#fef3c7' },
+    badgeWaiting: { backgroundColor: '#fef3c7' },
     statusText: { fontSize: 11, fontWeight: 'bold', color: '#1e293b' },
+    locationBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 4, backgroundColor: '#eff6ff', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 6 },
+    locationBadgeText: { fontSize: 10, color: '#3b82f6', fontWeight: '600' },
+    photoBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 3, backgroundColor: '#f0fdf4', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 6 },
+    photoBadgeText: { fontSize: 10, color: '#10b981', fontWeight: '600' },
+    waitingBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 3, backgroundColor: '#fffbeb', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 6 },
+    waitingBadgeText: { fontSize: 10, color: '#f59e0b', fontWeight: '600' },
     // Tab Switcher
     tabContainer: { flexDirection: 'row', backgroundColor: '#f1f5f9', borderRadius: 14, padding: 4, marginBottom: 20, borderWidth: 1, borderColor: '#e2e8f0' },
     tabButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderRadius: 10, gap: 8 },

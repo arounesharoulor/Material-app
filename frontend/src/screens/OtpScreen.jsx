@@ -42,20 +42,8 @@ const OtpScreen = ({ navigation, route }) => {
             navigation.replace('Register');
             return;
         }
-        // Re-send OTP on mount to confirm delivery (covers cold-start failures)
-        const confirmSend = async () => {
-            setSending(true);
-            setError('');
-            try {
-                await api.post('/otp/send-otp', { email });
-                setSuccess('Verification code sent! Check your email.');
-            } catch (err) {
-                setError(err.response?.data?.msg || 'Failed to send verification code. Tap Resend to try again.');
-            } finally {
-                setSending(false);
-            }
-        };
-        confirmSend();
+        // Email is already sent by RegisterScreen successfully, we just start the timer
+        setSending(false);
     }, []);
 
     const handleResend = async () => {

@@ -19,7 +19,8 @@ const createTransporter = () => {
             user: EMAIL_USER,
             pass: EMAIL_PASS
         },
-        // Force IPv4, Render sometimes has issues with IPv6 to Google
+        // ACTUALLY FORCE IPv4 (This prevents the ENETUNREACH IPv6 error)
+        family: 4,
         tls: {
             rejectUnauthorized: false
         },

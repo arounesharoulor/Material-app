@@ -20,18 +20,9 @@ exports.sendOtp = async (req, res) => {
 
         const isDev = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
 
-        // Send email and AWAIT it to ensure it goes out 
-        try {
-            await sendEmail(email, 'Your Verification Code', `Your OTP for verification is: ${otp}. This code will expire in 5 minutes.`);
-        } catch (mailError) {
-            console.error('[OTP] Failed to send email:', mailError.message);
-            // In production/cloud, this is a fatal error
-            if (!isDev) {
-                return res.status(500).json({ msg: `Mailer Exception: ${mailError.message}` });
-            }
-            // In development, we allow the user to proceed using the on-screen OTP
-            console.warn('[OTP] Skipping email failure because we are in DEV mode. Use the console/on-screen code.');
-        }
+        // Send email in the BACKGROUND so the user doesn't have to wait
+        sendEmail(email, 'Your Verification Code', `Your OTP for verification is: ${otp}. This code will expire in 5 minutes.`)
+            .catch(err => console.error('[OTP-BACKGROUND] Email failed:', err.message));
 
         const responsePayload = { msg: 'Verification code sent to ' + email };
         return res.json(responsePayload);

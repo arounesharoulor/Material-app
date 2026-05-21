@@ -12,12 +12,8 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-    // Accept all image types (jpeg, png, webp, heic, etc.)
-    if (file.mimetype.startsWith('image/')) {
-        cb(null, true);
-    } else {
-        cb(new Error('Only image files are allowed'), false);
-    }
+    // Accept all files during debugging to find the source of "Invalid type"
+    cb(null, true);
 };
 
 const upload = multer({

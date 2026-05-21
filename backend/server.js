@@ -38,6 +38,8 @@ app.use((req, res, next) => {
     next();
 });
 
+const authMw = require('./middleware/authMiddleware');
+
 app.use(cors({
     origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -95,80 +97,96 @@ app.post('/api/debug-log', (req, res) => {
 // CRITICAL: Penalty oversight routes
 const auth = require('./middleware/authMiddleware');
 const authController = require('./controllers/authController');
+app.post('/api/attendance/mark-v2', authMw, (req, res, next) => {
+    console.log(`[ROUTE-HIT-V2] ${req.method} ${req.url} - Content-Type: ${req.headers['content-type']}`);
+    upload.single('photo')(req, res, (err) => {
+        if (err) {
+            console.error('[ATTENDANCE-MULTER-ERROR]', err.message);
+            return res.status(400).json({ msg: err.message });
+        }
+        next();
+    });
+}, async (req, res) => {
+    try {
+        const { attendType, leaveType, reason, date, locationLat, locationLng } = req.body;
+        const type = attendType; // Map back for model consistency
+        const targetDate = date || new Date().toLocaleString('en-CA', {timeZone: 'Asia/Kolkata'}).split(',')[0];
+        // Note: Assuming Asia/Kolkata as per user metadata, but logic handles passed date first.
+
+        // Check existing
+        const existing = await Attendance.findOne({ user: req.user.id, date: targetDate });
+        if (existing) {
+            console.log(`[ATTENDANCE] Found existing record for ${targetDate}. ID: ${existing._id}, Status: "${existing.status}"`);
+            if (existing.status && existing.status.trim().toLowerCase() === 'rejected') {
+                console.log(`[ATTENDANCE] Overwriting rejected record for ${targetDate}`);
+                await Attendance.deleteOne({ _id: existing._id });
+            } else {
+                console.log(`[ATTENDANCE] 400: Blocking as current status is "${existing.status}"`);
+                return res.status(400).json({ msg: `Attendance already marked for this date (Current Status: ${existing.status}).` });
+            }
+        }
+
+        console.log(`[ATTENDANCE] Creating record for ${targetDate}. Type: ${type}, Photo: ${req.file ? 'Yes' : 'No'}`);
+        const newAttendance = new Attendance({
+            user: req.user.id,
+            date: targetDate,
+            type,
+            leaveType: type === 'Leave' ? leaveType : '',
+            reason: type === 'Leave' ? reason : '',
+            status: 'Pending',
+            locationLat: locationLat ? parseFloat(locationLat) : null,
+            locationLng: locationLng ? parseFloat(locationLng) : null,
+            photoUrl: req.file ? 'uploads/' + req.file.filename : null
+        });
+
+        await newAttendance.save();
+        const populated = await newAttendance.populate('user', 'name email employeeId role');
+
+        // Send email to employee
+        if (populated.user.email) {
+            try {
+                const evidenceText = type === 'Present' && req.file ? '(Photo evidence attached)' : '';
+                const holdText = newAttendance.status === 'Waiting' ? '\nStatus is set to Waiting because no photo evidence was provided.' : '';
+                const emailText = `Dear ${populated.user.name},\nYour attendance request for ${targetDate} as ${type} ${leaveType ? `(${leaveType})` : ''} has been submitted ${evidenceText}.${holdText}\nThank you.`;
+                await sendEmail(populated.user.email, 'Attendance Submission Confirmation', emailText);
+            } catch (e) { console.log('Mail error:', e.message); }
+        }
+
+        res.json(populated);
+    } catch (err) {
+        console.error('[ATTENDANCE-HANDLER-ERROR]', err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
 // ✅ Route Definitions
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/requests', require('./routes/requestRoutes'));
 app.use('/api/stock', require('./routes/stockRoutes'));
 app.use('/api/otp', require('./routes/otpRoutes'));
 
-// ✅ Attendance Routes (inlined for reliability)
+// Imports moved to the top
 const Attendance = require('./models/Attendance');
 const User = require('./models/User');
-const authMw = require('./middleware/authMiddleware');
-const { sendEmail, transporter: mailTransporter } = require('./utils/mailer');
+const upload = require('./middleware/uploadMiddleware');
+const { sendEmail } = require('./utils/mailer');
 const cron = require('node-cron');
-
-// Mark attendance or leave request
-app.post('/api/attendance/mark', authMw, async (req, res) => {
-    try {
-        const { type, leaveType, reason, date: reqDate } = req.body;
-        if (!['Present', 'Leave'].includes(type)) return res.status(400).json({ msg: 'Invalid type' });
-
-        const date = (type === 'Leave' && reqDate) ? reqDate : new Date().toLocaleDateString('en-CA');
-        const existing = await Attendance.findOne({ user: req.user.id, date });
-
-        if (existing) {
-            if (existing.status === 'Rejected' || type === 'Leave') {
-                await Attendance.findByIdAndDelete(existing._id);
-            } else {
-                return res.status(400).json({ msg: `Attendance already marked for ${date}` });
-            }
-        }
-
-        const attendance = new Attendance({
-            user: req.user.id,
-            date,
-            type,
-            leaveType: type === 'Leave' ? leaveType : null,
-            reason: type === 'Leave' ? reason : null,
-            status: 'Pending',
-            checkInTime: new Date()
-        });
-        await attendance.save();
-
-        const populated = await Attendance.findById(attendance._id).populate('user', 'name email employeeId');
-        io.emit('attendanceNew', { userId: req.user.id, attendance: populated });
-
-        // Send email to employee
-        if (populated.user.email) {
-            try {
-                const emailHtml = `
-                    <div style="font-family: Arial, sans-serif; padding: 20px;">
-                        <h2>Attendance Marked</h2>
-                        <p>Dear ${populated.user.name},</p>
-                        <p>Your attendance request for <strong>${date}</strong> as <strong>${type}</strong> ${leaveType ? `(${leaveType})` : ''} has been submitted and is pending admin approval.</p>
-                        <p>Thank you.</p>
-                    </div>
-                `;
-                await mailTransporter.sendMail({
-                    from: process.env.EMAIL_USER || 'managemadhura123@gmail.com',
-                    to: populated.user.email,
-                    subject: 'Attendance Submission Confirmation',
-                    html: emailHtml
-                });
-            } catch (e) { console.log('Mail error:', e.message); }
-        }
-
-        res.json(populated);
-    } catch (err) {
-        res.status(500).send('Server Error');
-    }
-});
+// End of Core Middleware Definition
 
 // Get my attendance
 app.get('/api/attendance/my-attendance', authMw, async (req, res) => {
     try {
-        const records = await Attendance.find({ user: req.user.id }).sort({ date: -1 });
+        let records = await Attendance.find({ user: req.user.id }).sort({ date: -1 });
+        
+        records = records.map(a => {
+            const doc = a.toObject();
+            if (doc.photoUrl && (doc.photoUrl.includes(':') || doc.photoUrl.includes('\\'))) {
+                 const filename = doc.photoUrl.split(/[/\\]/).pop();
+                 doc.photoUrl = 'uploads/' + filename; 
+            }
+            return doc;
+        });
+
         res.json(records);
     } catch (err) { res.status(500).send('Server Error'); }
 });
@@ -177,7 +195,18 @@ app.get('/api/attendance/my-attendance', authMw, async (req, res) => {
 app.get('/api/attendance/all', authMw, async (req, res) => {
     try {
         if (req.user.role !== 'Admin') return res.status(403).json({ msg: 'Access denied' });
-        const records = await Attendance.find().populate('user', ['name', 'employeeId', 'email']).sort({ date: -1 });
+        let records = await Attendance.find().populate('user', ['name', 'employeeId', 'email']).sort({ date: -1, createdAt: -1 });
+        
+        // Sanitize paths for old records (Migration logic)
+        records = records.map(a => {
+            const doc = a.toObject();
+            if (doc.photoUrl && (doc.photoUrl.includes(':') || doc.photoUrl.includes('\\'))) {
+                 const filename = doc.photoUrl.split(/[/\\]/).pop();
+                 doc.photoUrl = 'uploads/' + filename; 
+            }
+            return doc;
+        });
+
         res.json(records);
     } catch (err) { res.status(500).send('Server Error'); }
 });
@@ -214,13 +243,18 @@ app.put('/api/attendance/:id/action', authMw, async (req, res) => {
 // Employee: close attendance (check-out)
 app.put('/api/attendance/:id/checkout', authMw, async (req, res) => {
     try {
+        const { locationLat, locationLng } = req.body;
         const attendance = await Attendance.findById(req.params.id);
         if (!attendance) return res.status(404).json({ msg: 'Not found' });
         if (String(attendance.user) !== String(req.user.id)) return res.status(403).json({ msg: 'Not your record' });
         if (attendance.status !== 'Approved') return res.status(400).json({ msg: 'Attendance not yet approved' });
         if (attendance.checkOutStatus !== 'NotRequired') return res.status(400).json({ msg: 'Already checked out' });
+        
         attendance.checkOutTime = new Date();
+        attendance.checkOutLat = locationLat ? parseFloat(locationLat) : null;
+        attendance.checkOutLng = locationLng ? parseFloat(locationLng) : null;
         attendance.checkOutStatus = 'PendingClose';
+        
         await attendance.save();
         const populated = await Attendance.findById(attendance._id).populate('user', ['name', 'employeeId', 'email']);
         const serverIo = app.get('io');
@@ -245,20 +279,8 @@ app.put('/api/attendance/:id/close', authMw, async (req, res) => {
 
         if (attendance.user.email) {
             try {
-                const emailHtml = `
-                    <div style="font-family: Arial, sans-serif; padding: 20px;">
-                        <h2>Day Closed</h2>
-                        <p>Dear ${attendance.user.name},</p>
-                        <p>Your attendance for <strong>${attendance.date}</strong> has been successfully closed by the Admin.</p>
-                        <p>Thank you for your work today!</p>
-                    </div>
-                `;
-                await mailTransporter.sendMail({
-                    from: process.env.EMAIL_USER || 'managemadhura123@gmail.com',
-                    to: attendance.user.email,
-                    subject: 'Attendance Day Closed',
-                    html: emailHtml
-                });
+                const emailText = `Dear ${attendance.user.name},\nYour attendance for ${attendance.date} has been successfully closed by the Admin.\nThank you for your work today!`;
+                await sendEmail(attendance.user.email, 'Attendance Day Closed', emailText);
             } catch (e) { console.log('Mail error:', e.message); }
         }
 

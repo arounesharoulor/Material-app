@@ -27,10 +27,12 @@ exports.sendOtp = async (req, res) => {
             );
         } catch (mailErr) {
             console.error('[OTP] Email delivery failed:', mailErr.message);
+            console.error('[OTP] Error code:', mailErr.code, 'responseCode:', mailErr.responseCode);
             // Clean up the saved OTP so the user can try again cleanly
             await Otp.deleteMany({ email });
             return res.status(500).json({
-                msg: 'Could not send verification email. Please check your email address and try again.'
+                msg: 'Could not send verification email. Please check your email address and try again.',
+                debug: mailErr.message  // include SMTP error for debugging
             });
         }
 

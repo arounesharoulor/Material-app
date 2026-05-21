@@ -3,55 +3,90 @@ const nodemailer = require('nodemailer');
 const fs = require('fs');
 const path = require('path');
 
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.EMAIL_USER || 'managemadhura123@gmail.com',
-        pass: (process.env.EMAIL_PASS || 'cnfatmakaqdeijhp').trim()
-    }
-});
+const EMAIL_USER = (process.env.EMAIL_USER || 'managemadhura123@gmail.com').trim();
+const EMAIL_PASS = (process.env.EMAIL_PASS || 'dohzspvemkycjkxj').trim();
+
+console.log(`[MAILER] Configured with user: ${EMAIL_USER}, pass length: ${EMAIL_PASS.length}`);
+
+// Create a fresh transporter
+const createTransporter = () => {
+    return nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+            user: EMAIL_USER,
+            pass: EMAIL_PASS
+        },
+        // Connection pool settings for reliability
+        pool: false,
+        connectionTimeout: 10000,  // 10s to connect
+        greetingTimeout: 10000,
+        socketTimeout: 15000,
+    });
+};
+
+let transporter = createTransporter();
 
 // Verify connection configuration
 transporter.verify((error, success) => {
     if (error) {
-        console.log('[MAILER] Connection error:', error.message);
+        console.error('[MAILER] ❌ Connection FAILED:', error.message);
+        console.error('[MAILER] Full error:', JSON.stringify({ code: error.code, command: error.command, response: error.response }));
     } else {
-        console.log('[MAILER] Server is ready to take messages');
+        console.log('[MAILER] ✅ Server is ready to take messages');
     }
 });
 
 /**
- * Send a generic email
+ * Send a generic email with retry
  * @param {string} to - Recipient email
  * @param {string} subject - Email subject
  * @param {string} text - Plain text body
  */
 const sendEmail = async (to, subject, text) => {
-    const fromEmail = process.env.EMAIL_USER || 'managemadhura123@gmail.com';
     const mailOptions = {
-        from: fromEmail,
+        from: EMAIL_USER,
         to,
         subject,
         text
     };
 
-    // We use the hardcoded fallbacks if process.env is missing, so we don't need the if check here
-    try {
-        console.log(`[MAILER] Attempting to send email to: ${to} (Subject: ${subject})`);
-        const info = await transporter.sendMail(mailOptions);
-        console.log(`[MAILER] Email sent successfully to ${to}. MessageId: ${info.messageId}`);
-        
-        // Write to a log file for audit
-        const logContent = `[${new Date().toISOString()}] SUCCESS: Email to ${to}, Subject: ${subject}, MessageId: ${info.messageId}\n`;
-        fs.appendFileSync(path.join(__dirname, '../mailer.log'), logContent);
-        
-        return info;
-    } catch (err) {
-        console.error(`[MAILER] FAILED to send email to ${to}:`, err.message);
-        const logContent = `[${new Date().toISOString()}] FAILED: Email to ${to}, Error: ${err.message}\n`;
-        fs.appendFileSync(path.join(__dirname, '../mailer.log'), logContent);
-        throw err; 
+    const MAX_RETRIES = 2;
+    let lastError = null;
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+            console.log(`[MAILER] Attempt ${attempt}/${MAX_RETRIES} — sending to: ${to} (Subject: ${subject})`);
+            const info = await transporter.sendMail(mailOptions);
+            console.log(`[MAILER] ✅ Email sent to ${to}. MessageId: ${info.messageId}`);
+
+            // Audit log
+            try {
+                const logContent = `[${new Date().toISOString()}] SUCCESS: Email to ${to}, Subject: ${subject}, MessageId: ${info.messageId}\n`;
+                fs.appendFileSync(path.join(__dirname, '../mailer.log'), logContent);
+            } catch (_) { /* ignore log write errors */ }
+
+            return info;
+        } catch (err) {
+            lastError = err;
+            console.error(`[MAILER] ❌ Attempt ${attempt} failed:`, err.message);
+            console.error(`[MAILER] Error details: code=${err.code}, command=${err.command}, responseCode=${err.responseCode}`);
+
+            // Recreate transporter for retry (fresh connection)
+            if (attempt < MAX_RETRIES) {
+                console.log('[MAILER] Recreating transporter for retry...');
+                transporter = createTransporter();
+                await new Promise(r => setTimeout(r, 1000)); // 1s pause before retry
+            }
+        }
     }
+
+    // All retries failed
+    try {
+        const logContent = `[${new Date().toISOString()}] FAILED: Email to ${to}, Error: ${lastError.message}\n`;
+        fs.appendFileSync(path.join(__dirname, '../mailer.log'), logContent);
+    } catch (_) { /* ignore log write errors */ }
+
+    throw lastError;
 };
 
-module.exports = { sendEmail, transporter };
+module.exports = { sendEmail, transporter: createTransporter() };

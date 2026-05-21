@@ -4,16 +4,11 @@ const fs = require('fs');
 const path = require('path');
 
 const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true, // Use SSL
+    service: 'gmail',
     auth: {
         user: process.env.EMAIL_USER || 'managemadhura123@gmail.com',
-        pass: process.env.EMAIL_PASS || 'cnfatmakaqdeijhp'
-    },
-    connectionTimeout: 10000, 
-    greetingTimeout: 10000,
-    socketTimeout: 10000
+        pass: (process.env.EMAIL_PASS || 'cnfatmakaqdeijhp').trim()
+    }
 });
 
 // Verify connection configuration

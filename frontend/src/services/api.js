@@ -6,32 +6,7 @@ import { NativeModules, Platform } from 'react-native';
 const CLOUD_URL = "https://material-app-zhm4.onrender.com"; 
 
 const getBaseUrl = () => {
-  // 1. Check if we are in development mode
-  const isDev = typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV === 'development';
-
-  // ALWAYS USE LOCAL FOR DEVELOPMENT TO ENSURE EMAIL WORKS
-  if (isDev) {
-      // Web Development
-      if (Platform.OS === 'web') {
-          return 'http://localhost:5005';
-      }
-      
-      // Mobile Development (Automatic IP Detection)
-      try {
-        const scriptURL = NativeModules?.SourceCode?.scriptURL;
-        if (scriptURL) {
-          const match = scriptURL.match(/http:\/\/([\d\.]+):/);
-          if (match && match[1]) {
-             return `http://${match[1]}:5005`;
-          }
-        }
-      } catch (e) {}
-
-      // Manual fallback for mobile (update this to your computer's IP if needed)
-      return `http://192.168.0.112:5005`;
-  }
-
-  // Use Cloud URL for production
+  // FORCE THE CLOUD URL FOR ALL DEVICES TO BYPASS LOCAL NETWORK ISSUES
   return CLOUD_URL.endsWith('/') ? CLOUD_URL.slice(0, -1) : CLOUD_URL;
 };
 
@@ -47,10 +22,12 @@ api.interceptors.request.use(async (config) => {
   if (token) {
     config.headers['x-auth-token'] = token;
   }
+  // Bypasses the Microsoft Dev Tunnels anti-phishing warning page
   config.headers['X-Tunnel-Skip-AntiPhishing-Page'] = 'true';
   return config;
 });
 
+// Response interceptor: log errors for debugging
 api.interceptors.response.use(
   (response) => response,
   async (error) => {

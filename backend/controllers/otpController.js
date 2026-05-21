@@ -34,10 +34,6 @@ exports.sendOtp = async (req, res) => {
         }
 
         const responsePayload = { msg: 'Verification code sent to ' + email };
-        if (isDev) {
-            responsePayload.devOtp = otp; // Send OTP in development mode for easy testing
-        }
-
         return res.json(responsePayload);
     } catch (err) {
         console.error('OTP Send Error:', err.message);

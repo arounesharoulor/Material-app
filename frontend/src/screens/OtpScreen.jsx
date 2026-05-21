@@ -155,12 +155,6 @@ const OtpScreen = ({ navigation, route }) => {
                                     )}
                                 </TouchableOpacity>
 
-                                {registrationData?.devOtp && (
-                                    <View style={styles.devOtpContainer}>
-                                        <Text style={styles.devOtpLabel}>TESTING ONLY: YOUR CODE IS</Text>
-                                        <Text style={styles.devOtpValue}>{registrationData.devOtp}</Text>
-                                    </View>
-                                )}
 
                                 {/* Resend */}
                                 <TouchableOpacity

@@ -18,14 +18,23 @@ exports.sendOtp = async (req, res) => {
         await Otp.deleteMany({ email });
         await newOtp.save();
 
-        const isDev = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
+        // Send email and AWAIT it so failures are reported back to the client
+        try {
+            await sendEmail(
+                email,
+                'Your Verification Code',
+                `Your OTP for verification is: ${otp}. This code will expire in 5 minutes.`
+            );
+        } catch (mailErr) {
+            console.error('[OTP] Email delivery failed:', mailErr.message);
+            // Clean up the saved OTP so the user can try again cleanly
+            await Otp.deleteMany({ email });
+            return res.status(500).json({
+                msg: 'Could not send verification email. Please check your email address and try again.'
+            });
+        }
 
-        // Send email in the BACKGROUND so the user doesn't have to wait
-        sendEmail(email, 'Your Verification Code', `Your OTP for verification is: ${otp}. This code will expire in 5 minutes.`)
-            .catch(err => console.error('[OTP-BACKGROUND] Email failed:', err.message));
-
-        const responsePayload = { msg: 'Verification code sent to ' + email };
-        return res.json(responsePayload);
+        return res.json({ msg: 'Verification code sent to ' + email });
     } catch (err) {
         console.error('OTP Send Error:', err.message);
         res.status(500).json({ msg: 'Error processing verification' });

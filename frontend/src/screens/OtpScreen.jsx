@@ -22,6 +22,7 @@ const OtpScreen = ({ navigation, route }) => {
 
     const [otp, setOtp] = useState('');
     const [loading, setLoading] = useState(false);
+    const [sending, setSending] = useState(true);  // true = waiting for OTP email to arrive
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [timer, setTimer] = useState(30);
@@ -39,19 +40,37 @@ const OtpScreen = ({ navigation, route }) => {
     useEffect(() => {
         if (!registrationData) {
             navigation.replace('Register');
+            return;
         }
+        // Re-send OTP on mount to confirm delivery (covers cold-start failures)
+        const confirmSend = async () => {
+            setSending(true);
+            setError('');
+            try {
+                await api.post('/otp/send-otp', { email });
+                setSuccess('Verification code sent! Check your email.');
+            } catch (err) {
+                setError(err.response?.data?.msg || 'Failed to send verification code. Tap Resend to try again.');
+            } finally {
+                setSending(false);
+            }
+        };
+        confirmSend();
     }, []);
 
     const handleResend = async () => {
-        if (timer > 0) return;
+        if (timer > 0 || sending) return;
         setError('');
         setSuccess('');
+        setSending(true);
         try {
             await api.post('/otp/send-otp', { email });
             setTimer(30);
             setSuccess('A new verification code has been sent to your email.');
         } catch (err) {
-            setError(err.response?.data?.msg || 'Could not resend code. Try again.');
+            setError(err.response?.data?.msg || 'Could not send email. Check your connection and try again.');
+        } finally {
+            setSending(false);
         }
     };
 
@@ -124,6 +143,16 @@ const OtpScreen = ({ navigation, route }) => {
                                     <Text allowFontScaling={false} style={styles.emailBadge}>{maskedEmail}</Text>
                                 </View>
 
+                                {/* Sending spinner */}
+                                {sending && (
+                                    <View style={styles.sendingBox}>
+                                        <ActivityIndicator color="#1b264a" size="small" />
+                                        <Text allowFontScaling={false} style={styles.sendingText}>
+                                            Sending your code…
+                                        </Text>
+                                    </View>
+                                )}
+
                                 {/* OTP Input */}
                                 <View style={styles.inputGroup}>
                                     <Text allowFontScaling={false} style={styles.inputLabel}>VERIFICATION CODE</Text>
@@ -136,6 +165,7 @@ const OtpScreen = ({ navigation, route }) => {
                                         keyboardType="number-pad"
                                         maxLength={6}
                                         textAlign="center"
+                                        editable={!sending}
                                     />
                                     {error ? <Text style={styles.errorText}>{error}</Text> : null}
                                     {success ? <Text style={styles.successText}>{success}</Text> : null}
@@ -160,13 +190,15 @@ const OtpScreen = ({ navigation, route }) => {
                                 <TouchableOpacity
                                     style={styles.resendBtn}
                                     onPress={handleResend}
-                                    disabled={timer > 0 || loading}
+                                    disabled={timer > 0 || loading || sending}
                                     activeOpacity={0.7}
                                 >
-                                    <Text allowFontScaling={false} style={[styles.resendText, timer > 0 && styles.resendDisabled]}>
-                                        {timer > 0
-                                            ? `Resend code in ${timer}s`
-                                            : 'Resend Code'}
+                                    <Text allowFontScaling={false} style={[styles.resendText, (timer > 0 || sending) && styles.resendDisabled]}>
+                                        {sending
+                                            ? 'Sending…'
+                                            : timer > 0
+                                                ? `Resend code in ${timer}s`
+                                                : 'Resend Code'}
                                     </Text>
                                 </TouchableOpacity>
 
@@ -381,6 +413,22 @@ const styles = StyleSheet.create({
         color: '#94a3b8',
         fontWeight: '600',
         fontSize: 13,
+    },
+    sendingBox: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#eff6ff',
+        borderRadius: 10,
+        padding: 12,
+        marginBottom: 20,
+        gap: 10,
+    },
+    sendingText: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#1b264a',
+        marginLeft: 8,
     },
     devOtpContainer: {
         backgroundColor: '#fffbeb',

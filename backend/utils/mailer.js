@@ -4,21 +4,28 @@ const fs = require('fs');
 const path = require('path');
 
 const EMAIL_USER = (process.env.EMAIL_USER || 'managemadhura123@gmail.com').trim();
-const EMAIL_PASS = (process.env.EMAIL_PASS || 'dohzspvemkycjkxj').trim();
+const EMAIL_PASS = 'dohzspvemkycjkxj'; // Hardcoded temporarily to bypass old Render environment variable
 
 console.log(`[MAILER] Configured with user: ${EMAIL_USER}, pass length: ${EMAIL_PASS.length}`);
 
 // Create a fresh transporter
 const createTransporter = () => {
     return nodemailer.createTransport({
-        service: 'gmail',
+        host: 'smtp.gmail.com',
+        port: 587,
+        secure: false, // Upgrade later with STARTTLS
+        requireTLS: true,
         auth: {
             user: EMAIL_USER,
             pass: EMAIL_PASS
         },
+        // Force IPv4, Render sometimes has issues with IPv6 to Google
+        tls: {
+            rejectUnauthorized: false
+        },
         // Connection pool settings for reliability
         pool: false,
-        connectionTimeout: 10000,  // 10s to connect
+        connectionTimeout: 10000,
         greetingTimeout: 10000,
         socketTimeout: 15000,
     });

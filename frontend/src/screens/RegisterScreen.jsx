@@ -70,7 +70,9 @@ const RegisterScreen = ({ navigation }) => {
       if (!err.response) {
         setErrors({ auth: 'Connection Error: Backend server is unreachable. Check your IP/Network.' });
       } else {
-        setErrors({ auth: err.response.data?.msg || 'Could not send verification code. Please try again.' });
+        const debugMsg = err.response.data?.debug;
+        const msg = err.response.data?.msg || 'Could not send verification code. Please try again.';
+        setErrors({ auth: debugMsg ? `${msg}\n(Debug: ${debugMsg})` : msg });
       }
     } finally {
       setLoading(false);

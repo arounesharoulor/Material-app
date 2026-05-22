@@ -142,6 +142,12 @@ app.post('/api/attendance/mark-v2', authMw, (req, res, next) => {
         await newAttendance.save();
         const populated = await newAttendance.populate('user', 'name email employeeId role');
 
+        // Emit real-time socket event so Admin gets notified instantly
+        const serverIo = app.get('io');
+        if (serverIo) {
+            serverIo.emit('attendanceNew', { attendance: populated });
+        }
+
         // Send email to employee
         if (populated.user.email) {
             try {

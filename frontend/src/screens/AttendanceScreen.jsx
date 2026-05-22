@@ -292,6 +292,20 @@ const AttendanceScreen = ({ navigation }) => {
     };
 
     const handleLeaveSubmit = () => {
+        // ✅ Block if an active attendance record already exists for that date
+        const conflictRecord = Array.isArray(attendance)
+            ? attendance.find(a => a.date === leaveDate && ['Approved', 'Pending', 'Waiting'].includes(a.status))
+            : null;
+        if (conflictRecord) {
+            Toast.show({
+                type: 'error',
+                text1: '⚠️ Already Marked',
+                text2: `You already have a "${conflictRecord.type}" marked as "${conflictRecord.status}" for ${leaveDate}. Cannot apply leave.`,
+                visibilityTime: 5000
+            });
+            return;
+        }
+
         let finalLeaveType = selectedLeaveType || 'Leave';
         if (selectedLeaveType === 'Other') {
             if (!customLeaveType.trim()) {
@@ -463,25 +477,26 @@ const AttendanceScreen = ({ navigation }) => {
                             )}
                         </View>
                     ) : (
-                        /* Leave Application Tab Content */
-                        todayRecord && todayRecord.checkOutStatus !== 'ClosedApproved' && false ? (
-                            <View style={styles.leaveAppliedCard}>
-                                <Ionicons name="checkmark-done-circle" size={48} color="#10b981" style={{ marginBottom: 12 }} />
-                                <Text style={styles.leaveAppliedTitle}>Status Already Marked</Text>
-                                <Text style={styles.leaveAppliedSubtitle}>
-                                    You have already logged your attendance or requested a leave for today:
-                                </Text>
-                                <View style={[styles.markedBadge, todayRecord.type === 'Leave' ? styles.leaveBadge : styles.presentBadge, { marginTop: 16, marginBottom: 0 }]}>
-                                    <Ionicons name="checkmark-circle" size={16} color="#fff" />
-                                    <Text style={styles.markedBadgeText}>
-                                        {todayRecord.leaveType || todayRecord.type} — {todayRecord.status}
-                                    </Text>
-                                </View>
-                            </View>
-                        ) : (
+                        /* Leave Application Tab Content — always show form */
+                        (() => {
+                            const conflictRecord = Array.isArray(attendance)
+                                ? attendance.find(a => a.date === leaveDate && ['Approved', 'Pending', 'Waiting'].includes(a.status))
+                                : null;
+                            return (
                             <View style={styles.leaveFormCard}>
                                 <Text style={styles.formTitle}>Apply for Leave</Text>
                                 <Text style={styles.formSubtitle}>Select a reason for your leave:</Text>
+
+                                {/* ⚠️ Inline conflict warning */}
+                                {conflictRecord && (
+                                    <View style={styles.conflictBanner}>
+                                        <Ionicons name="warning" size={16} color="#b45309" />
+                                        <Text style={styles.conflictBannerText}>
+                                            {`"${conflictRecord.type}" already ${conflictRecord.status} for ${leaveDate}. Pick a different date.`}
+                                        </Text>
+                                    </View>
+                                )}
+
                                 <View style={styles.leaveOptionsGrid}>
                                     {LEAVE_OPTIONS.map(opt => (
                                         <TouchableOpacity
@@ -533,19 +548,23 @@ const AttendanceScreen = ({ navigation }) => {
                                     numberOfLines={4}
                                     textAlignVertical="top"
                                 />
-                                <View style={styles.formActions}>
-                                    <TouchableOpacity style={styles.clearBtn} onPress={() => { setSelectedLeaveType(''); setCustomLeaveType(''); setCustomReason(''); }}>
-                                        <Text style={styles.clearBtnText}>Clear Form</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity style={styles.submitLeaveBtn} onPress={handleLeaveSubmit} disabled={submitting}>
-                                        {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitLeaveBtnText}>Submit Leave</Text>}
-                                    </TouchableOpacity>
+                                    <View style={styles.formActions}>
+                                        <TouchableOpacity style={styles.clearBtn} onPress={() => { setSelectedLeaveType(''); setCustomLeaveType(''); setCustomReason(''); }}>
+                                            <Text style={styles.clearBtnText}>Clear Form</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={[styles.submitLeaveBtn, conflictRecord && { opacity: 0.4 }]}
+                                            onPress={handleLeaveSubmit}
+                                            disabled={submitting || !!conflictRecord}
+                                        >
+                                            {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitLeaveBtnText}>Submit Leave</Text>}
+                                        </TouchableOpacity>
+                                    </View>
                                 </View>
-                            </View>
-                        )
+                            );
+                        })()
                     )}
 
-                   
 
                     {/* History */}
                     <Text style={styles.sectionTitle}>Attendance History</Text>
@@ -778,6 +797,9 @@ const styles = StyleSheet.create({
     leaveAppliedCard: { backgroundColor: '#ffffff', borderRadius: 20, padding: 32, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#e2e8f0', marginBottom: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 3 },
     leaveAppliedTitle: { fontSize: 18, fontWeight: 'bold', color: '#0f172a', marginBottom: 6 },
     leaveAppliedSubtitle: { fontSize: 13, color: '#64748b', textAlign: 'center', lineHeight: 18 },
+    // Conflict Warning Banner
+    conflictBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fef3c7', borderWidth: 1, borderColor: '#fcd34d', borderRadius: 10, padding: 12, marginBottom: 12 },
+    conflictBannerText: { flex: 1, fontSize: 12, color: '#92400e', fontWeight: '600', lineHeight: 18 },
     // Calendar Picker Button & Modal Styles
     datePickerBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, marginBottom: 16, gap: 12 },
     datePickerBtnText: { fontSize: 14, color: '#0f172a', fontWeight: '600' },

@@ -161,6 +161,7 @@ const AdminAttendanceScreen = ({ navigation }) => {
     const pendingCount = Array.isArray(attendance) ? attendance.filter(a => a.status === 'Pending' || a.status === 'Waiting').length : 0;
     const pendingCloseCount = Array.isArray(attendance) ? attendance.filter(a => a.checkOutStatus === 'PendingClose').length : 0;
     const waitingCount = Array.isArray(attendance) ? attendance.filter(a => a.status === 'Waiting').length : 0;
+    const leaveCount = Array.isArray(attendance) ? attendance.filter(a => a.type === 'Leave' && (a.status === 'Pending' || a.status === 'Waiting')).length : 0;
 
     const tabFiltered = Array.isArray(attendance) ? 
                         (activeTab === 'attendance' 
@@ -238,6 +239,33 @@ const AdminAttendanceScreen = ({ navigation }) => {
                         <TouchableOpacity onPress={() => setFilter('Approved')} style={[styles.statCard, filter === 'Approved' && styles.statCardActive]}>
                             <Text style={[styles.statLabel, { color: '#10b981' }]}>OK</Text>
                             <Text style={[styles.statValue, { color: '#10b981' }]}>{attendance.filter(a => a.status === 'Approved').length}</Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Tab Switcher: Attendance / Leave Requests */}
+                    <View style={styles.tabContainer}>
+                        <TouchableOpacity
+                            style={[styles.tabButton, activeTab === 'attendance' && styles.tabButtonActive]}
+                            onPress={() => setActiveTab('attendance')}
+                        >
+                            <Ionicons name="calendar-outline" size={18} color={activeTab === 'attendance' ? '#ffc61c' : '#64748b'} />
+                            <Text style={[styles.tabButtonText, activeTab === 'attendance' && styles.tabButtonTextActive]}>
+                                Attendance
+                            </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.tabButton, activeTab === 'leave' && styles.tabButtonActive]}
+                            onPress={() => setActiveTab('leave')}
+                        >
+                            <Ionicons name="document-text-outline" size={18} color={activeTab === 'leave' ? '#ffc61c' : '#64748b'} />
+                            <Text style={[styles.tabButtonText, activeTab === 'leave' && styles.tabButtonTextActive]}>
+                                Leave Requests
+                            </Text>
+                            {leaveCount > 0 && (
+                                <View style={styles.leaveBadgeCount}>
+                                    <Text style={styles.leaveBadgeCountText}>{leaveCount}</Text>
+                                </View>
+                            )}
                         </TouchableOpacity>
                     </View>
 
@@ -552,6 +580,8 @@ const styles = StyleSheet.create({
     tabButtonActive: { backgroundColor: '#1b264a' },
     tabButtonText: { fontSize: 14, fontWeight: '600', color: '#64748b' },
     tabButtonTextActive: { color: '#ffffff' },
+    leaveBadgeCount: { backgroundColor: '#ef4444', borderRadius: 10, minWidth: 20, height: 20, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 5 },
+    leaveBadgeCountText: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
 
     // Modal
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' },

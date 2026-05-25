@@ -9,7 +9,7 @@
     "web": "expo start --web",
     "copy-favicon": "node -e \"const fs = require('fs'); const path = require('path'); const src = path.join(__dirname, 'assets', 'logo.png'); const destDir = path.join(__dirname, 'assets'); if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, {recursive: true}); ['favicon.png', 'icon.png', 'adaptive-icon.png', 'splash.png'].forEach(f => fs.copyFileSync(src, path.join(destDir, f))); console.log('Icons generated successfully');\"",
     "setup-logo": "node -e \"const fs = require('fs'); const path = require('path'); const svgPath = path.join(__dirname, 'assets', 'Madhura Energy Logo-03 - Copy.svg'); const svg = fs.readFileSync(svgPath, 'utf8'); const match = svg.match(/base64,([^\\\"]+)/); if (match) { const buffer = Buffer.from(match[1], 'base64'); fs.writeFileSync(path.join(__dirname, 'assets', 'logo.png'), buffer); console.log('Logo generated from SVG successfully'); } else { console.error('Could not find base64 image in SVG'); }\"",
-    "build": "npx expo export -p web && rm -rf public && mv dist public"
+    "build": "npx expo export -p web && node ./scripts/move-dist.js"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",

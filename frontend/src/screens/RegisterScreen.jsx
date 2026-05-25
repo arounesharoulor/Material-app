@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert, ScrollView, Platform, StyleSheet, KeyboardAvoidingView, Keyboard, ActivityIndicator, useWindowDimensions } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Alert, ScrollView, Platform, StyleSheet, KeyboardAvoidingView, Keyboard, ActivityIndicator, useWindowDimensions, Image } from 'react-native';
 
 import tw from 'twrnc';
 import { Ionicons } from '@expo/vector-icons';
@@ -99,6 +99,7 @@ const RegisterScreen = ({ navigation }) => {
               {/* Visual Branding Section - Hidden on mobile when typing */}
               {(!isKeyboardVisible || !isMobile) && (
                 <View style={[styles.branding, !isMobile ? styles.panelWeb : styles.panelMobile]}>
+                    <Image source={require('../../assets/logo.png')} style={{width: 150, height: 80, marginBottom: 20}} resizeMode="contain" />
                     <Text allowFontScaling={false} style={styles.brandingLabel}>ONBOARDING PORTAL</Text>
                     <Text allowFontScaling={false} style={styles.brandingTitle}>Join the Network</Text>
                     <View style={styles.divider} />

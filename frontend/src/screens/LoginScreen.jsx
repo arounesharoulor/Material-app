@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert, ScrollView, Platform, StyleSheet, KeyboardAvoidingView, Keyboard, Linking, useWindowDimensions } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Alert, ScrollView, Platform, StyleSheet, KeyboardAvoidingView, Keyboard, Linking, useWindowDimensions, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import tw from 'twrnc';
 import { AuthContext } from '../context/AuthContext';
@@ -80,6 +80,7 @@ const LoginScreen = ({ navigation }) => {
               {/* Branding Section - Hidden on mobile when keyboard is active */}
               {(!isKeyboardVisible || !isMobile) && (
                 <View style={[styles.branding, !isMobile ? styles.panelWeb : styles.panelMobile]}>
+                    <Image source={require('../../assets/logo.png')} style={{width: 150, height: 80, marginBottom: 20}} resizeMode="contain" />
                     <Text allowFontScaling={false} style={styles.brandingLabel}>ENTERPRISE PORTAL</Text>
                     <Text allowFontScaling={false} style={styles.brandingTitle}>Material Request</Text>
                     <View style={styles.divider} />
@@ -224,9 +225,9 @@ const styles = StyleSheet.create({
   },
   branding: {
     backgroundColor: '#1b264a',
-    padding: 32,
+    padding: 24,
     justifyContent: 'center',
-    minHeight: Platform.OS === 'web' ? 400 : 200,
+    minHeight: Platform.OS === 'web' ? 400 : 150,
   },
   brandingLabel: {
     color: '#ffc61c',
@@ -256,7 +257,8 @@ const styles = StyleSheet.create({
   },
   formSection: {
     backgroundColor: '#ffffff',
-    padding: 24,
+    padding: 16,
+    paddingTop: 10,
     justifyContent: 'center',
   },
   formContent: {
@@ -265,7 +267,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   headerBox: {
-    marginBottom: 32,
+    marginBottom: 16,
   },
   headerTitle: {
     fontSize: 28,

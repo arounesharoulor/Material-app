@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Animated, Platform, StyleSheet, Linking, useWindowDimensions } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Animated, Platform, StyleSheet, Linking, useWindowDimensions, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import api, { BASE_URL } from '../services/api';
 import io from 'socket.io-client';
@@ -10,24 +10,24 @@ import { AuthContext } from '../context/AuthContext';
 const SidebarItem = ({ label, iconName, targetScreen, isActive, badgeCount = 0, navigation, toggleSidebar, user }) => {
     const [isHovered, setIsHovered] = useState(false);
     return (
-        <TouchableOpacity 
+        <TouchableOpacity
             style={[
-                styles.sidebarItem, 
+                styles.sidebarItem,
                 isActive && styles.sidebarItemActive,
                 (!isActive && isHovered && Platform.OS === 'web') && { backgroundColor: 'rgba(255,255,255,0.05)' }
-            ]} 
+            ]}
             onPress={() => {
-                if(Platform.OS !== 'web') toggleSidebar();
+                if (Platform.OS !== 'web') toggleSidebar();
                 navigation.navigate(targetScreen);
             }}
             onMouseEnter={() => Platform.OS === 'web' && setIsHovered(true)}
             onMouseLeave={() => Platform.OS === 'web' && setIsHovered(false)}
         >
             <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                <Ionicons 
-                    name={isActive ? iconName : iconName + "-outline"} 
-                    size={18} 
-                    color={isActive ? "#1b264a" : "#94a3b8"} 
+                <Ionicons
+                    name={isActive ? iconName : iconName + "-outline"}
+                    size={18}
+                    color={isActive ? "#1b264a" : "#94a3b8"}
                     style={{ marginRight: 12 }}
                 />
                 <Text allowFontScaling={false} style={isActive ? styles.sidebarItemTextActive : styles.sidebarItemText}>
@@ -63,13 +63,13 @@ const SidebarItem = ({ label, iconName, targetScreen, isActive, badgeCount = 0, 
     );
 };
 
-const Sidebar = ({ 
-    user, 
-    navigation, 
-    logout, 
-    sidebarAnim, 
-    toggleSidebar, 
-    activeScreen 
+const Sidebar = ({
+    user,
+    navigation,
+    logout,
+    sidebarAnim,
+    toggleSidebar,
+    activeScreen
 }) => {
     const { refreshUser } = useContext(AuthContext);
     const { width } = useWindowDimensions();
@@ -97,10 +97,10 @@ const Sidebar = ({
                 // Fetch Stock Levels for Admin
                 const stockRes = await api.get('/stock');
                 const lowStockMaterials = stockRes.data.filter(s => s.quantity < 10).map(s => s.materialName.toLowerCase());
-                
+
                 // Also count any requests currently blocked by insufficient stock
                 const blockedMaterials = res.data.filter(r => r.status === 'Pending' && r.insufficientStock).map(r => r.materialName.toLowerCase());
-                
+
                 const uniqueNeedsUpdate = [...new Set([...lowStockMaterials, ...blockedMaterials])].length;
                 setLowStockCount(uniqueNeedsUpdate);
 
@@ -142,7 +142,7 @@ const Sidebar = ({
         } catch (err) {
             console.log(`[SIDEBAR] Failed to fetch counts from ${BASE_URL}/api/requests:`, err.message);
             if (err.message === 'Network Error') {
-              console.log('[DEBUG] This usually means the IP in api.js is wrong or Firewall is blocking port 5000');
+                console.log('[DEBUG] This usually means the IP in api.js is wrong or Firewall is blocking port 5000');
             }
         }
     };
@@ -168,14 +168,14 @@ const Sidebar = ({
                     { uri: 'https://www.myinstants.com/media/sounds/iphone-notification.mp3' },
                     { shouldPlay: true, volume: 1.0 }
                 );
-                setTimeout(() => sound.unloadAsync().catch(() => {}), 5000);
+                setTimeout(() => sound.unloadAsync().catch(() => { }), 5000);
             }
         } catch (e) { console.log('[SIDEBAR AUDIO ERROR]', e); }
     };
 
     useEffect(() => {
         fetchCounts();
-        
+
         if (!socketRef.current) {
             socketRef.current = io(BASE_URL, {
                 transports: ['polling', 'websocket'],
@@ -194,7 +194,7 @@ const Sidebar = ({
 
         socketRef.current.on('requestUpdated', fetchCounts);
         socketRef.current.on('roleUpdated', fetchCounts);
-        
+
         socketRef.current.on('attendanceNew', (data) => {
             fetchCounts();
             if (user?.role === 'Admin' && activeScreen !== 'AdminAttendance') {
@@ -243,7 +243,7 @@ const Sidebar = ({
             fetchCounts();
             refreshUser();
         });
-        
+
         socketRef.current.on('returnReminder', (data) => {
             if (user?.employeeId === data.employeeId) {
                 Toast.show({
@@ -277,7 +277,7 @@ const Sidebar = ({
                     text2: data.message,
                     visibilityTime: 8000,
                 });
-                fetchCounts(); 
+                fetchCounts();
                 refreshUser(); // Update user object to show new score in sidebar
             } else {
                 console.log(`[SIDEBAR-SOCKET] Alert rejected. Admin role: ${user?.role}, Data role: ${data.role}`);
@@ -295,30 +295,33 @@ const Sidebar = ({
     return (
         <Animated.View style={[
             styles.sidebar,
-            (Platform.OS !== 'web' || isMobile) && { 
-                position: 'absolute', 
-                zIndex: 100, 
+            (Platform.OS !== 'web' || isMobile) && {
+                position: 'absolute',
+                zIndex: 100,
                 backgroundColor: '#1b264a',
                 top: 0,
                 bottom: 0,
                 left: 0,
-                transform: [{ translateX: sidebarAnim || 0 }] 
+                transform: [{ translateX: sidebarAnim || 0 }]
             }
         ]}>
-            <ScrollView 
-                style={[{ flex: 1 }, Platform.OS === 'web' ? { overflowY: 'auto' } : {}]} 
-                contentContainerStyle={{ 
-                    flexGrow: 1, 
-                    padding: 30, 
-                    paddingBottom: Platform.OS === 'web' ? 100 : 40 
+            <ScrollView
+                style={[{ flex: 1 }, Platform.OS === 'web' ? { overflowY: 'auto' } : {}]}
+                contentContainerStyle={{
+                    flexGrow: 1,
+                    padding: 30,
+                    paddingBottom: Platform.OS === 'web' ? 100 : 40
                 }}
                 showsVerticalScrollIndicator={false}
             >
                 <View style={styles.sidebarTop}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 10 }}>
                         <View style={styles.sidebarBrandContainer}>
-                            <Text allowFontScaling={false} style={styles.sidebarBrand}>SYSTEM</Text>
-                            <Text allowFontScaling={false} style={styles.sidebarBrandSub}>PORTAL</Text>
+                            <Image
+                                source={require('../../assets/logo.png')}
+                                style={styles.sidebarLogo}
+                                resizeMode="contain"
+                            />
                         </View>
                         {(Platform.OS !== 'web' || isMobile) && (
                             <TouchableOpacity onPress={toggleSidebar} style={{ padding: 10 }}>
@@ -327,22 +330,22 @@ const Sidebar = ({
                         )}
                     </View>
                     <View style={styles.sidebarDivider} />
-                    
+
                     <View style={styles.sidebarNav}>
-                        <SidebarItem 
-                            label="DASHBOARD" 
-                            iconName="grid" 
-                            targetScreen="Dashboard" 
+                        <SidebarItem
+                            label="DASHBOARD"
+                            iconName="grid"
+                            targetScreen="Dashboard"
                             isActive={activeScreen === 'Dashboard'}
                             badgeCount={user?.role === 'Admin' ? pendingCount : employeePickupCount}
                             navigation={navigation}
                             toggleSidebar={toggleSidebar}
                             user={user}
                         />
-                        <SidebarItem 
-                            label="MY PROFILE" 
-                            iconName="person" 
-                            targetScreen="Profile" 
+                        <SidebarItem
+                            label="MY PROFILE"
+                            iconName="person"
+                            targetScreen="Profile"
                             isActive={activeScreen === 'Profile'}
                             navigation={navigation}
                             toggleSidebar={toggleSidebar}
@@ -350,10 +353,10 @@ const Sidebar = ({
                         />
 
                         {user?.role !== 'Admin' && (
-                            <SidebarItem 
-                                label="MY ATTENDANCE" 
-                                iconName="calendar" 
-                                targetScreen="Attendance" 
+                            <SidebarItem
+                                label="MY ATTENDANCE"
+                                iconName="calendar"
+                                targetScreen="Attendance"
                                 isActive={activeScreen === 'Attendance'}
                                 navigation={navigation}
                                 toggleSidebar={toggleSidebar}
@@ -363,30 +366,30 @@ const Sidebar = ({
 
                         {user?.role === 'Admin' && (
                             <>
-                                <SidebarItem 
-                                    label="STOCK CONTROL" 
-                                    iconName="cube" 
-                                    targetScreen="Stock" 
+                                <SidebarItem
+                                    label="STOCK CONTROL"
+                                    iconName="cube"
+                                    targetScreen="Stock"
                                     isActive={activeScreen === 'Stock'}
                                     badgeCount={lowStockCount}
                                     navigation={navigation}
                                     toggleSidebar={toggleSidebar}
                                     user={user}
                                 />
-                                <SidebarItem 
-                                    label="ATTENDANCE REVIEW" 
-                                    iconName="calendar" 
-                                    targetScreen="AdminAttendance" 
+                                <SidebarItem
+                                    label="ATTENDANCE REVIEW"
+                                    iconName="calendar"
+                                    targetScreen="AdminAttendance"
                                     isActive={activeScreen === 'AdminAttendance'}
                                     badgeCount={attendancePendingCount}
                                     navigation={navigation}
                                     toggleSidebar={toggleSidebar}
                                     user={user}
                                 />
-                                <SidebarItem 
-                                    label="ANALYTICS" 
-                                    iconName="bar-chart" 
-                                    targetScreen="Reports" 
+                                <SidebarItem
+                                    label="ANALYTICS"
+                                    iconName="bar-chart"
+                                    targetScreen="Reports"
                                     isActive={activeScreen === 'Reports'}
                                     navigation={navigation}
                                     toggleSidebar={toggleSidebar}
@@ -399,39 +402,39 @@ const Sidebar = ({
                             <Text style={styles.navLabel}>ARCHIVE</Text>
                         </View>
 
-                        <SidebarItem 
-                            label="REQUEST HISTORY" 
-                            iconName="list" 
-                            targetScreen="History" 
+                        <SidebarItem
+                            label="REQUEST HISTORY"
+                            iconName="list"
+                            targetScreen="History"
                             isActive={activeScreen === 'History'}
                             badgeCount={user?.role === 'Employee' ? employeeReturnCount : 0}
                             navigation={navigation}
                             toggleSidebar={toggleSidebar}
                             user={user}
                         />
-                        
-                        <SidebarItem 
-                            label="CLOSED HISTORY" 
-                            iconName="checkmark-circle" 
-                            targetScreen="AcceptedHistory" 
+
+                        <SidebarItem
+                            label="CLOSED HISTORY"
+                            iconName="checkmark-circle"
+                            targetScreen="AcceptedHistory"
                             isActive={activeScreen === 'AcceptedHistory'}
                             navigation={navigation}
                             toggleSidebar={toggleSidebar}
                             user={user}
                         />
-                        <SidebarItem 
-                            label="REJECTED HISTORY" 
-                            iconName="close-circle" 
-                            targetScreen="RejectedHistory" 
+                        <SidebarItem
+                            label="REJECTED HISTORY"
+                            iconName="close-circle"
+                            targetScreen="RejectedHistory"
                             isActive={activeScreen === 'RejectedHistory'}
                             navigation={navigation}
                             toggleSidebar={toggleSidebar}
                             user={user}
                         />
-                        <SidebarItem 
-                            label="PENALTY HISTORY" 
-                            iconName="alert-circle" 
-                            targetScreen="PenaltyHistory" 
+                        <SidebarItem
+                            label="PENALTY HISTORY"
+                            iconName="alert-circle"
+                            targetScreen="PenaltyHistory"
                             isActive={activeScreen === 'PenaltyHistory'}
                             navigation={navigation}
                             toggleSidebar={toggleSidebar}
@@ -442,13 +445,13 @@ const Sidebar = ({
 
                 <View style={styles.sidebarBottom}>
                     {Platform.OS === 'web' && (
-                        <TouchableOpacity 
-                            style={styles.sidebarDownload} 
+                        <TouchableOpacity
+                            style={styles.sidebarDownload}
                             onPress={() => {
                                 // Explicitly trigger download by targeting the renamed APK
                                 if (typeof window !== 'undefined') {
                                     const isIOS = /iPhone|iPad|iPod/i.test(window.navigator.userAgent);
-                                    const url = isIOS 
+                                    const url = isIOS
                                         ? `${window.location.origin}/ios-install.html`
                                         : `${window.location.origin}/MaterialManagingStore.apk`;
                                     Linking.openURL(url);
@@ -474,216 +477,210 @@ const Sidebar = ({
 };
 
 const styles = StyleSheet.create({
-  sidebar: {
-    width: Platform.OS === 'web' ? 'min(280px, 85%)' : 280,
-    backgroundColor: '#1b264a',
-    height: Platform.OS === 'web' ? '100vh' : '100%',
-    borderRightWidth: 1,
-    borderRightColor: '#2d3a5e',
-  },
-  sidebarTop: {
-    flex: 1,
-  },
-  sidebarBrandContainer: {
-    marginBottom: 10,
-  },
-  sidebarBrand: {
-    color: '#ffffff',
-    fontSize: 24,
-    fontWeight: '900',
-    letterSpacing: 2,
-  },
-  sidebarBrandSub: {
-    color: '#ffc61c',
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 4,
-    marginTop: -4,
-  },
-  sidebarDivider: {
-    height: 1,
-    backgroundColor: '#2d3a5e',
-    width: '100%',
-    marginVertical: 30,
-  },
-  sidebarNav: {
-    gap: 8,
-  },
-  navLabelContainer: {
-    marginTop: 20,
-    marginBottom: 8,
-    paddingHorizontal: 16,
-  },
-  navLabel: {
-    color: '#475569',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1.5,
-  },
-  sidebarItem: {
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  sidebarItemActive: {
-    backgroundColor: '#ffc61c',
-  },
-  sidebarItemText: {
-    color: '#94a3b8',
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  sidebarItemTextActive: {
-    color: '#1b264a',
-    fontSize: 12,
-    fontWeight: '900',
-    letterSpacing: 0.5,
-  },
-  badge: {
-    backgroundColor: '#ff4444',
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-  },
-  badgeText: {
-    color: '#ffffff',
-    fontSize: 10,
-    fontWeight: '900',
-  },
-  sidebarBottom: {
-    paddingTop: 40,
-    borderTopWidth: 1,
-    borderTopColor: '#2d3a5e',
-  },
-  sidebarLogout: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  sidebarLogoutText: {
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 2,
-  },
-  sidebarDownload: {
-    backgroundColor: 'rgba(255, 198, 28, 0.1)',
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 198, 28, 0.2)',
-    marginBottom: 12,
-  },
-  sidebarDownloadText: {
-    color: '#ffc61c',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1.5,
-  },
-  tooltip: {
-    position: 'absolute',
-    left: 40,
-    top: 45,
-    backgroundColor: '#0f172a',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
-    zIndex: 1000,
-    width: 200,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 20,
-  },
-  tooltipArrow: {
-    position: 'absolute',
-    left: 20,
-    top: -6,
-    width: 0,
-    height: 0,
-    backgroundColor: 'transparent',
-    borderStyle: 'solid',
-    borderTopWidth: 0,
-    borderRightWidth: 6,
-    borderBottomWidth: 6,
-    borderLeftWidth: 6,
-    borderTopColor: 'transparent',
-    borderRightColor: 'transparent',
-    borderBottomColor: '#0f172a',
-    borderLeftColor: 'transparent',
-  },
-  tooltipText: {
-    color: '#ffffff',
-    fontSize: 9,
-    fontWeight: '700',
-    lineHeight: 12,
-    textAlign: 'center',
-  },
-  flaggedItem: {
-    backgroundColor: 'rgba(255, 68, 68, 0.1)',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 68, 68, 0.2)',
-  },
-  flaggedName: {
-    color: '#ffffff',
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  flaggedDetail: {
-    color: '#94a3b8',
-    fontSize: 9,
-    fontWeight: '600',
-    marginTop: 2,
-  },
-  highestPenaltyItem: {
-    borderColor: '#ffc61c',
-    borderWidth: 1.5,
-    backgroundColor: 'rgba(255, 198, 28, 0.05)',
-  },
-  highestBadge: {
-    backgroundColor: '#ffc61c',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginLeft: 8,
-  },
-  highestBadgeText: {
-    color: '#1b264a',
-    fontSize: 7,
-    fontWeight: '900',
-  },
-  penaltySummary: {
-    marginTop: 4,
-    paddingTop: 4,
-    borderTopWidth: 0.5,
-    borderTopColor: 'rgba(255,255,255,0.1)',
-  },
-  penaltySummaryText: {
-    color: '#94a3b8',
-    fontSize: 8,
-    fontWeight: '500',
-    marginBottom: 1,
-  },
+    sidebar: {
+        width: Platform.OS === 'web' ? 'min(280px, 85%)' : 280,
+        backgroundColor: '#1b264a',
+        height: Platform.OS === 'web' ? '100vh' : '100%',
+        borderRightWidth: 1,
+        borderRightColor: '#2d3a5e',
+    },
+    sidebarTop: {
+        flex: 1,
+    },
+    sidebarBrandContainer: {
+        marginBottom: 10,
+        backgroundColor: '#ffffff',
+        padding: 8,
+        borderRadius: 8,
+    },
+    sidebarLogo: {
+        width: 120,
+        height: 30,
+    },
+    sidebarDivider: {
+        height: 1,
+        backgroundColor: '#2d3a5e',
+        width: '100%',
+        marginVertical: 30,
+    },
+    sidebarNav: {
+        gap: 8,
+    },
+    navLabelContainer: {
+        marginTop: 20,
+        marginBottom: 8,
+        paddingHorizontal: 16,
+    },
+    navLabel: {
+        color: '#475569',
+        fontSize: 10,
+        fontWeight: '900',
+        letterSpacing: 1.5,
+    },
+    sidebarItem: {
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        borderRadius: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    sidebarItemActive: {
+        backgroundColor: '#ffc61c',
+    },
+    sidebarItemText: {
+        color: '#94a3b8',
+        fontSize: 12,
+        fontWeight: '800',
+        letterSpacing: 0.5,
+    },
+    sidebarItemTextActive: {
+        color: '#1b264a',
+        fontSize: 12,
+        fontWeight: '900',
+        letterSpacing: 0.5,
+    },
+    badge: {
+        backgroundColor: '#ff4444',
+        minWidth: 18,
+        height: 18,
+        borderRadius: 9,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 4,
+    },
+    badgeText: {
+        color: '#ffffff',
+        fontSize: 10,
+        fontWeight: '900',
+    },
+    sidebarBottom: {
+        paddingTop: 40,
+        borderTopWidth: 1,
+        borderTopColor: '#2d3a5e',
+    },
+    sidebarLogout: {
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        paddingVertical: 14,
+        borderRadius: 12,
+        alignItems: 'center',
+        flexDirection: 'row',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+    },
+    sidebarLogoutText: {
+        fontSize: 10,
+        fontWeight: '800',
+        letterSpacing: 2,
+    },
+    sidebarDownload: {
+        backgroundColor: 'rgba(255, 198, 28, 0.1)',
+        paddingVertical: 14,
+        borderRadius: 12,
+        alignItems: 'center',
+        flexDirection: 'row',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 198, 28, 0.2)',
+        marginBottom: 12,
+    },
+    sidebarDownloadText: {
+        color: '#ffc61c',
+        fontSize: 10,
+        fontWeight: '900',
+        letterSpacing: 1.5,
+    },
+    tooltip: {
+        position: 'absolute',
+        left: 40,
+        top: 45,
+        backgroundColor: '#0f172a',
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 6,
+        zIndex: 1000,
+        width: 200,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 20,
+    },
+    tooltipArrow: {
+        position: 'absolute',
+        left: 20,
+        top: -6,
+        width: 0,
+        height: 0,
+        backgroundColor: 'transparent',
+        borderStyle: 'solid',
+        borderTopWidth: 0,
+        borderRightWidth: 6,
+        borderBottomWidth: 6,
+        borderLeftWidth: 6,
+        borderTopColor: 'transparent',
+        borderRightColor: 'transparent',
+        borderBottomColor: '#0f172a',
+        borderLeftColor: 'transparent',
+    },
+    tooltipText: {
+        color: '#ffffff',
+        fontSize: 9,
+        fontWeight: '700',
+        lineHeight: 12,
+        textAlign: 'center',
+    },
+    flaggedItem: {
+        backgroundColor: 'rgba(255, 68, 68, 0.1)',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 6,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 68, 68, 0.2)',
+    },
+    flaggedName: {
+        color: '#ffffff',
+        fontSize: 11,
+        fontWeight: '800',
+    },
+    flaggedDetail: {
+        color: '#94a3b8',
+        fontSize: 9,
+        fontWeight: '600',
+        marginTop: 2,
+    },
+    highestPenaltyItem: {
+        borderColor: '#ffc61c',
+        borderWidth: 1.5,
+        backgroundColor: 'rgba(255, 198, 28, 0.05)',
+    },
+    highestBadge: {
+        backgroundColor: '#ffc61c',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 4,
+        marginLeft: 8,
+    },
+    highestBadgeText: {
+        color: '#1b264a',
+        fontSize: 7,
+        fontWeight: '900',
+    },
+    penaltySummary: {
+        marginTop: 4,
+        paddingTop: 4,
+        borderTopWidth: 0.5,
+        borderTopColor: 'rgba(255,255,255,0.1)',
+    },
+    penaltySummaryText: {
+        color: '#94a3b8',
+        fontSize: 8,
+        fontWeight: '500',
+        marginBottom: 1,
+    },
 });
 
 export default Sidebar;

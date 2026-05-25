@@ -137,6 +137,20 @@ const AdminAttendanceScreen = ({ navigation }) => {
         return isNaN(d.getTime()) ? 'N/A' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     };
 
+    const getFullImageUrl = (path) => {
+        if (!path) return null;
+        let cleanPath = path.toString().trim().replace(/\\/g, '/');
+        const uploadsIndex = cleanPath.indexOf('uploads/');
+        if (uploadsIndex !== -1) {
+            cleanPath = cleanPath.substring(uploadsIndex);
+        } else {
+            const filename = cleanPath.split('/').pop();
+            cleanPath = `uploads/${filename}`;
+        }
+        const encodedPath = cleanPath.split('/').map(segment => encodeURIComponent(segment)).join('/');
+        return `${BASE_URL}/${encodedPath}`;
+    };
+
     const handleAction = async (id, status) => {
         try {
             await api.put(`/attendance/${id}/action`, { status });
@@ -195,6 +209,11 @@ const AdminAttendanceScreen = ({ navigation }) => {
                                     <Ionicons name="menu" size={24} color="#1b264a" />
                                 </TouchableOpacity>
                             )}
+                            <Image 
+                                source={require('../../assets/Madhura Energy Logo-03 - Copy.svg')} 
+                                style={styles.dashLogo} 
+                                resizeMode="contain" 
+                            />
                             <View>
                                 <Text allowFontScaling={false} style={styles.headerLabel}>ADMIN</Text>
                                 <Text allowFontScaling={false} style={styles.headerTitle}>Attendance Review</Text>
@@ -297,7 +316,7 @@ const AdminAttendanceScreen = ({ navigation }) => {
                                 ? `https://www.google.com/maps?q=${record.locationLat},${record.locationLng}`
                                 : null;
                             const isWaiting = record.status === 'Waiting';
-                            const photoUrl = record.photoUrl ? `${BASE_URL}/${record.photoUrl}` : null;
+                            const photoUrl = record.photoUrl ? getFullImageUrl(record.photoUrl) : null;
                             const checkInTimeStr = formatTime(record.timestamp || record.checkInTime);
 
                             return (
@@ -502,6 +521,13 @@ const styles = StyleSheet.create({
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
     headerLabel: { fontSize: 10, fontWeight: '800', color: '#94a3b8', letterSpacing: 1 },
     headerTitle: { fontSize: 24, fontWeight: 'bold', color: '#0f172a' },
+    dashLogo: {
+        width: 60,
+        height: 30,
+        borderRadius: 6,
+        backgroundColor: '#ffffff',
+        padding: 2,
+    },
     mobileMenuBtn: { backgroundColor: '#ffffff', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#e2e8f0' },
     pendingBell: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1b264a', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, gap: 6 },
     pendingBellText: { color: '#ffc61c', fontWeight: 'bold', fontSize: 12 },

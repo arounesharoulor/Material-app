@@ -8,23 +8,6 @@ import Constants from 'expo-constants';
 const CLOUD_URL = "https://material-app-zhm4.onrender.com"; 
 
 const getBaseUrl = () => {  
-  if (Platform.OS === 'web') {
-      return 'http://localhost:5005';
-  }
-  
-  if (__DEV__) {
-      try {
-          // Robustly get Expo's development LAN IP Address
-          const hostUri = Constants.expoConfig?.hostUri || Constants.manifest?.debuggerHost || Constants.manifest2?.extra?.expoGo?.debuggerHost;
-          if (hostUri) {
-              const lanIp = hostUri.split(':')[0];
-              return `http://${lanIp}:5005`;
-          }
-      } catch (err) {
-          console.error("Failed to parse Expo LAN IP, falling back to Cloud");
-      }
-  }
-  
   return CLOUD_URL;
 };
 

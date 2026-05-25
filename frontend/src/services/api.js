@@ -7,14 +7,17 @@ import Constants from 'expo-constants';
 const CLOUD_URL = "https://material-app-zhm4.onrender.com"; 
 
 const getBaseUrl = () => {  
-  if (Platform.OS === 'web') {
+  if (__DEV__) {
+    if (Platform.OS === 'web') {
+      return 'http://localhost:5005';
+    }
+    const hostUri = Constants?.expoConfig?.hostUri;
+    if (hostUri) {
+      return `http://${hostUri.split(':')[0]}:5005`;
+    }
     return 'http://localhost:5005';
   }
-  const hostUri = Constants?.expoConfig?.hostUri;
-  if (hostUri) {
-    return `http://${hostUri.split(':')[0]}:5005`;
-  }
-  return 'http://localhost:5005';
+  return CLOUD_URL;
 };
 
 export const BASE_URL = getBaseUrl();

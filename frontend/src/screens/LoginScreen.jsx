@@ -1,8 +1,20 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Alert, ScrollView, Platform, StyleSheet, KeyboardAvoidingView, Keyboard, Linking, useWindowDimensions, Image } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Svg, { Line, Path, Polyline } from 'react-native-svg';
 import tw from 'twrnc';
 import { AuthContext } from '../context/AuthContext';
+
+import { Ionicons } from '@expo/vector-icons';
+
+const LoginSvgIcon = ({ name, size = 20, color = '#1b264a' }) => {
+  return (
+    <Ionicons 
+        name={name === 'cloud-download' ? 'cloud-download-outline' : 'refresh-outline'} 
+        size={size} 
+        color={color} 
+    />
+  );
+};
 
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
@@ -104,7 +116,7 @@ const LoginScreen = ({ navigation }) => {
                             activeOpacity={0.7}
                         >
                             <View style={styles.downloadIconWrapper}>
-                                <Ionicons name="cloud-download" size={18} color="#1b264a" />
+                                <LoginSvgIcon name="cloud-download" size={18} color="#1b264a" />
                             </View>
                             <View>
                                 <Text style={styles.downloadBadgeLabel}>AVAILABLE FOR MOBILE</Text>
@@ -159,7 +171,7 @@ const LoginScreen = ({ navigation }) => {
                                   <Text allowFontScaling={false} style={styles.captchaText}>{captchaCode}</Text>
                               </View>
                                <TouchableOpacity onPress={generateCaptcha} style={styles.refreshBtn}>
-                                  <Ionicons name="refresh" size={24} color="#1b264a" />
+                                  <LoginSvgIcon name="refresh" size={24} color="#1b264a" />
                                </TouchableOpacity>
                           </View>
                           <TextInput 
@@ -428,4 +440,3 @@ const styles = StyleSheet.create({
 });
 
 export default LoginScreen;
-

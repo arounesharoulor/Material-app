@@ -1,11 +1,38 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Animated, Platform, StyleSheet, Linking, useWindowDimensions, Image } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Svg, { Circle, Line, Path, Polyline, Rect } from 'react-native-svg';
 import api, { BASE_URL } from '../services/api';
 import io from 'socket.io-client';
 import Toast from 'react-native-toast-message';
 import { Audio } from 'expo-av';
 import { AuthContext } from '../context/AuthContext';
+
+import { Ionicons } from '@expo/vector-icons';
+
+const SidebarSvgIcon = ({ name, size = 18, color = '#94a3b8', style }) => {
+    const iconMap = {
+        'grid': 'grid-outline',
+        'person': 'person-outline',
+        'calendar': 'calendar-outline',
+        'cube': 'cube-outline',
+        'bar-chart': 'bar-chart-outline',
+        'list': 'list-outline',
+        'checkmark-circle': 'checkmark-circle-outline',
+        'close-circle': 'close-circle-outline',
+        'alert-circle': 'alert-circle-outline',
+        'close': 'close-outline',
+        'cloud-download': 'cloud-download-outline',
+        'log-out': 'log-out-outline'
+    };
+    return (
+        <Ionicons 
+            name={iconMap[name] || 'grid-outline'} 
+            size={size} 
+            color={color} 
+            style={style} 
+        />
+    );
+};
 
 const SidebarItem = ({ label, iconName, targetScreen, isActive, badgeCount = 0, navigation, toggleSidebar, user }) => {
     const [isHovered, setIsHovered] = useState(false);
@@ -24,8 +51,8 @@ const SidebarItem = ({ label, iconName, targetScreen, isActive, badgeCount = 0, 
             onMouseLeave={() => Platform.OS === 'web' && setIsHovered(false)}
         >
             <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                <Ionicons
-                    name={isActive ? iconName : iconName + "-outline"}
+                <SidebarSvgIcon
+                    name={iconName}
                     size={18}
                     color={isActive ? "#1b264a" : "#94a3b8"}
                     style={{ marginRight: 12 }}
@@ -142,7 +169,7 @@ const Sidebar = ({
         } catch (err) {
             console.log(`[SIDEBAR] Failed to fetch counts from ${BASE_URL}/api/requests:`, err.message);
             if (err.message === 'Network Error') {
-                console.log('[DEBUG] This usually means the IP in api.js is wrong or Firewall is blocking port 5000');
+                console.log('[DEBUG] This usually means the IP in api.js is wrong or Firewall is blocking port 5005');
             }
         }
     };
@@ -325,7 +352,7 @@ const Sidebar = ({
                         </View>
                         {(Platform.OS !== 'web' || isMobile) && (
                             <TouchableOpacity onPress={toggleSidebar} style={{ padding: 10 }}>
-                                <Ionicons name="close" size={24} color="#ffc61c" />
+                                <SidebarSvgIcon name="close" size={24} color="#ffc61c" />
                             </TouchableOpacity>
                         )}
                     </View>
@@ -461,13 +488,13 @@ const Sidebar = ({
                             }}
                             activeOpacity={0.7}
                         >
-                            <Ionicons name="cloud-download" size={18} color="#ffc61c" style={{ marginRight: 10 }} />
+                            <SidebarSvgIcon name="cloud-download" size={18} color="#ffc61c" style={{ marginRight: 10 }} />
                             <Text allowFontScaling={false} style={styles.sidebarDownloadText}>GET MOBILE APP</Text>
                         </TouchableOpacity>
                     )}
 
                     <TouchableOpacity style={styles.sidebarLogout} onPress={logout}>
-                        <Ionicons name="log-out-outline" size={18} color="#ffffff" style={{ marginRight: 10 }} />
+                        <SidebarSvgIcon name="log-out" size={18} color="#ffffff" style={{ marginRight: 10 }} />
                         <Text allowFontScaling={false} style={styles.sidebarLogoutText}>LOGOUT</Text>
                     </TouchableOpacity>
                 </View>

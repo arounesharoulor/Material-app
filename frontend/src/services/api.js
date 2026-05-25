@@ -4,11 +4,17 @@ import { NativeModules, Platform } from 'react-native';
 
 import Constants from 'expo-constants';
 
-// 1. PRODUCTION CLOUD URL (Fallback)
 const CLOUD_URL = "https://material-app-zhm4.onrender.com"; 
 
 const getBaseUrl = () => {  
-  return CLOUD_URL;
+  if (Platform.OS === 'web') {
+    return 'http://localhost:5005';
+  }
+  const hostUri = Constants?.expoConfig?.hostUri;
+  if (hostUri) {
+    return `http://${hostUri.split(':')[0]}:5005`;
+  }
+  return 'http://localhost:5005';
 };
 
 export const BASE_URL = getBaseUrl();

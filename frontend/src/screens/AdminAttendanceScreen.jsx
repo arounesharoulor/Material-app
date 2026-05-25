@@ -4,12 +4,139 @@ import {
     View, Text, TouchableOpacity, ScrollView, Platform, StyleSheet,
     ActivityIndicator, Animated, useWindowDimensions, Linking, Image, Modal
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Svg, { Circle, Line, Path, Polyline, Rect } from 'react-native-svg';
 import api, { BASE_URL } from '../services/api';
 import { AuthContext } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
 import Toast from 'react-native-toast-message';
 import io from 'socket.io-client';
+
+const AdminSvgIcon = ({ name, size = 18, color = '#64748b', style }) => {
+    const strokeProps = {
+        stroke: color,
+        strokeWidth: 2,
+        strokeLinecap: 'round',
+        strokeLinejoin: 'round',
+        fill: 'none',
+    };
+
+    const icons = {
+        menu: (
+            <>
+                <Line x1="4" y1="7" x2="20" y2="7" {...strokeProps} />
+                <Line x1="4" y1="12" x2="20" y2="12" {...strokeProps} />
+                <Line x1="4" y1="17" x2="20" y2="17" {...strokeProps} />
+            </>
+        ),
+        notifications: (
+            <>
+                <Path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" {...strokeProps} />
+                <Path d="M10 21h4" {...strokeProps} />
+            </>
+        ),
+        time: (
+            <>
+                <Circle cx="12" cy="12" r="9" {...strokeProps} />
+                <Polyline points="12 7 12 12 15 14" {...strokeProps} />
+            </>
+        ),
+        'log-out': (
+            <>
+                <Path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" {...strokeProps} />
+                <Line x1="16" y1="17" x2="21" y2="12" {...strokeProps} />
+                <Line x1="21" y1="12" x2="16" y2="7" {...strokeProps} />
+                <Line x1="21" y1="12" x2="9" y2="12" {...strokeProps} />
+            </>
+        ),
+        'calendar-outline': (
+            <>
+                <Rect x="3" y="5" width="18" height="16" rx="2" {...strokeProps} />
+                <Line x1="8" y1="3" x2="8" y2="7" {...strokeProps} />
+                <Line x1="16" y1="3" x2="16" y2="7" {...strokeProps} />
+                <Line x1="3" y1="10" x2="21" y2="10" {...strokeProps} />
+            </>
+        ),
+        'document-text-outline': (
+            <>
+                <Path d="M7 3h7l5 5v13H7z" {...strokeProps} />
+                <Path d="M14 3v5h5" {...strokeProps} />
+                <Line x1="10" y1="13" x2="16" y2="13" {...strokeProps} />
+                <Line x1="10" y1="17" x2="16" y2="17" {...strokeProps} />
+            </>
+        ),
+        'documents-outline': (
+            <>
+                <Path d="M7 7V3h10l4 4v12h-4" {...strokeProps} />
+                <Path d="M3 7h10l4 4v10H3z" {...strokeProps} />
+                <Path d="M13 7v4h4" {...strokeProps} />
+            </>
+        ),
+        'document-text': (
+            <>
+                <Path d="M6 3h9l3 3v15H6z" {...strokeProps} />
+                <Line x1="9" y1="12" x2="15" y2="12" {...strokeProps} />
+                <Line x1="9" y1="16" x2="15" y2="16" {...strokeProps} />
+            </>
+        ),
+        person: (
+            <>
+                <Circle cx="12" cy="8" r="4" {...strokeProps} />
+                <Path d="M4 21c1.5-4 4.2-6 8-6s6.5 2 8 6" {...strokeProps} />
+            </>
+        ),
+        eye: (
+            <>
+                <Path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" {...strokeProps} />
+                <Circle cx="12" cy="12" r="3" {...strokeProps} />
+            </>
+        ),
+        'image-outline': (
+            <>
+                <Rect x="3" y="5" width="18" height="14" rx="2" {...strokeProps} />
+                <Circle cx="8" cy="10" r="1.5" {...strokeProps} />
+                <Polyline points="5 17 10 12 13 15 15 13 19 17" {...strokeProps} />
+            </>
+        ),
+        location: (
+            <>
+                <Path d="M12 21s7-5.6 7-12A7 7 0 0 0 5 9c0 6.4 7 12 7 12Z" {...strokeProps} />
+                <Circle cx="12" cy="9" r="2.5" {...strokeProps} />
+            </>
+        ),
+        'chevron-forward': <Polyline points="9 18 15 12 9 6" {...strokeProps} />,
+        'checkmark-circle': (
+            <>
+                <Circle cx="12" cy="12" r="9" {...strokeProps} />
+                <Polyline points="8 12.5 11 15.5 16.5 9" {...strokeProps} />
+            </>
+        ),
+        'close-circle': (
+            <>
+                <Circle cx="12" cy="12" r="9" {...strokeProps} />
+                <Line x1="9" y1="9" x2="15" y2="15" {...strokeProps} />
+                <Line x1="15" y1="9" x2="9" y2="15" {...strokeProps} />
+            </>
+        ),
+        'arrow-forward': (
+            <>
+                <Line x1="5" y1="12" x2="19" y2="12" {...strokeProps} />
+                <Polyline points="13 6 19 12 13 18" {...strokeProps} />
+            </>
+        ),
+        'shield-checkmark': (
+            <>
+                <Path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" {...strokeProps} />
+                <Polyline points="8.5 12 11 14.5 16 9.5" {...strokeProps} />
+            </>
+        ),
+    };
+
+    return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" style={style}>
+            {icons[name] || icons.person}
+        </Svg>
+    );
+};
 
 const AdminAttendanceScreen = ({ navigation }) => {
     const { user } = useContext(AuthContext);
@@ -152,22 +279,28 @@ const AdminAttendanceScreen = ({ navigation }) => {
     };
 
     const handleAction = async (id, status) => {
+        // Optimistic update — instantly reflect in UI before API responds
+        setAttendance(prev => prev.map(a => a._id === id ? { ...a, status } : a));
         try {
             await api.put(`/attendance/${id}/action`, { status });
             Toast.show({ type: 'success', text1: `✅ ${status}`, text2: `Attendance has been ${status.toLowerCase()}.` });
-            fetchAttendance();
+            fetchAttendance(); // Sync with server
         } catch (err) {
             Toast.show({ type: 'error', text1: 'Error', text2: 'Could not update status' });
+            fetchAttendance(); // Revert on error
         }
     };
 
     const handleCloseDay = async (id) => {
+        // Optimistic update — instantly reflect in UI
+        setAttendance(prev => prev.map(a => a._id === id ? { ...a, checkOutStatus: 'ClosedApproved' } : a));
         try {
             await api.put(`/attendance/${id}/close`);
             Toast.show({ type: 'success', text1: '✅ Closed', text2: 'Daily attendance has been closed and approved.' });
             fetchAttendance();
         } catch (err) {
             Toast.show({ type: 'error', text1: 'Error', text2: 'Could not close day' });
+            fetchAttendance();
         }
     };
 
@@ -206,11 +339,11 @@ const AdminAttendanceScreen = ({ navigation }) => {
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                             {(Platform.OS !== 'web' || isMobile) && (
                                 <TouchableOpacity onPress={toggleSidebar} style={styles.mobileMenuBtn}>
-                                    <Ionicons name="menu" size={24} color="#1b264a" />
+                                    <AdminSvgIcon name="menu" size={24} color="#1b264a" />
                                 </TouchableOpacity>
                             )}
-                            <Image 
-                                source={require('../../assets/Madhura Energy Logo-03 - Copy.svg')} 
+                            <Image
+                                source={Platform.OS === 'web' ? { uri: '/assets/logo.png' } : require('../../assets/logo.png')}
                                 style={styles.dashLogo} 
                                 resizeMode="contain" 
                             />
@@ -222,19 +355,19 @@ const AdminAttendanceScreen = ({ navigation }) => {
                         <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
                             {pendingCount > 0 && (
                                 <View style={styles.pendingBell}>
-                                    <Ionicons name="notifications" size={16} color="#ffc61c" />
+                                    <AdminSvgIcon name="notifications" size={16} color="#ffc61c" />
                                     <Text style={styles.pendingBellText}>{pendingCount} Pending</Text>
                                 </View>
                             )}
                             {waitingCount > 0 && (
                                 <View style={[styles.pendingBell, { backgroundColor: '#f59e0b20', borderWidth: 1, borderColor: '#f59e0b' }]}>
-                                    <Ionicons name="time" size={16} color="#f59e0b" />
+                                    <AdminSvgIcon name="time" size={16} color="#f59e0b" />
                                     <Text style={[styles.pendingBellText, { color: '#f59e0b' }]}>{waitingCount} Waiting</Text>
                                 </View>
                             )}
                             {pendingCloseCount > 0 && (
                                 <View style={[styles.pendingBell, { backgroundColor: '#f59e0b' }]}>
-                                    <Ionicons name="log-out" size={16} color="#fff" />
+                                    <AdminSvgIcon name="log-out" size={16} color="#fff" />
                                     <Text style={[styles.pendingBellText, { color: '#fff' }]}>{pendingCloseCount} Closing</Text>
                                 </View>
                             )}
@@ -267,7 +400,7 @@ const AdminAttendanceScreen = ({ navigation }) => {
                             style={[styles.tabButton, activeTab === 'attendance' && styles.tabButtonActive]}
                             onPress={() => setActiveTab('attendance')}
                         >
-                            <Ionicons name="calendar-outline" size={18} color={activeTab === 'attendance' ? '#ffc61c' : '#64748b'} />
+                            <AdminSvgIcon name="calendar-outline" size={18} color={activeTab === 'attendance' ? '#ffc61c' : '#64748b'} />
                             <Text style={[styles.tabButtonText, activeTab === 'attendance' && styles.tabButtonTextActive]}>
                                 Attendance
                             </Text>
@@ -276,7 +409,7 @@ const AdminAttendanceScreen = ({ navigation }) => {
                             style={[styles.tabButton, activeTab === 'leave' && styles.tabButtonActive]}
                             onPress={() => setActiveTab('leave')}
                         >
-                            <Ionicons name="document-text-outline" size={18} color={activeTab === 'leave' ? '#ffc61c' : '#64748b'} />
+                            <AdminSvgIcon name="document-text-outline" size={18} color={activeTab === 'leave' ? '#ffc61c' : '#64748b'} />
                             <Text style={[styles.tabButtonText, activeTab === 'leave' && styles.tabButtonTextActive]}>
                                 Leave Requests
                             </Text>
@@ -306,7 +439,7 @@ const AdminAttendanceScreen = ({ navigation }) => {
                         <ActivityIndicator size="large" color="#1b264a" />
                     ) : filtered.length === 0 ? (
                         <View style={styles.emptyContainer}>
-                            <Ionicons name="documents-outline" size={48} color="#e2e8f0" />
+                            <AdminSvgIcon name="documents-outline" size={48} color="#e2e8f0" />
                             <Text style={styles.emptyText}>No {filter !== 'All' ? filter.toLowerCase() : ''} records found.</Text>
                         </View>
                     ) : (
@@ -321,26 +454,41 @@ const AdminAttendanceScreen = ({ navigation }) => {
 
                             return (
                                 <View key={record._id} style={[styles.recordItem, isWaiting && styles.recordItemWaiting]}>
+                                    {/* ── Card Header ── */}
                                     <View style={styles.recordHeader}>
-                                        <View style={[styles.typeBadge, record.type === 'Leave' ? styles.badgeLeave : styles.badgePresent]}>
-                                            <Ionicons name={record.type === 'Leave' ? 'document-text' : 'person'} size={12} color="#fff" />
-                                            <Text style={styles.badgeText}>{record.type}</Text>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                            <View style={[styles.typeBadge, record.type === 'Leave' ? styles.badgeLeave : styles.badgePresent]}>
+                                                <AdminSvgIcon name={record.type === 'Leave' ? 'document-text' : 'person'} size={12} color="#fff" />
+                                                <Text style={styles.badgeText}>{record.type}</Text>
+                                            </View>
+                                            {isWaiting && (
+                                                <View style={styles.waitingTagBadge}>
+                                                    <Text style={styles.waitingTagText}>⏳ NO PHOTO</Text>
+                                                </View>
+                                            )}
                                         </View>
                                         <Text style={styles.recordDateText}>{record.date}</Text>
                                     </View>
 
+                                    {/* ── Employee Info Row ── */}
                                     <View style={styles.recordContent}>
                                         <View style={styles.userInfoRow}>
                                             <View style={styles.avatarPlaceholder}>
-                                                <Text style={styles.avatarInitials}>{record.user?.name?.charAt(0) || 'E'}</Text>
+                                                <Text style={styles.avatarInitials}>{record.user?.name?.charAt(0)?.toUpperCase() || 'E'}</Text>
                                             </View>
                                             <View style={{ flex: 1 }}>
                                                 <Text style={styles.recordName}>{record.user?.name}</Text>
-                                                <Text style={styles.recordEmployeeId}>ID: {record.user?.employeeId}</Text>
+                                                <Text style={styles.recordEmployeeId}>Employee ID: {record.user?.employeeId}</Text>
                                             </View>
                                             <View style={styles.timeInfo}>
                                                 <Text style={styles.timeLabel}>CHECK-IN</Text>
                                                 <Text style={styles.timeValue}>{checkInTimeStr}</Text>
+                                                {record.checkOutTime && (
+                                                    <>
+                                                        <Text style={[styles.timeLabel, { marginTop: 6 }]}>CHECK-OUT</Text>
+                                                        <Text style={[styles.timeValue, { color: '#10b981' }]}>{formatTime(record.checkOutTime)}</Text>
+                                                    </>
+                                                )}
                                             </View>
                                         </View>
 
@@ -351,127 +499,131 @@ const AdminAttendanceScreen = ({ navigation }) => {
                                             </View>
                                         ) : null}
 
-                                        <View style={styles.evidenceGrid}>
-                                            {photoUrl ? (
-                                                <TouchableOpacity 
-                                                    onPress={() => setSelectedPhoto(photoUrl)}
-                                                    style={styles.evidencePhotoCard}
-                                                >
-                                                    <Image source={{ uri: photoUrl }} style={styles.evidenceImage} />
-                                                    <View style={styles.evidenceOverlay}>
-                                                        <Ionicons name="eye" size={16} color="#fff" />
-                                                        <Text style={styles.evidenceOverlayText}>PHOTO EVIDENCE</Text>
-                                                    </View>
-                                                </TouchableOpacity>
-                                            ) : record.type === 'Present' ? (
-                                                <View style={[styles.evidencePhotoCard, { backgroundColor: '#fff7ed', borderWidth: 1, borderStyle: 'dashed', borderColor: '#f59e0b' }]}>
-                                                    <Ionicons name="image-outline" size={24} color="#f59e0b" style={{ opacity: 0.5 }} />
-                                                    <Text style={{ fontSize: 10, color: '#f59e0b', fontWeight: 'bold', marginTop: 4 }}>NO PHOTO</Text>
-                                                </View>
-                                            ) : null}
-
-                                            <View style={styles.locationCol}>
-                                                {/* Mini Map Preview for Web */}
-                                                {Platform.OS === 'web' && hasLocation && (
-                                                    <View style={styles.miniMapContainer}>
-                                                        <iframe
-                                                            width="100%"
-                                                            height="120"
-                                                            frameBorder="0"
-                                                            style={{ border: 0, borderRadius: 10 }}
-                                                            src={`https://www.google.com/maps/embed/v1/view?key=YOUR_API_KEY_HERE&center=${record.locationLat},${record.locationLng}&zoom=16`}
-                                                            // Fallback to non-API embed if no key (using place search)
-                                                            srcDoc={`
-                                                                <style>body{margin:0;overflow:hidden;}</style>
-                                                                <iframe 
-                                                                    width="100%" 
-                                                                    height="120" 
-                                                                    frameborder="0" 
-                                                                    style="border:0;" 
-                                                                    src="https://maps.google.com/maps?q=${record.locationLat},${record.locationLng}&z=16&output=embed" 
-                                                                    allowfullscreen>
-                                                                </iframe>
-                                                            `}
+                                        {/* ── Evidence Grid: Photo + Map ── */}
+                                        <View style={[styles.evidenceGrid, Platform.OS === 'web' && { flexDirection: 'row', gap: 12 }]}>
+                                            {/* Photo Panel */}
+                                            <View style={[styles.evidencePanelBox, Platform.OS === 'web' && { flex: 1 }]}>
+                                                <Text style={styles.evidencePanelLabel}>📷 PHOTO EVIDENCE</Text>
+                                                {photoUrl ? (
+                                                    <TouchableOpacity
+                                                        onPress={() => setSelectedPhoto(photoUrl)}
+                                                        style={styles.photoThumbnailWrap}
+                                                        activeOpacity={0.85}
+                                                    >
+                                                        <Image
+                                                            source={{ uri: photoUrl }}
+                                                            style={styles.photoThumbnail}
+                                                            resizeMode="cover"
                                                         />
+                                                        <View style={styles.photoOverlay}>
+                                                            <AdminSvgIcon name="eye" size={20} color="#fff" />
+                                                            <Text style={styles.photoOverlayText}>Click to expand</Text>
+                                                        </View>
+                                                    </TouchableOpacity>
+                                                ) : (
+                                                    <View style={styles.noPhotoBox}>
+                                                        <AdminSvgIcon name="image-outline" size={32} color="#cbd5e1" />
+                                                        <Text style={styles.noPhotoText}>No Photo Submitted</Text>
+                                                        <Text style={styles.noPhotoSub}>Waiting for Admin review</Text>
                                                     </View>
                                                 )}
+                                            </View>
 
-                                                <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-                                                    {hasLocation && (
+                                            {/* Map Panel */}
+                                            {hasLocation && (
+                                                <View style={[styles.evidencePanelBox, Platform.OS === 'web' && { flex: 1 }]}>
+                                                    <Text style={styles.evidencePanelLabel}>📍 CHECK-IN LOCATION</Text>
+                                                    {Platform.OS === 'web' ? (
+                                                        <View style={styles.mapEmbedWrap}>
+                                                            <iframe
+                                                                title={`map-${record._id}`}
+                                                                width="100%"
+                                                                height="160"
+                                                                frameBorder="0"
+                                                                scrolling="no"
+                                                                style={{ border: 0, borderRadius: 10, display: 'block' }}
+                                                                src={`https://www.openstreetmap.org/export/embed.html?bbox=${record.locationLng - 0.005},${record.locationLat - 0.005},${record.locationLng + 0.005},${record.locationLat + 0.005}&layer=mapnik&marker=${record.locationLat},${record.locationLng}`}
+                                                            />
+                                                            <TouchableOpacity
+                                                                onPress={() => mapsUrl && Linking.openURL(mapsUrl)}
+                                                                style={styles.mapOpenBtn}
+                                                            >
+                                                                <AdminSvgIcon name="location" size={13} color="#3b82f6" />
+                                                                <Text style={styles.mapOpenBtnText}>Open in Google Maps</Text>
+                                                                <AdminSvgIcon name="chevron-forward" size={12} color="#3b82f6" />
+                                                            </TouchableOpacity>
+                                                            {record.checkOutLat && record.checkOutLng && (
+                                                                <TouchableOpacity
+                                                                    onPress={() => Linking.openURL(`https://www.google.com/maps?q=${record.checkOutLat},${record.checkOutLng}`)}
+                                                                    style={[styles.mapOpenBtn, { borderColor: '#fbcfe8', backgroundColor: '#fdf2f8', marginTop: 4 }]}
+                                                                >
+                                                                    <AdminSvgIcon name="log-out" size={13} color="#db2777" />
+                                                                    <Text style={[styles.mapOpenBtnText, { color: '#db2777' }]}>Check-Out Location</Text>
+                                                                    <AdminSvgIcon name="chevron-forward" size={12} color="#db2777" />
+                                                                </TouchableOpacity>
+                                                            )}
+                                                        </View>
+                                                    ) : (
                                                         <TouchableOpacity
                                                             onPress={() => mapsUrl && Linking.openURL(mapsUrl)}
                                                             style={styles.locationLink}
                                                         >
-                                                            <Ionicons name="location" size={14} color="#3b82f6" />
-                                                            <Text style={styles.locationLinkText}>Full Map</Text>
-                                                            <Ionicons name="chevron-forward" size={12} color="#3b82f6" />
-                                                        </TouchableOpacity>
-                                                    )}
-
-                                                    {record.checkOutLat && record.checkOutLng && (
-                                                        <TouchableOpacity
-                                                            onPress={() => Linking.openURL(`https://www.google.com/maps?q=${record.checkOutLat},${record.checkOutLng}`)}
-                                                            style={[styles.locationLink, { borderColor: '#fbcfe8', backgroundColor: '#fdf2f8' }]}
-                                                        >
-                                                            <Ionicons name="log-out" size={14} color="#db2777" />
-                                                            <Text style={[styles.locationLinkText, { color: '#db2777' }]}>Out Map</Text>
+                                                            <AdminSvgIcon name="location" size={14} color="#3b82f6" />
+                                                            <Text style={styles.locationLinkText}>View on Map</Text>
+                                                            <AdminSvgIcon name="chevron-forward" size={12} color="#3b82f6" />
                                                         </TouchableOpacity>
                                                     )}
                                                 </View>
-                                                
-                                                {record.checkOutTime && (
-                                                    <View style={styles.checkoutBadge}>
-                                                        <Ionicons name="time" size={12} color="#10b981" />
-                                                        <Text style={styles.checkoutBadgeText}>OUT: {formatTime(record.checkOutTime)}</Text>
-                                                    </View>
-                                                )}
-                                            </View>
+                                            )}
                                         </View>
                                     </View>
 
+                                    {/* ── Footer Actions ── */}
                                     <View style={styles.recordFooter}>
                                         {(record.status === 'Pending' || isWaiting) ? (
                                             <View style={styles.actionGroup}>
-                                                <TouchableOpacity 
-                                                    style={[styles.footerActionBtn, { backgroundColor: '#fee2e2' }]} 
+                                                <TouchableOpacity
+                                                    style={[styles.footerActionBtn, { backgroundColor: '#fee2e2', borderWidth: 1, borderColor: '#fca5a5' }]}
                                                     onPress={() => handleAction(record._id, 'Rejected')}
                                                 >
-                                                    <Text style={{ color: '#ef4444', fontWeight: 'bold', fontSize: 13 }}>REJECT</Text>
+                                                    <AdminSvgIcon name="close-circle" size={14} color="#ef4444" />
+                                                    <Text style={{ color: '#ef4444', fontWeight: 'bold', fontSize: 13, marginLeft: 4 }}>REJECT</Text>
                                                 </TouchableOpacity>
-                                                
+
                                                 {isWaiting && (
-                                                    <TouchableOpacity 
-                                                        style={[styles.footerActionBtn, { backgroundColor: '#fef3c7' }]} 
+                                                    <TouchableOpacity
+                                                        style={[styles.footerActionBtn, { backgroundColor: '#fef3c7', borderWidth: 1, borderColor: '#fcd34d' }]}
                                                         onPress={() => handleAction(record._id, 'Pending')}
                                                     >
                                                         <Text style={{ color: '#d97706', fontWeight: 'bold', fontSize: 13 }}>HOLD</Text>
                                                     </TouchableOpacity>
                                                 )}
 
-                                                <TouchableOpacity 
-                                                    style={[styles.footerActionBtn, { backgroundColor: '#1b264a', flex: 2 }]} 
+                                                <TouchableOpacity
+                                                    style={[styles.footerActionBtn, { backgroundColor: '#1b264a', flex: 2 }]}
                                                     onPress={() => handleAction(record._id, 'Approved')}
                                                 >
-                                                    <Text style={{ color: '#ffc61c', fontWeight: 'bold', fontSize: 13 }}>APPROVE</Text>
+                                                    <AdminSvgIcon name="checkmark-circle" size={14} color="#ffc61c" />
+                                                    <Text style={{ color: '#ffc61c', fontWeight: 'bold', fontSize: 13, marginLeft: 4 }}>APPROVE</Text>
                                                 </TouchableOpacity>
                                             </View>
                                         ) : (
                                             <View style={styles.statusFooter}>
                                                 <View style={[styles.finalStatusBadge, record.status === 'Approved' ? styles.finalApproved : styles.finalRejected]}>
-                                                    <Ionicons name={record.status === 'Approved' ? 'checkmark-circle' : 'close-circle'} size={14} color={record.status === 'Approved' ? '#10b981' : '#ef4444'} />
+                                                    <AdminSvgIcon name={record.status === 'Approved' ? 'checkmark-circle' : 'close-circle'} size={14} color={record.status === 'Approved' ? '#10b981' : '#ef4444'} />
                                                     <Text style={[styles.finalStatusText, { color: record.status === 'Approved' ? '#10b981' : '#ef4444' }]}>{record.status.toUpperCase()}</Text>
                                                 </View>
 
                                                 {record.status === 'Approved' && record.checkOutStatus === 'PendingClose' && (
                                                     <TouchableOpacity style={styles.finalCloseBtn} onPress={() => handleCloseDay(record._id)}>
                                                         <Text style={styles.finalCloseBtnText}>CONFIRM CLOSE DAY</Text>
-                                                        <Ionicons name="arrow-forward" size={14} color="#fff" />
+                                                        <AdminSvgIcon name="arrow-forward" size={14} color="#fff" />
                                                     </TouchableOpacity>
                                                 )}
 
                                                 {record.checkOutStatus === 'ClosedApproved' && (
                                                     <View style={styles.completeBadge}>
-                                                        <Ionicons name="shield-checkmark" size={14} color="#64748b" />
+                                                        <AdminSvgIcon name="shield-checkmark" size={14} color="#64748b" />
                                                         <Text style={styles.completeBadgeText}>VISIT COMPLETED</Text>
                                                     </View>
                                                 )}
@@ -480,6 +632,7 @@ const AdminAttendanceScreen = ({ navigation }) => {
                                     </View>
                                 </View>
                             );
+
                         })
                     )}
                 </ScrollView>
@@ -499,7 +652,7 @@ const AdminAttendanceScreen = ({ navigation }) => {
                 >
                     <View style={styles.modalContent}>
                         <TouchableOpacity style={styles.closeModal} onPress={() => setSelectedPhoto(null)}>
-                            <Ionicons name="close-circle" size={40} color="#fff" />
+                            <AdminSvgIcon name="close-circle" size={40} color="#fff" />
                         </TouchableOpacity>
                         {selectedPhoto && (
                             <Image 
@@ -569,22 +722,91 @@ const styles = StyleSheet.create({
     reasonLabel: { fontSize: 10, fontWeight: 'bold', color: '#1b264a', marginBottom: 2 },
     reasonValue: { fontSize: 12, color: '#475569', lineHeight: 16 },
 
-    evidenceGrid: { flexDirection: 'row', gap: 12 },
-    evidencePhotoCard: { width: 100, height: 100, borderRadius: 12, overflow: 'hidden', backgroundColor: '#f1f5f9', justifyContent: 'center', alignItems: 'center' },
-    evidenceImage: { width: '100%', height: '100%' },
-    evidenceOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.5)', paddingVertical: 4, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 4 },
-    evidenceOverlayText: { color: '#fff', fontSize: 8, fontWeight: 'bold' },
+    evidenceGrid: { gap: 12, marginTop: 4 },
+    evidencePanelBox: {
+        backgroundColor: '#f8fafc',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        padding: 10,
+        overflow: 'hidden',
+    },
+    evidencePanelLabel: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: '#64748b',
+        letterSpacing: 0.5,
+        marginBottom: 8,
+    },
+    photoThumbnailWrap: {
+        width: '100%',
+        height: 160,
+        borderRadius: 10,
+        overflow: 'hidden',
+        backgroundColor: '#e2e8f0',
+    },
+    photoThumbnail: {
+        width: '100%',
+        height: '100%',
+    },
+    photoOverlay: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: 'rgba(0,0,0,0.45)',
+        paddingVertical: 6,
+        paddingHorizontal: 10,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+    },
+    photoOverlayText: { color: '#fff', fontSize: 11, fontWeight: '600' },
+    noPhotoBox: {
+        width: '100%',
+        height: 160,
+        borderRadius: 10,
+        borderWidth: 1.5,
+        borderStyle: 'dashed',
+        borderColor: '#cbd5e1',
+        backgroundColor: '#f1f5f9',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 6,
+    },
+    noPhotoText: { fontSize: 13, fontWeight: '600', color: '#94a3b8' },
+    noPhotoSub: { fontSize: 10, color: '#cbd5e1' },
+    mapEmbedWrap: { borderRadius: 10, overflow: 'hidden' },
+    mapOpenBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        backgroundColor: '#eff6ff',
+        padding: 8,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#dbeafe',
+        marginTop: 8,
+    },
+    mapOpenBtnText: { fontSize: 11, fontWeight: '700', color: '#1e40af', flex: 1 },
+    waitingTagBadge: {
+        backgroundColor: '#fef3c7',
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 6,
+        borderWidth: 1,
+        borderColor: '#fcd34d',
+    },
+    waitingTagText: { fontSize: 9, fontWeight: '800', color: '#d97706' },
 
     locationCol: { flex: 1, gap: 8 },
-    miniMapContainer: { width: '100%', height: 120, borderRadius: 10, overflow: 'hidden', marginBottom: 4, borderWidth: 1, borderColor: '#e2e8f0' },
     locationLink: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#eff6ff', padding: 8, borderRadius: 8, borderWidth: 1, borderColor: '#dbeafe' },
     locationLinkText: { fontSize: 11, fontWeight: '700', color: '#1e40af', flex: 1 },
-    checkoutBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#f0fdf4', paddingHorizontal: 8, paddingVertical: 6, borderRadius: 8 },
-    checkoutBadgeText: { fontSize: 10, fontWeight: 'bold', color: '#10b981' },
 
     recordFooter: { padding: 12, borderTopWidth: 1, borderTopColor: '#f1f5f9', backgroundColor: '#fafafa' },
     actionGroup: { flexDirection: 'row', gap: 10 },
-    footerActionBtn: { paddingVertical: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center', flex: 1 },
+    footerActionBtn: { paddingVertical: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center', flex: 1, flexDirection: 'row' },
     
     statusFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     finalStatusBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },

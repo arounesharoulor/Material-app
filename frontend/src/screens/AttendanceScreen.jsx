@@ -38,6 +38,9 @@ const AttendanceScreen = ({ navigation }) => {
     const [viewDate, setViewDate] = useState(new Date());
     const [showDatePicker, setShowDatePicker] = useState(false);
     const socketRef = useRef(null);
+    // Hidden file input ref for web — bypasses Expo camera polyfill issues
+    const webFileInputRef = useRef(null);
+    const webFileResolverRef = useRef(null); // Stores the resolve/reject for the pending photo promise
 
     const { width } = useWindowDimensions();
     const isMobile = width < 768;
@@ -146,6 +149,7 @@ const AttendanceScreen = ({ navigation }) => {
             let locationLat = null;
             let locationLng = null;
             let photoUri = null;
+            let photoFile = null;
 
             if (type === 'Present') {
                 // Request Location
@@ -171,22 +175,45 @@ const AttendanceScreen = ({ navigation }) => {
                     locationLng = location.coords.longitude;
                 }
 
-                // Request Camera Photo (Evidence)
-                let { status: camStatus } = await ImagePicker.requestCameraPermissionsAsync();
-                if (camStatus === 'granted') {
-                    const result = await ImagePicker.launchCameraAsync({
-                        mediaTypes: ['images'], // Updated from deprecated MediaTypeOptions
-                        allowsEditing: false,
-                        aspect: [4, 3],
-                        quality: 0.5,
-                    });
-                    if (!result.canceled && result.assets && result.assets.length > 0) {
-                        photoUri = result.assets[0].uri;
-                    } else {
-                        Toast.show({ type: 'info', text1: 'No Photo', text2: 'Your attendance will be marked as Waiting for Admin approval since no photo was provided.' });
+                // --- Photo Capture ---
+                if (Platform.OS === 'web') {
+                    // WEB: Use native HTML file input — 100% reliable, no polyfill issues
+                    try {
+                        photoFile = await new Promise((resolve) => {
+                            webFileResolverRef.current = resolve;
+                            if (webFileInputRef.current) {
+                                webFileInputRef.current.value = '';
+                                webFileInputRef.current.click();
+                            } else {
+                                resolve(null);
+                            }
+                        });
+                        if (photoFile) {
+                            console.log('[ATTENDANCE-WEB] ✅ Got photo from file input:', photoFile.name, photoFile.size);
+                        } else {
+                            Toast.show({ type: 'info', text1: 'No Photo', text2: 'Attendance will need Admin approval.' });
+                        }
+                    } catch (e) {
+                        console.error('[ATTENDANCE-WEB] File input error:', e);
                     }
                 } else {
-                    Toast.show({ type: 'info', text1: 'No Camera Access', text2: 'Attendance marked as Waiting for Admin approval.' });
+                    // NATIVE: Use Expo ImagePicker camera
+                    let { status: camStatus } = await ImagePicker.requestCameraPermissionsAsync();
+                    if (camStatus === 'granted') {
+                        const result = await ImagePicker.launchCameraAsync({
+                            mediaTypes: ['images'],
+                            allowsEditing: false,
+                            aspect: [4, 3],
+                            quality: 0.5,
+                        });
+                        if (!result.canceled && result.assets && result.assets.length > 0) {
+                            photoUri = result.assets[0].uri;
+                        } else {
+                            Toast.show({ type: 'info', text1: 'No Photo', text2: 'Attendance will need Admin approval.' });
+                        }
+                    } else {
+                        Toast.show({ type: 'info', text1: 'No Camera Access', text2: 'Attendance marked as Waiting for Admin approval.' });
+                    }
                 }
             }
 
@@ -194,11 +221,9 @@ const AttendanceScreen = ({ navigation }) => {
             const formData = new FormData();
             
             // 1. Core Fields (Explicitly strings)
-            // Renamed field to attendType to avoid reserved word conflicts in some environments
             formData.append('attendType', String(type || 'Present'));
             formData.append('leaveType', String(leaveType || ''));
             formData.append('reason', String(reason || ''));
-            // Always send date to avoid timezone mismatches with server
             formData.append('date', String(dateStr || todayStr));
             
             // 2. Location Fields
@@ -206,14 +231,19 @@ const AttendanceScreen = ({ navigation }) => {
             if (locationLng) formData.append('locationLng', String(locationLng));
             
             // 3. Photo Evidence
-            if (photoUri) {
-                console.log('[ATTENDANCE] Adding photo to FormData:', photoUri);
-                const fileToUpload = {
-                    uri: photoUri,
-                    name: 'attendance.jpg',
-                    type: 'image/jpeg',
-                };
-                formData.append('photo', fileToUpload);
+            if (Platform.OS === 'web') {
+                // Web: native browser File object from hidden input — perfect FormData support
+                if (photoFile) {
+                    const filename = photoFile.name || 'attendance.jpg';
+                    formData.append('photo', photoFile, filename);
+                    console.log('[ATTENDANCE-WEB] ✅ Photo appended. Name:', filename, 'Size:', photoFile.size);
+                } else {
+                    console.warn('[ATTENDANCE-WEB] ⚠️ No photo file — will be Waiting status.');
+                }
+            } else if (photoUri) {
+                // Native: { uri, name, type } format required by React Native FormData
+                formData.append('photo', { uri: photoUri, name: 'attendance.jpg', type: 'image/jpeg' });
+                console.log('[ATTENDANCE-NATIVE] Photo appended. URI:', photoUri);
             }
 
             console.log('[ATTENDANCE] Native Fetch initiated...');
@@ -353,6 +383,24 @@ const AttendanceScreen = ({ navigation }) => {
             <Sidebar user={user} navigation={navigation} logout={() => {}} sidebarAnim={sidebarAnim} toggleSidebar={toggleSidebar} activeScreen="Attendance" />
             {isSidebarOpen && (Platform.OS !== 'web' || isMobile) && (
                 <TouchableOpacity activeOpacity={1} onPress={toggleSidebar} style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 90 }]} />
+            )}
+
+            {/* Hidden file input for web photo capture — bypasses Expo ImagePicker polyfill bugs */}
+            {Platform.OS === 'web' && (
+                <input
+                    ref={webFileInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                        const file = e.target.files && e.target.files[0];
+                        if (webFileResolverRef.current) {
+                            webFileResolverRef.current(file || null);
+                            webFileResolverRef.current = null;
+                        }
+                    }}
+                />
             )}
 
             <View style={{ flex: 1, backgroundColor: '#f8fafc', height: Platform.OS === 'web' ? '100vh' : 'auto' }}>

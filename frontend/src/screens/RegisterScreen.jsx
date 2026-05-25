@@ -1,10 +1,27 @@
 import React, { useState, useContext, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert, ScrollView, Platform, StyleSheet, KeyboardAvoidingView, Keyboard, ActivityIndicator, useWindowDimensions, Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Alert, ScrollView, Platform, StyleSheet, KeyboardAvoidingView, Keyboard, ActivityIndicator, useWindowDimensions, Image, Linking } from 'react-native';
 
 import tw from 'twrnc';
-import { Ionicons } from '@expo/vector-icons';
+import Svg, { Circle, Line, Path, Polyline } from 'react-native-svg';
 import { AuthContext } from '../context/AuthContext';
 import api from '../services/api';
+
+import { Ionicons } from '@expo/vector-icons';
+
+const RegisterSvgIcon = ({ name, size = 20, color = '#94a3b8' }) => {
+  const iconMap = {
+    'eye': 'eye-outline',
+    'eye-off': 'eye-off-outline',
+    'cloud-download': 'cloud-download-outline',
+  };
+  return (
+    <Ionicons 
+      name={iconMap[name] || 'eye-outline'} 
+      size={size} 
+      color={color} 
+    />
+  );
+};
 
 
 const RegisterScreen = ({ navigation }) => {
@@ -123,7 +140,7 @@ const RegisterScreen = ({ navigation }) => {
                             activeOpacity={0.7}
                         >
                             <View style={styles.downloadIconWrapper}>
-                                <Ionicons name="cloud-download" size={18} color="#1b264a" />
+                                <RegisterSvgIcon name="cloud-download" size={18} color="#1b264a" />
                             </View>
                             <View>
                                 <Text style={styles.downloadBadgeLabel}>AVAILABLE FOR MOBILE</Text>
@@ -198,7 +215,7 @@ const RegisterScreen = ({ navigation }) => {
                             style={{ position: 'absolute', right: 16, height: '100%', justifyContent: 'center' }}
                             onPress={() => setShowPassword(!showPassword)}
                           >
-                            <Ionicons name={showPassword ? "eye-off" : "eye"} size={20} color="#94a3b8" />
+                            <RegisterSvgIcon name={showPassword ? "eye-off" : "eye"} size={20} color="#94a3b8" />
                           </TouchableOpacity>
                         </View>
                         {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
@@ -467,4 +484,3 @@ const styles = StyleSheet.create({
 });
 
 export default RegisterScreen;
-

@@ -9,9 +9,10 @@
     "web": "expo start --web",
     "copy-favicon": "node -e \"const fs = require('fs'); const path = require('path'); const src = path.join(__dirname, 'assets', 'logo.png'); const destDir = path.join(__dirname, 'assets'); if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, {recursive: true}); ['favicon.png', 'icon.png', 'adaptive-icon.png', 'splash.png'].forEach(f => fs.copyFileSync(src, path.join(destDir, f))); console.log('Icons generated successfully');\"",
     "setup-logo": "node -e \"const fs = require('fs'); const path = require('path'); const svgPath = path.join(__dirname, 'assets', 'Madhura Energy Logo-03 - Copy.svg'); const svg = fs.readFileSync(svgPath, 'utf8'); const match = svg.match(/base64,([^\\\"]+)/); if (match) { const buffer = Buffer.from(match[1], 'base64'); fs.writeFileSync(path.join(__dirname, 'assets', 'logo.png'), buffer); console.log('Logo generated from SVG successfully'); } else { console.error('Could not find base64 image in SVG'); }\"",
-    "build": "npx expo export -p web && node ./scripts/move-dist.js"
+    "build": "npx expo export -p web && node -e \"const fs = require('fs'); fs.rmSync('public', { recursive: true, force: true }); fs.renameSync('dist', 'public');\""
   },
   "dependencies": {
+    "@expo/vector-icons": "^15.0.3",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/native": "^6.1.7",
     "@react-navigation/stack": "^6.3.17",
@@ -30,6 +31,7 @@
     "react-native-screens": "~4.16.0",
     "react-native-svg": "15.12.1",
     "react-native-toast-message": "^2.3.3",
+    "react-native-vector-icons": "^10.3.0",
     "react-native-web": "^0.21.0",
     "socket.io-client": "^4.8.3",
     "twrnc": "^4.16.0"

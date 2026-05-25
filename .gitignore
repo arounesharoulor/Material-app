@@ -13,6 +13,5 @@ backend/uploads/*
 frontend/node_modules/
 frontend/.expo/
 frontend/app.json
-frontend/assets/
 frontend/web-build/
 frontend/dist/

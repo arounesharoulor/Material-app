@@ -1,4 +1,6 @@
 require('dotenv').config();
+const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first'); // Force IPv4 first to fix ENETUNREACH with Nodemailer (IPv6 issues)
 const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/db');

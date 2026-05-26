@@ -342,11 +342,7 @@ const AdminAttendanceScreen = ({ navigation }) => {
                                     <AdminSvgIcon name="menu" size={24} color="#1b264a" />
                                 </TouchableOpacity>
                             )}
-                            <Image
-                                source={Platform.OS === 'web' ? { uri: '/assets/logo.png' } : require('../../assets/logo.png')}
-                                style={styles.dashLogo} 
-                                resizeMode="contain" 
-                            />
+                            {/* logo removed from Admin header */}
                             <View>
                                 <Text allowFontScaling={false} style={styles.headerLabel}>ADMIN</Text>
                                 <Text allowFontScaling={false} style={styles.headerTitle}>Attendance Review</Text>

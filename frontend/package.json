@@ -7,7 +7,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "copy-favicon": "node -e \"const fs = require('fs'); const path = require('path'); const src = path.join(__dirname, 'assets', 'logo.png'); const destDir = path.join(__dirname, 'assets'); if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, {recursive: true}); ['favicon.png', 'icon.png', 'adaptive-icon.png', 'splash.png'].forEach(f => fs.copyFileSync(src, path.join(destDir, f))); console.log('Icons generated successfully');\"",
+    "copy-favicon": "node scripts/generate_icons.js",
     "setup-logo": "node -e \"const fs = require('fs'); const path = require('path'); const svgPath = path.join(__dirname, 'assets', 'Madhura Energy Logo-03 - Copy.svg'); const svg = fs.readFileSync(svgPath, 'utf8'); const match = svg.match(/base64,([^\\\"]+)/); if (match) { const buffer = Buffer.from(match[1], 'base64'); fs.writeFileSync(path.join(__dirname, 'assets', 'logo.png'), buffer); console.log('Logo generated from SVG successfully'); } else { console.error('Could not find base64 image in SVG'); }\"",
     "build": "npx expo export -p web && node -e \"const fs = require('fs'); fs.rmSync('public', { recursive: true, force: true }); fs.renameSync('dist', 'public');\""
   },
@@ -20,6 +20,7 @@
     "expo": "~54.0.34",
     "expo-asset": "~12.0.12",
     "expo-av": "~16.0.8",
+    "expo-font": "~14.0.11",
     "expo-image-picker": "~17.0.11",
     "expo-location": "~19.0.8",
     "expo-updates": "~29.0.17",
@@ -37,7 +38,8 @@
     "twrnc": "^4.16.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.20.0"
+    "@babel/core": "^7.20.0",
+    "jimp": "^1.6.1"
   },
   "private": true
 }

@@ -2,8 +2,14 @@ const mongoose = require('mongoose');
 const dns = require('dns');
 
 // Fix for querySrv ECONNREFUSED on some networks (common with Node 18+)
-dns.setDefaultResultOrder('ipv4first');
-dns.setServers(['8.8.8.8', '8.8.4.4']);
+if (process.env.NODE_ENV !== 'production') {
+    dns.setDefaultResultOrder('ipv4first');
+    try {
+        dns.setServers(['8.8.8.8', '8.8.4.4']);
+    } catch (e) {
+        console.log('Failed to set DNS servers:', e.message);
+    }
+}
 
 const connectDB = async () => {
     try {

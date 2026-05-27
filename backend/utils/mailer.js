@@ -43,13 +43,24 @@ const httpsPost = (url, data) => {
     });
 };
 
-const sendEmail = async (to, subject, text) => {
+const sendEmail = async (to, subject, text, origin = null) => {
     // Render Free Tier blocks SMTP ports 465, 587, 25.
-    // If running in production (or configured), route through the Vercel email proxy function.
-    const emailProxyUrl = process.env.EMAIL_PROXY_URL || 'https://material-8fms8ksrs-arou-s-projects.vercel.app/api/send-email';
+    // Dynamically construct the proxy URL based on the request's origin (Vercel deployment URL)
+    let emailProxyUrl = process.env.EMAIL_PROXY_URL;
+    
+    if (!emailProxyUrl && origin) {
+        // Remove trailing slash if present
+        const sanitizedOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
+        emailProxyUrl = `${sanitizedOrigin}/api/send-email`;
+    }
+
+    // Fallback to the latest known Vercel URL if no origin or environment variable is set
+    if (!emailProxyUrl) {
+        emailProxyUrl = 'https://material-5ly8onm3h-arou-s-projects.vercel.app/api/send-email';
+    }
     
     if (emailProxyUrl) {
-        console.log(`[MAILER] Render Free Tier detected or EMAIL_PROXY_URL provided. Proxying email to: ${emailProxyUrl}`);
+        console.log(`[MAILER] Render Free Tier: routing email request via proxy to: ${emailProxyUrl}`);
         try {
             const result = await httpsPost(emailProxyUrl, {
                 to,
@@ -58,7 +69,7 @@ const sendEmail = async (to, subject, text) => {
                 user: process.env.EMAIL_USER,
                 pass: process.env.EMAIL_PASS
             });
-            console.log(`✅ [MAILER] SUCCESS (Proxy) - Email sent via Vercel proxy to ${to}`);
+            console.log(`✅ [MAILER] SUCCESS (Proxy) - Email sent via proxy to ${to}`);
             return result;
         } catch (proxyError) {
             console.error('❌ [MAILER] Proxy Email Send Failed:', proxyError.message);

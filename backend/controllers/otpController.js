@@ -24,7 +24,8 @@ exports.sendOtp = async (req, res) => {
             await sendEmail(
                 email,
                 'Your Verification Code',
-                `Your OTP for verification is: ${otp}. This code will expire in 5 minutes.`
+                `Your OTP for verification is: ${otp}. This code will expire in 5 minutes.`,
+                req.headers.origin
             );
             const sendDuration = Date.now() - sendStart;
             console.log(`[OTP] Email sent to ${email} in ${sendDuration}ms`);

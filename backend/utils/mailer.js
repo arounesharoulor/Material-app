@@ -5,17 +5,36 @@ const sendEmail = async (to, subject, text) => {
     try {
         console.log(`[MAILER] Trying to send email to: ${to}`);
 
-        const transporter = nodemailer.createTransport({
-            service: 'gmail',
-            host: 'smtp.gmail.com',
-            port: 587,
-            secure: false,
-            auth: {
-                user: process.env.EMAIL_USER,
-                pass: process.env.EMAIL_PASS,
-            },
-            tls: {
-                rejectUnauthorized: false
+        function createTransporter() {
+            // Allow overriding the port via env (default 465 for SSL, fallback 587 for STARTTLS)
+            const port = process.env.MAIL_PORT ? parseInt(process.env.MAIL_PORT, 10) : 465;
+            const secure = port === 465; // true for SSL, false for STARTTLS (587)
+            return nodemailer.createTransport({
+                service: 'gmail',
+                host: 'smtp.gmail.com',
+                port,
+                secure,
+                auth: {
+                    user: process.env.EMAIL_USER,
+                    pass: process.env.EMAIL_PASS,
+                },
+                // Connection and socket timeouts (ms)
+                connectionTimeout: 20000,
+                socketTimeout: 20000,
+                // Gmail may use self‑signed certs in some environments; keep rejectUnauthorized false to avoid TLS errors
+                tls: {
+                    rejectUnauthorized: false,
+                },
+            });
+        }
+
+        const transporter = createTransporter();
+        // Verify connection configuration at startup – helps surface auth issues early
+        transporter.verify(function (error, success) {
+            if (error) {
+                console.error('[MAILER] Verification failed:', error);
+            } else {
+                console.log('[MAILER] Server is ready to take messages');
             }
         });
 

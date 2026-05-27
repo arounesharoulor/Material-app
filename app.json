@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "ef94418d-22f7-452d-a09b-feedb11da58c"
+      }
+    },
+    "android": {
+      "package": "com.aroulor.materialrequestapproot"
+    }
+  }
+}

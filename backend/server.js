@@ -75,21 +75,44 @@ app.post('/api/debug-log', (req, res) => {
     res.sendStatus(200);
 });
 
-// Debug Mailer (Optional)
-if (process.env.DEBUG_MAILER === 'true') {
-    app.post('/api/debug/send-test-email', async (req, res) => {
-        const { to, subject = 'Debug Test', text = 'This is a debug test' } = req.body || {};
-        if (!to) return res.status(400).json({ msg: 'Missing `to` in body' });
-        try {
-            const result = await require('./utils/mailer').sendEmail(to, subject, text);
-            return res.json({ success: true, result });
-        } catch (err) {
-            return res.status(500).json({ msg: err.message || 'Mailer failed' });
-        }
-    });
-}
+// ==================== IMPROVED DEBUG MAILER ROUTE ====================
+app.post('/api/debug/send-test-email', async (req, res) => {
+    const { to } = req.body;
+    if (!to) return res.status(400).json({ msg: 'to email is required' });
 
-// NOTE: temporary test route removed so the real OTP controller is used.
+    try {
+        const { sendEmail } = require('./utils/mailer');
+        console.log(`[DEBUG] Attempting to send test email to: ${to}`);
+        
+        const result = await sendEmail(
+            to, 
+            'Test Email - Madhura Onboarding', 
+            `Hello,\n\nThis is a test email sent at ${new Date().toLocaleString('en-IN')}.\n\nIf you receive this, OTP emails should also work now.`
+        );
+        
+        res.json({ success: true, result });
+    } catch (err) {
+        console.error('[DEBUG MAILER ERROR]', err);
+        res.status(500).json({ 
+            success: false, 
+            error: err.message 
+        });
+    }
+});
+// =================================================================
+
+// ==================== TEMPORARY TEST ROUTE (Remove after testing) ====================
+app.post('/api/otp/send-otp', (req, res) => {
+    console.log('🔥 TEST ROUTE HIT: /api/otp/send-otp');
+    console.log('Request Body:', req.body);
+    
+    res.json({
+        success: true,
+        message: "✅ Backend OTP route is working! (Test Route)",
+        email: req.body.email || req.body.workEmail
+    });
+});
+// ===================================================================================
 
 // ✅ Main Routes
 app.use('/api/auth', require('./routes/authRoutes'));
@@ -116,8 +139,6 @@ app.get('/api/attendance/my-attendance', authMw, async (req, res) => {
         res.status(500).send('Server Error');
     }
 });
-
-// Other attendance routes (Admin + Checkout) - keep your original logic here...
 
 // Admin High Penalty
 app.get('/api/admin/high-penalty', authMw, require('./controllers/authController').getHighPenaltyUsers);

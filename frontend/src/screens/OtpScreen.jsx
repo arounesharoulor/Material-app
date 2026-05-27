@@ -17,6 +17,7 @@ const OtpScreen = ({ navigation, route }) => {
         console.error("Failed to parse registration data", e);
     }
     const email = registrationData?.email || '';
+    const debugDurationMs = registrationData?.debugDurationMs;
     const { width } = useWindowDimensions();
     const isMobile = width < 768;
 
@@ -138,6 +139,11 @@ const OtpScreen = ({ navigation, route }) => {
                                         <Text allowFontScaling={false} style={styles.sendingText}>
                                             Sending your code…
                                         </Text>
+                                        {typeof debugDurationMs === 'number' && (
+                                            <Text allowFontScaling={false} style={styles.debugText}>
+                                                Server send time: {debugDurationMs}ms
+                                            </Text>
+                                        )}
                                     </View>
                                 )}
 
@@ -417,6 +423,13 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: '#1b264a',
         marginLeft: 8,
+    },
+    debugText: {
+        fontSize: 11,
+        color: '#475569',
+        marginLeft: 8,
+        marginTop: 6,
+        fontWeight: '600',
     },
     devOtpContainer: {
         backgroundColor: '#fffbeb',

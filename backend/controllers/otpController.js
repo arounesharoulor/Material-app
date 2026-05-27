@@ -19,24 +19,33 @@ exports.sendOtp = async (req, res) => {
         await newOtp.save();
 
         // Send email and AWAIT it so failures are reported back to the client
+        const sendStart = Date.now();
         try {
             await sendEmail(
                 email,
                 'Your Verification Code',
                 `Your OTP for verification is: ${otp}. This code will expire in 5 minutes.`
             );
+            const sendDuration = Date.now() - sendStart;
+            console.log(`[OTP] Email sent to ${email} in ${sendDuration}ms`);
+
+            // Return duration for short-term debugging; do not expose OTP in production
+            const responsePayload = { msg: 'Verification code sent to ' + email, debugDurationMs: sendDuration };
+            if (process.env.NODE_ENV !== 'production') responsePayload.devOtp = otp;
+            return res.json(responsePayload);
         } catch (mailErr) {
+            const sendDuration = Date.now() - sendStart;
             console.error('[OTP] Email delivery failed:', mailErr.message);
             console.error('[OTP] Error code:', mailErr.code, 'responseCode:', mailErr.responseCode);
+            console.error(`[OTP] Email attempt took ${sendDuration}ms before failing`);
             // Clean up the saved OTP so the user can try again cleanly
             await Otp.deleteMany({ email });
             return res.status(500).json({
                 msg: 'Could not send verification email. Please check your email address and try again.',
-                debug: mailErr.message  // include SMTP error for debugging
+                debug: mailErr.message,
+                debugDurationMs: sendDuration
             });
         }
-
-        return res.json({ msg: 'Verification code sent to ' + email });
     } catch (err) {
         console.error('OTP Send Error:', err.message);
         res.status(500).json({ msg: 'Error processing verification' });

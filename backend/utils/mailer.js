@@ -30,13 +30,15 @@ const sendEmail = async (to, subject, text) => {
 
         const transporter = createTransporter();
         // Verify connection configuration at startup – helps surface auth issues early
-        transporter.verify(function (error, success) {
-            if (error) {
-                console.error('[MAILER] Verification failed:', error);
-            } else {
-                console.log('[MAILER] Server is ready to take messages');
-            }
-        });
+        if (process.env.NODE_ENV !== 'production') {
+    transporter.verify(function (error, success) {
+        if (error) {
+            console.error('[MAILER] Verification failed:', error);
+        } else {
+            console.log('[MAILER] Server is ready to take messages');
+        }
+    });
+}
 
         const mailOptions = {
             from: `"Madhura Energy" <${process.env.EMAIL_USER}>`,

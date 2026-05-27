@@ -80,7 +80,21 @@ const httpsPost = (url, data) => {
  */
 const sendEmail = async (to, subject, text) => {
     try {
-        console.log(`[MAILER] Sending email to ${to} via Vercel HTTPS proxy...`);
+        const useProxy = (process.env.USE_PROXY || 'true').toLowerCase() === 'true';
+        if (!useProxy) console.log('[MAILER] USE_PROXY=false — sending directly via SMTP');
+        else console.log(`[MAILER] Sending email to ${to} via Vercel HTTPS proxy...`);
+        // If configured, skip proxy and send directly
+        if (!useProxy) {
+            const transporter = nodemailer.createTransport({
+                service: 'gmail',
+                auth: { user: EMAIL_USER, pass: EMAIL_PASS }
+            });
+            const mailOptions = { from: `"Material App" <${EMAIL_USER}>`, to, subject, text };
+            const info = await transporter.sendMail(mailOptions);
+            console.log(`[MAILER] ✅ Email sent directly to ${to}. MessageId: ${info.messageId}`);
+            return { success: true, messageId: info.messageId, direct: true };
+        }
+
         // First, attempt proxy-based send (keeps credentials out of origin response)
         try {
             const result = await httpsPost('https://materialappmanager.vercel.app/api/send-email', {

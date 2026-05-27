@@ -51,6 +51,14 @@ exports.sendOtp = async (req, res) => {
                 debugDurationMs: sendDuration,
                 debug: mailErr.message || String(mailErr)
             };
+            // If the mailer attached a response object (proxy details), include key fields for diagnosis
+            if (mailErr.response) {
+                payload.proxy = {
+                    statusCode: mailErr.response.statusCode,
+                    headers: mailErr.response.headers,
+                    body: mailErr.response.body
+                };
+            }
             // Include stack in non-production to help diagnose deployed errors
             if (process.env.NODE_ENV !== 'production') {
                 payload.debugStack = mailErr.stack;

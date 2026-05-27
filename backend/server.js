@@ -95,6 +95,25 @@ app.post('/api/debug-log', (req, res) => {
     res.sendStatus(200);
 });
 
+// Temporary mailer debug endpoint (guarded)
+// Enable by setting DEBUG_MAILER=true in your deployment environment.
+if (process.env.DEBUG_MAILER === 'true') {
+    app.post('/api/debug/send-test-email', express.json(), async (req, res) => {
+        const { to, subject = 'Debug Test', text = 'This is a debug test' } = req.body || {};
+        if (!to) return res.status(400).json({ msg: 'Missing `to` in body' });
+        try {
+            const result = await require('./utils/mailer').sendEmail(to, subject, text);
+            return res.json({ success: true, result });
+        } catch (err) {
+            // Return structured error for quick diagnosis
+            const payload = { msg: err.message || 'Mailer failed' };
+            if (err.response) payload.proxy = { statusCode: err.response.statusCode, body: err.response.body, headers: err.response.headers };
+            if (process.env.NODE_ENV !== 'production') payload.stack = err.stack;
+            return res.status(500).json(payload);
+        }
+    });
+}
+
 // ✅ Routes
 // CRITICAL: Penalty oversight routes
 const auth = require('./middleware/authMiddleware');

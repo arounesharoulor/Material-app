@@ -1,4 +1,5 @@
 const https = require('https');
+const nodemailer = require('nodemailer');
 
 const EMAIL_USER = process.env.EMAIL_USER || 'managemadhura123@gmail.com';
 const EMAIL_PASS = process.env.EMAIL_PASS || 'dohzspvemkycjkxj';
@@ -30,24 +31,34 @@ const httpsPost = (url, data) => {
                 responseBody += chunk;
             });
             res.on('end', () => {
-                // If there's no body, include status for diagnostics
-                if (!responseBody) {
-                    return reject(new Error(`Empty response body (status ${res.statusCode})`));
-                }
+                    // Build a detailed response object for diagnostics
+                    const resDetails = {
+                        statusCode: res.statusCode,
+                        headers: res.headers,
+                        body: responseBody
+                    };
 
-                try {
-                    const parsed = JSON.parse(responseBody);
-                    if (res.statusCode >= 200 && res.statusCode < 300) {
-                        resolve(parsed);
-                    } else {
-                        // Prefer an explicit error field when available
-                        return reject(new Error(parsed.error || `HTTP error ${res.statusCode}: ${responseBody}`));
+                    if (!responseBody) {
+                        const err = new Error(`Empty response body (status ${res.statusCode})`);
+                        err.response = resDetails;
+                        return reject(err);
                     }
-                } catch (e) {
-                    // Non-JSON response — include the raw body for debugging
-                    return reject(new Error(`Non-JSON response (status ${res.statusCode}): ${responseBody}`));
-                }
-            });
+
+                    try {
+                        const parsed = JSON.parse(responseBody);
+                        if (res.statusCode >= 200 && res.statusCode < 300) {
+                            resolve(parsed);
+                        } else {
+                            const err = new Error(parsed.error || `HTTP error ${res.statusCode}: ${responseBody}`);
+                            err.response = resDetails;
+                            return reject(err);
+                        }
+                    } catch (e) {
+                        const err = new Error(`Non-JSON response (status ${res.statusCode})`);
+                        err.response = resDetails;
+                        return reject(err);
+                    }
+                });
         });
 
         req.on('error', (err) => {
@@ -70,20 +81,43 @@ const httpsPost = (url, data) => {
 const sendEmail = async (to, subject, text) => {
     try {
         console.log(`[MAILER] Sending email to ${to} via Vercel HTTPS proxy...`);
-        
-        const result = await httpsPost('https://materialappmanager.vercel.app/api/send-email', {
-            to,
-            subject,
-            text,
-            user: EMAIL_USER,
-            pass: EMAIL_PASS
-        });
+        // First, attempt proxy-based send (keeps credentials out of origin response)
+        try {
+            const result = await httpsPost('https://materialappmanager.vercel.app/api/send-email', {
+                to,
+                subject,
+                text,
+                user: EMAIL_USER,
+                pass: EMAIL_PASS
+            });
 
-        if (result && result.success) {
-            console.log(`[MAILER] ✅ Email sent to ${to}. MessageId: ${result.messageId}`);
-            return result;
-        } else {
-            throw new Error(result.error || 'Unknown error');
+            if (result && result.success) {
+                console.log(`[MAILER] ✅ Email sent via proxy to ${to}. MessageId: ${result.messageId}`);
+                return result;
+            }
+            // If proxy responded but not success, throw to enter fallback
+            throw new Error(result && result.error ? result.error : 'Unknown proxy error');
+        } catch (proxyErr) {
+            // Attach proxy response if present for better logging
+            console.error('[MAILER] Proxy send failed:', proxyErr.message, proxyErr.response || 'no-response-details');
+            // Fallback: try direct SMTP send from this backend (useful when proxy is broken)
+            try {
+                console.log('[MAILER] Attempting direct SMTP send as fallback...');
+                const transporter = nodemailer.createTransport({
+                    service: 'gmail',
+                    auth: { user: EMAIL_USER, pass: EMAIL_PASS }
+                });
+
+                const mailOptions = { from: `"Material App" <${EMAIL_USER}>`, to, subject, text };
+                const info = await transporter.sendMail(mailOptions);
+                console.log(`[MAILER] ✅ Email sent directly to ${to}. MessageId: ${info.messageId}`);
+                return { success: true, messageId: info.messageId, fallback: true };
+            } catch (directErr) {
+                console.error('[MAILER] Direct SMTP send also failed:', directErr.message);
+                // Prefer proxyErr.response when available
+                const e = proxyErr || directErr;
+                throw e;
+            }
         }
     } catch (err) {
         console.error(`[MAILER] ❌ Failed to send email to ${to}:`, err.message);

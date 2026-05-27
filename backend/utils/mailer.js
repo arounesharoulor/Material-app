@@ -29,8 +29,8 @@ const getTransporter = async () => {
 
     transporterInstance = nodemailer.createTransport({
         host: hostIp,
-        port: 587,
-        secure: false, // STARTTLS
+        port: 465,
+        secure: true, // SSL
         auth: {
             user: EMAIL_USER,
             pass: EMAIL_PASS

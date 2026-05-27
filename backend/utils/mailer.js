@@ -6,9 +6,10 @@ const sendEmail = async (to, subject, text) => {
         console.log(`[MAILER] Trying to send email to: ${to}`);
 
         function createTransporter() {
-            // Allow overriding the port via env (default 465 for SSL, fallback 587 for STARTTLS)
-            const port = process.env.MAIL_PORT ? parseInt(process.env.MAIL_PORT, 10) : 465;
-            const secure = port === 465; // true for SSL, false for STARTTLS (587)
+            // Default to STARTTLS (port 587) which is open on most cloud hosts.
+            // Allow overriding via MAIL_PORT env var for custom setups.
+            const port = process.env.MAIL_PORT ? parseInt(process.env.MAIL_PORT, 10) : 587;
+            const secure = port === 465; // true only for SSL (465), false for STARTTLS (587)
             return nodemailer.createTransport({
                 service: 'gmail',
                 host: 'smtp.gmail.com',
@@ -18,13 +19,9 @@ const sendEmail = async (to, subject, text) => {
                     user: process.env.EMAIL_USER,
                     pass: process.env.EMAIL_PASS,
                 },
-                // Connection and socket timeouts (ms)
-                connectionTimeout: 20000,
-                socketTimeout: 20000,
-                // Gmail may use self‑signed certs in some environments; keep rejectUnauthorized false to avoid TLS errors
-                tls: {
-                    rejectUnauthorized: false,
-                },
+                connectionTimeout: 30000,
+                socketTimeout: 30000,
+                tls: { rejectUnauthorized: false },
             });
         }
 

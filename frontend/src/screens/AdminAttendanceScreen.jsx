@@ -209,7 +209,7 @@ const AdminAttendanceScreen = ({ navigation }) => {
     useEffect(() => {
         fetchAttendance();
 
-        socketRef.current = io(BASE_URL, { transports: ['polling', 'websocket'] });
+        if (BASE_URL) { socketRef.current = io(BASE_URL, { transports: ['polling', 'websocket'] }); } else { console.warn('BASE_URL undefined, skipping socket connection'); }
 
         socketRef.current.on('attendanceNew', (data) => {
             if (data && data.attendance) {

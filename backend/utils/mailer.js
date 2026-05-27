@@ -31,40 +31,36 @@ const httpsPost = (url, data) => {
                 responseBody += chunk;
             });
             res.on('end', () => {
-                    // Build a detailed response object for diagnostics
-                    const resDetails = {
-                        statusCode: res.statusCode,
-                        headers: res.headers,
-                        body: responseBody
-                    };
+                const resDetails = {
+                    statusCode: res.statusCode,
+                    headers: res.headers,
+                    body: responseBody
+                };
 
-                    if (!responseBody) {
-                        const err = new Error(`Empty response body (status ${res.statusCode})`);
+                if (!responseBody) {
+                    const err = new Error(`Empty response body (status ${res.statusCode})`);
+                    err.response = resDetails;
+                    return reject(err);
+                }
+
+                try {
+                    const parsed = JSON.parse(responseBody);
+                    if (res.statusCode >= 200 && res.statusCode < 300) {
+                        resolve(parsed);
+                    } else {
+                        const err = new Error(parsed.error || `HTTP error ${res.statusCode}`);
                         err.response = resDetails;
                         return reject(err);
                     }
-
-                    try {
-                        const parsed = JSON.parse(responseBody);
-                        if (res.statusCode >= 200 && res.statusCode < 300) {
-                            resolve(parsed);
-                        } else {
-                            const err = new Error(parsed.error || `HTTP error ${res.statusCode}: ${responseBody}`);
-                            err.response = resDetails;
-                            return reject(err);
-                        }
-                    } catch (e) {
-                        const err = new Error(`Non-JSON response (status ${res.statusCode})`);
-                        err.response = resDetails;
-                        return reject(err);
-                    }
-                });
+                } catch (e) {
+                    const err = new Error(`Non-JSON response (status ${res.statusCode})`);
+                    err.response = resDetails;
+                    return reject(err);
+                }
+            });
         });
 
-        req.on('error', (err) => {
-            reject(err);
-        });
-
+        req.on('error', (err) => reject(err));
         req.on('timeout', () => {
             req.destroy();
             reject(new Error('Request timed out after 15s'));
@@ -76,65 +72,73 @@ const httpsPost = (url, data) => {
 };
 
 /**
- * Send an email using Gmail via Vercel Serverless HTTPS Proxy
+ * Send an email using Gmail - FIXED & IMPROVED
  */
 const sendEmail = async (to, subject, text) => {
     try {
-        const useProxy = (process.env.USE_PROXY || 'true').toLowerCase() === 'true';
-        if (!useProxy) console.log('[MAILER] USE_PROXY=false — sending directly via SMTP');
-        else console.log(`[MAILER] Sending email to ${to} via Vercel HTTPS proxy...`);
-        // If configured, skip proxy and send directly
-        if (!useProxy) {
+        console.log(`[MAILER] Attempting to send email to: ${to}`);
+
+        // === DIRECT SMTP (Primary Method - Most Reliable) ===
+        try {
             const transporter = nodemailer.createTransport({
                 service: 'gmail',
-                auth: { user: EMAIL_USER, pass: EMAIL_PASS }
+                host: 'smtp.gmail.com',
+                port: 465,
+                secure: true,
+                auth: {
+                    user: EMAIL_USER,
+                    pass: EMAIL_PASS,
+                },
+                tls: {
+                    rejectUnauthorized: false
+                }
             });
-            const mailOptions = { from: `"Material App" <${EMAIL_USER}>`, to, subject, text };
+
+            const mailOptions = {
+                from: `"Madhura Energy" <${EMAIL_USER}>`,
+                to: to,
+                subject: subject,
+                text: text,
+            };
+
             const info = await transporter.sendMail(mailOptions);
-            console.log(`[MAILER] ✅ Email sent directly to ${to}. MessageId: ${info.messageId}`);
-            return { success: true, messageId: info.messageId, direct: true };
-        }
+            
+            console.log(`✅ [MAILER] Email sent successfully (Direct SMTP) to ${to}`);
+            console.log(`Message ID: ${info.messageId}`);
+            
+            return { 
+                success: true, 
+                messageId: info.messageId, 
+                method: 'direct' 
+            };
 
-        // First, attempt proxy-based send (keeps credentials out of origin response)
-        try {
-            const result = await httpsPost('https://materialappmanager.vercel.app/api/send-email', {
-                to,
-                subject,
-                text,
-                user: EMAIL_USER,
-                pass: EMAIL_PASS
-            });
+        } catch (directErr) {
+            console.error('[MAILER] Direct SMTP failed:', directErr.message);
 
-            if (result && result.success) {
-                console.log(`[MAILER] ✅ Email sent via proxy to ${to}. MessageId: ${result.messageId}`);
-                return result;
-            }
-            // If proxy responded but not success, throw to enter fallback
-            throw new Error(result && result.error ? result.error : 'Unknown proxy error');
-        } catch (proxyErr) {
-            // Attach proxy response if present for better logging
-            console.error('[MAILER] Proxy send failed:', proxyErr.message, proxyErr.response || 'no-response-details');
-            // Fallback: try direct SMTP send from this backend (useful when proxy is broken)
+            // === FALLBACK: Try Vercel Proxy ===
+            console.log('[MAILER] Trying Vercel proxy fallback...');
             try {
-                console.log('[MAILER] Attempting direct SMTP send as fallback...');
-                const transporter = nodemailer.createTransport({
-                    service: 'gmail',
-                    auth: { user: EMAIL_USER, pass: EMAIL_PASS }
+                const result = await httpsPost('https://materialappmanager.vercel.app/api/send-email', {
+                    to,
+                    subject,
+                    text,
+                    user: EMAIL_USER,
+                    pass: EMAIL_PASS
                 });
 
-                const mailOptions = { from: `"Material App" <${EMAIL_USER}>`, to, subject, text };
-                const info = await transporter.sendMail(mailOptions);
-                console.log(`[MAILER] ✅ Email sent directly to ${to}. MessageId: ${info.messageId}`);
-                return { success: true, messageId: info.messageId, fallback: true };
-            } catch (directErr) {
-                console.error('[MAILER] Direct SMTP send also failed:', directErr.message);
-                // Prefer proxyErr.response when available
-                const e = proxyErr || directErr;
-                throw e;
+                if (result && result.success) {
+                    console.log(`✅ [MAILER] Email sent via proxy to ${to}`);
+                    return result;
+                }
+                throw new Error('Proxy returned failure');
+            } catch (proxyErr) {
+                console.error('[MAILER] Proxy fallback also failed:', proxyErr.message);
+                throw new Error(`Email sending failed: ${directErr.message}`);
             }
         }
+
     } catch (err) {
-        console.error(`[MAILER] ❌ Failed to send email to ${to}:`, err.message);
+        console.error(`❌ [MAILER] Final failure to send email to ${to}:`, err.message);
         throw err;
     }
 };

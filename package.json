@@ -1,0 +1,8 @@
+{
+  "name": "material-request-app-root",
+  "version": "1.0.0",
+  "description": "Root configuration for Vercel Serverless Functions",
+  "dependencies": {
+    "nodemailer": "^6.9.1"
+  }
+}

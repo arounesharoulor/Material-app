@@ -323,7 +323,7 @@ app.get('/api/status', (req, res) => {
     res.json({
         status: 'API is healthy',
         timestamp: new Date(),
-        version: '2.4'
+        version: '2.5'
     });
 });
 

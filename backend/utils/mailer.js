@@ -30,7 +30,7 @@ const sendEmail = async (to, subject, text) => {
 
         const transporter = createTransporter();
         // Verify connection configuration at startup – helps surface auth issues early
-        if (process.env.NODE_ENV !== 'production') {
+        if (process.env.NODE_ENV === 'development') {
     transporter.verify(function (error, success) {
         if (error) {
             console.error('[MAILER] Verification failed:', error);

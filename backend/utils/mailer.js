@@ -4,11 +4,14 @@ const EMAIL_USER = process.env.EMAIL_USER || 'managemadhura123@gmail.com';
 const EMAIL_PASS = process.env.EMAIL_PASS || 'dohzspvemkycjkxj';
 
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true, // Use SSL
     auth: {
         user: EMAIL_USER,
         pass: EMAIL_PASS
-    }
+    },
+    family: 4 // Force IPv4 to prevent ENETUNREACH errors on IPv6-only/unreachable environments like Render
 });
 
 console.log(`[MAILER] Configured to use Gmail: ${EMAIL_USER}`);

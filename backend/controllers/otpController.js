@@ -35,16 +35,27 @@ exports.sendOtp = async (req, res) => {
             return res.json(responsePayload);
         } catch (mailErr) {
             const sendDuration = Date.now() - sendStart;
-            console.error('[OTP] Email delivery failed:', mailErr.message);
-            console.error('[OTP] Error code:', mailErr.code, 'responseCode:', mailErr.responseCode);
+            console.error('[OTP] Email delivery failed:', mailErr && (mailErr.message || mailErr.toString()));
+            console.error('[OTP] Mail error details:', {
+                name: mailErr.name,
+                message: mailErr.message,
+                code: mailErr.code,
+                responseCode: mailErr.responseCode,
+                stack: mailErr.stack
+            });
             console.error(`[OTP] Email attempt took ${sendDuration}ms before failing`);
             // Clean up the saved OTP so the user can try again cleanly
             await Otp.deleteMany({ email });
-            return res.status(500).json({
+            const payload = {
                 msg: 'Could not send verification email. Please check your email address and try again.',
-                debug: mailErr.message,
-                debugDurationMs: sendDuration
-            });
+                debugDurationMs: sendDuration,
+                debug: mailErr.message || String(mailErr)
+            };
+            // Include stack in non-production to help diagnose deployed errors
+            if (process.env.NODE_ENV !== 'production') {
+                payload.debugStack = mailErr.stack;
+            }
+            return res.status(500).json(payload);
         }
     } catch (err) {
         console.error('OTP Send Error:', err.message);

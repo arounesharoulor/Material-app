@@ -57,7 +57,9 @@ const OtpScreen = ({ navigation, route }) => {
             setTimer(30);
             setSuccess('A new verification code has been sent to your email.');
         } catch (err) {
-            setError(err.response?.data?.msg || 'Could not send email. Check your connection and try again.');
+            const serverMsg = err.response?.data?.msg || 'Could not send email. Check your connection and try again.';
+            const serverDebug = err.response?.data?.debug;
+            setError(serverMsg + (serverDebug && __DEV__ ? ` (Debug: ${serverDebug})` : ''));
         } finally {
             setSending(false);
         }
@@ -77,7 +79,9 @@ const OtpScreen = ({ navigation, route }) => {
             await register(name, employeeId, regEmail, password, role);
             // AuthContext sets user → AppNavigator will redirect to Dashboard automatically
         } catch (err) {
-            setError(err.response?.data?.msg || 'Verification failed. Please try again.');
+              const serverMsg = err.response?.data?.msg || 'Verification failed. Please try again.';
+              const serverDebug = err.response?.data?.debug;
+              setError(serverMsg + (serverDebug && __DEV__ ? ` (Debug: ${serverDebug})` : ''));
             setLoading(false);
         }
     }, [otp, email, loading, registrationData, register]);

@@ -13,11 +13,13 @@ const httpsPost = (url, data) => {
 
         const options = {
             hostname: urlObj.hostname,
-            path: urlObj.pathname,
+            path: urlObj.pathname + (urlObj.search || ''),
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Content-Length': Buffer.byteLength(postData)
+                'Content-Length': Buffer.byteLength(postData),
+                'Accept': 'application/json',
+                'User-Agent': 'material-app-mailer/1.0'
             },
             timeout: 15000
         };
@@ -28,15 +30,22 @@ const httpsPost = (url, data) => {
                 responseBody += chunk;
             });
             res.on('end', () => {
+                // If there's no body, include status for diagnostics
+                if (!responseBody) {
+                    return reject(new Error(`Empty response body (status ${res.statusCode})`));
+                }
+
                 try {
                     const parsed = JSON.parse(responseBody);
                     if (res.statusCode >= 200 && res.statusCode < 300) {
                         resolve(parsed);
                     } else {
-                        reject(new Error(parsed.error || `HTTP error ${res.statusCode}`));
+                        // Prefer an explicit error field when available
+                        return reject(new Error(parsed.error || `HTTP error ${res.statusCode}: ${responseBody}`));
                     }
                 } catch (e) {
-                    reject(new Error(`Failed to parse response: ${responseBody}`));
+                    // Non-JSON response — include the raw body for debugging
+                    return reject(new Error(`Non-JSON response (status ${res.statusCode}): ${responseBody}`));
                 }
             });
         });

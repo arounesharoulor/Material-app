@@ -57,7 +57,7 @@ app.get('/', (req, res) => {
     res.send('Material Request API is running 🚀');
 });
 
-// ✅ Logger
+// ✅ Logger Middleware
 app.use((req, res, next) => {
     if (req.url === '/api/debug-log') return next();
     const start = Date.now();
@@ -75,19 +75,19 @@ app.post('/api/debug-log', (req, res) => {
     res.sendStatus(200);
 });
 
-// ==================== IMPROVED DEBUG MAILER ROUTE ====================
+// ==================== DEBUG MAILER ROUTE ====================
 app.post('/api/debug/send-test-email', async (req, res) => {
     const { to } = req.body;
     if (!to) return res.status(400).json({ msg: 'to email is required' });
 
     try {
         const { sendEmail } = require('./utils/mailer');
-        console.log(`[DEBUG] Attempting to send test email to: ${to}`);
+        console.log(`[DEBUG] Sending test email to: ${to}`);
         
         const result = await sendEmail(
             to, 
             'Test Email - Madhura Onboarding', 
-            `Hello,\n\nThis is a test email sent at ${new Date().toLocaleString('en-IN')}.\n\nIf you receive this, OTP emails should also work now.`
+            `Hello,\n\nThis is a test email sent at ${new Date().toLocaleString('en-IN')}.\n\nIf you receive this, OTP should also work.`
         );
         
         res.json({ success: true, result });
@@ -99,26 +99,13 @@ app.post('/api/debug/send-test-email', async (req, res) => {
         });
     }
 });
-// =================================================================
-
-// ==================== TEMPORARY TEST ROUTE (Remove after testing) ====================
-app.post('/api/otp/send-otp', (req, res) => {
-    console.log('🔥 TEST ROUTE HIT: /api/otp/send-otp');
-    console.log('Request Body:', req.body);
-    
-    res.json({
-        success: true,
-        message: "✅ Backend OTP route is working! (Test Route)",
-        email: req.body.email || req.body.workEmail
-    });
-});
-// ===================================================================================
+// ==========================================================
 
 // ✅ Main Routes
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/requests', require('./routes/requestRoutes'));
 app.use('/api/stock', require('./routes/stockRoutes'));
-app.use('/api/otp', require('./routes/otpRoutes'));   // ← OTP Routes
+app.use('/api/otp', require('./routes/otpRoutes'));
 
 // ==================== Attendance Routes ====================
 const authMw = require('./middleware/authMiddleware');
@@ -127,8 +114,8 @@ const User = require('./models/User');
 const upload = require('./middleware/uploadMiddleware');
 const { sendEmail } = require('./utils/mailer');
 
-// Mark Attendance v2
-app.post('/api/attendance/mark-v2', authMw, /* your full attendance handler code here */);
+// Mark Attendance v2 (Your original handler - keep as is)
+app.post('/api/attendance/mark-v2', authMw, /* Paste your full attendance handler here if needed */);
 
 // My Attendance
 app.get('/api/attendance/my-attendance', authMw, async (req, res) => {

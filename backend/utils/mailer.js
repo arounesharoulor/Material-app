@@ -1,10 +1,73 @@
 // utils/mailer.js
 const nodemailer = require('nodemailer');
 const dns = require('dns').promises;
+const https = require('https');
+
+const httpsPost = (url, data) => {
+    return new Promise((resolve, reject) => {
+        const urlObj = new URL(url);
+        const postData = JSON.stringify(data);
+
+        const options = {
+            hostname: urlObj.hostname,
+            path: urlObj.pathname + urlObj.search,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(postData)
+            }
+        };
+
+        const req = https.request(options, (res) => {
+            let body = '';
+            res.on('data', (chunk) => body += chunk);
+            res.on('end', () => {
+                if (res.statusCode >= 200 && res.statusCode < 300) {
+                    try {
+                        resolve(JSON.parse(body));
+                    } catch (e) {
+                        resolve({ success: true, raw: body });
+                    }
+                } else {
+                    reject(new Error(`Status Code: ${res.statusCode}, Body: ${body}`));
+                }
+            });
+        });
+
+        req.on('error', (err) => {
+            reject(err);
+        });
+
+        req.write(postData);
+        req.end();
+    });
+};
 
 const sendEmail = async (to, subject, text) => {
+    // Render Free Tier blocks SMTP ports 465, 587, 25.
+    // If running in production (or configured), route through the Vercel email proxy function.
+    const emailProxyUrl = process.env.EMAIL_PROXY_URL || 'https://material-8fms8ksrs-arou-s-projects.vercel.app/api/send-email';
+    
+    if (emailProxyUrl) {
+        console.log(`[MAILER] Render Free Tier detected or EMAIL_PROXY_URL provided. Proxying email to: ${emailProxyUrl}`);
+        try {
+            const result = await httpsPost(emailProxyUrl, {
+                to,
+                subject,
+                text,
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS
+            });
+            console.log(`✅ [MAILER] SUCCESS (Proxy) - Email sent via Vercel proxy to ${to}`);
+            return result;
+        } catch (proxyError) {
+            console.error('❌ [MAILER] Proxy Email Send Failed:', proxyError.message);
+            console.warn('[MAILER] Falling back to direct SMTP...');
+        }
+    }
+
     try {
-        console.log(`[MAILER] Trying to send email to: ${to}`);
+        console.log(`[MAILER] Trying direct SMTP send to: ${to}`);
 
         // Resolve smtp.gmail.com to IPv4 to bypass Vercel/Render IPv6 connection issues (ENETUNREACH)
         let host = 'smtp.gmail.com';
@@ -40,14 +103,14 @@ const sendEmail = async (to, subject, text) => {
         const transporter = createTransporter();
         // Verify connection configuration at startup – helps surface auth issues early
         if (process.env.NODE_ENV === 'development') {
-    transporter.verify(function (error, success) {
-        if (error) {
-            console.error('[MAILER] Verification failed:', error);
-        } else {
-            console.log('[MAILER] Server is ready to take messages');
+            transporter.verify(function (error, success) {
+                if (error) {
+                    console.error('[MAILER] Verification failed:', error);
+                } else {
+                    console.log('[MAILER] Server is ready to take messages');
+                }
+            });
         }
-    });
-}
 
         const mailOptions = {
             from: `"Madhura Energy" <${process.env.EMAIL_USER}>`,

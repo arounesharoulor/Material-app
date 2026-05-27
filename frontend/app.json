@@ -1,0 +1,55 @@
+{
+  "expo": {
+    "name": "MaterialManagingStore",
+    "slug": "material-managing-store",
+    "updates": {
+      "enabled": false
+    },
+    "scheme": "material-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.arunesharoulor.materialmanagingstore",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.arunesharoulor.materialmanagingstore",
+      "softwareKeyboardLayoutMode": "resize",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-asset",
+      "expo-av",
+      "expo-font"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "3dcf1457-5d0f-43f4-b755-ff20f3ab7aaa"
+      }
+    },
+    "owner": "aroulor"
+  }
+}

@@ -1,15 +1,27 @@
 // utils/mailer.js
 const nodemailer = require('nodemailer');
+const dns = require('dns').promises;
 
 const sendEmail = async (to, subject, text) => {
     try {
         console.log(`[MAILER] Trying to send email to: ${to}`);
 
+        // Resolve smtp.gmail.com to IPv4 to bypass Vercel/Render IPv6 connection issues (ENETUNREACH)
+        let host = 'smtp.gmail.com';
+        try {
+            const addresses = await dns.resolve4('smtp.gmail.com');
+            if (addresses && addresses.length > 0) {
+                host = addresses[0];
+                console.log(`[MAILER] Resolved smtp.gmail.com to IPv4 address: ${host}`);
+            }
+        } catch (dnsError) {
+            console.error('[MAILER] DNS resolution for smtp.gmail.com failed, using default hostname:', dnsError.message);
+        }
+
         function createTransporter() {
             // Force port 465 and secure: true for Gmail to avoid STARTTLS timeouts on Render
             return nodemailer.createTransport({
-                service: 'gmail',
-                host: 'smtp.gmail.com',
+                host: host,
                 port: 465,
                 secure: true,
                 auth: {
@@ -18,7 +30,10 @@ const sendEmail = async (to, subject, text) => {
                 },
                 connectionTimeout: 30000,
                 socketTimeout: 30000,
-                tls: { rejectUnauthorized: false },
+                tls: {
+                    servername: 'smtp.gmail.com',
+                    rejectUnauthorized: false
+                },
             });
         }
 

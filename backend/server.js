@@ -89,18 +89,7 @@ if (process.env.DEBUG_MAILER === 'true') {
     });
 }
 
-// ==================== TEMPORARY TEST ROUTE (Remove after testing) ====================
-app.post('/api/otp/send-otp', (req, res) => {
-    console.log('🔥 TEST ROUTE HIT: /api/otp/send-otp');
-    console.log('Request Body:', req.body);
-    
-    res.json({
-        success: true,
-        message: "✅ Backend OTP route is working! (Test Route)",
-        email: req.body.email || req.body.workEmail
-    });
-});
-// ===================================================================================
+// NOTE: temporary test route removed so the real OTP controller is used.
 
 // ✅ Main Routes
 app.use('/api/auth', require('./routes/authRoutes'));

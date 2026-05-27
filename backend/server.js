@@ -106,26 +106,10 @@ app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/requests', require('./routes/requestRoutes'));
 app.use('/api/stock', require('./routes/stockRoutes'));
 app.use('/api/otp', require('./routes/otpRoutes'));
+app.use('/api/attendance', require('./routes/attendanceRoutes'));
 
 // ==================== Attendance Routes ====================
 const authMw = require('./middleware/authMiddleware');
-const Attendance = require('./models/Attendance');
-const User = require('./models/User');
-const upload = require('./middleware/uploadMiddleware');
-const { sendEmail } = require('./utils/mailer');
-
-// Mark Attendance v2 (Your original handler - keep as is)
-app.post('/api/attendance/mark-v2', authMw, /* Paste your full attendance handler here if needed */);
-
-// My Attendance
-app.get('/api/attendance/my-attendance', authMw, async (req, res) => {
-    try {
-        let records = await Attendance.find({ user: req.user.id }).sort({ date: -1 });
-        res.json(records);
-    } catch (err) {
-        res.status(500).send('Server Error');
-    }
-});
 
 // Admin High Penalty
 app.get('/api/admin/high-penalty', authMw, require('./controllers/authController').getHighPenaltyUsers);

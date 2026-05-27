@@ -87,7 +87,7 @@ exports.verifyOtp = async (req, res) => {
 
         if (otpRecord.attempts >= 3) {
             // Use deleteOne without awaiting to not delay the response
-            Otp.deleteOne({ email }).catch(() => {});
+            Otp.deleteOne({ email }).catch(() => { });
             return res.status(400).json({ msg: 'Too many failed attempts. Please request a new OTP.' });
         }
 
@@ -99,7 +99,7 @@ exports.verifyOtp = async (req, res) => {
         }
 
         // Success — delete OTP without blocking the success response
-        Otp.deleteOne({ email }).catch(() => {});
+        Otp.deleteOne({ email }).catch(() => { });
         res.json({ success: true, msg: 'OTP verified successfully' });
 
     } catch (err) {

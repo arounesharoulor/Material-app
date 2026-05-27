@@ -1,6 +1,6 @@
 {
   "buildCommand": "cd frontend && npm install && npm run build",
-  "outputDirectory": "frontend/public",
+  "outputDirectory": "frontend/dist",
   "functions": {
     "api/**/*.js": {
       "memory": 256,

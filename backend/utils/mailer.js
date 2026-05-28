@@ -73,7 +73,8 @@ const sendEmail = async (to, subject, text, origin = null) => {
             return result;
         } catch (proxyError) {
             console.error('❌ [MAILER] Proxy Email Send Failed:', proxyError.message);
-            console.warn('[MAILER] Falling back to direct SMTP...');
+            // Throw the proxy error directly to let the user see the exact error on the frontend UI
+            throw new Error(`Proxy email delivery failed: ${proxyError.message}`);
         }
     }
 

@@ -8,15 +8,19 @@
       "distribution": "internal"
     },
     "preview": {
-      "channel": "preview",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_NO_UPDATES": "true"
       }
     },
     "production": {
-      "channel": "production",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_NO_UPDATES": "true"
       }
     }
   },

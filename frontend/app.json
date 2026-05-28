@@ -3,7 +3,9 @@
     "name": "MaterialManagingStore",
     "slug": "material-managing-store",
     "updates": {
-      "enabled": false
+      "enabled": false,
+      "checkAutomatically": "NEVER",
+      "fallbackToCacheTimeout": 0
     },
     "scheme": "material-app",
     "version": "1.0.0",

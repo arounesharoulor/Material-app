@@ -48,14 +48,17 @@ const sendEmail = async (to, subject, text, origin = null) => {
     // Dynamically construct the proxy URL based on the request's origin (Vercel deployment URL)
     let emailProxyUrl = process.env.EMAIL_PROXY_URL;
     
-    if (!emailProxyUrl && origin) {
+    // Skip proxy if origin is local
+    const isLocal = origin && (origin.includes('localhost') || origin.includes('192.168') || origin.includes('127.0.0.1'));
+    
+    if (!emailProxyUrl && origin && !isLocal) {
         // Remove trailing slash if present
         const sanitizedOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
         emailProxyUrl = `${sanitizedOrigin}/api/send-email`;
     }
 
     // Fallback to the latest known Vercel URL if no origin or environment variable is set
-    if (!emailProxyUrl) {
+    if (!emailProxyUrl && !isLocal) {
         emailProxyUrl = 'https://material-5ly8onm3h-arou-s-projects.vercel.app/api/send-email';
     }
     

@@ -11,11 +11,14 @@ const getBaseUrl = () => {
     if (Platform.OS === 'web') {
       return 'http://localhost:5005';
     }
-    const hostUri = Constants?.expoConfig?.hostUri;
-    if (hostUri) {
-      return `http://${hostUri.split(':')[0]}:5005`;
+    // Automatically use the LAN IP
+    const debuggerHost = Constants?.manifest?.debuggerHost || Constants?.expoConfig?.hostUri;
+    if (debuggerHost) {
+      const ip = debuggerHost.split(':')[0];
+      return `http://${ip}:5005`;
     }
-    return 'http://localhost:5005';
+    // Hardcoded IP as fallback
+    return 'http://192.168.0.102:5005';
   }
   return CLOUD_URL;
 };

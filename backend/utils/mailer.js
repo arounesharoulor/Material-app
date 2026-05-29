@@ -52,15 +52,10 @@ const sendEmail = async (to, subject, text, origin = null) => {
     const isProd = process.env.NODE_ENV === 'production';
     const isLocal = origin && (origin.includes('localhost') || origin.includes('192.168') || origin.includes('127.0.0.1'));
     
-    if (!emailProxyUrl && origin && !isLocal && isProd) {
-        // Remove trailing slash if present
-        const sanitizedOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
-        emailProxyUrl = `${sanitizedOrigin}/api/send-email`;
-    }
-
-    // Fallback to the latest known Vercel URL if no origin or environment variable is set
+    // Always use the main production Vercel URL for the proxy to avoid 
+    // Vercel Preview Authentication (401) errors on preview deployments.
     if (!emailProxyUrl && !isLocal && isProd) {
-        emailProxyUrl = 'https://material-5ly8onm3h-arou-s-projects.vercel.app/api/send-email';
+        emailProxyUrl = 'https://materialappmanager.vercel.app/api/send-email';
     }
     
     if (!isProd) {

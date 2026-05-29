@@ -144,7 +144,7 @@ const AdminAttendanceScreen = ({ navigation }) => {
     const [loading, setLoading] = useState(true);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [filter, setFilter] = useState('All'); // All | Pending | Approved | Rejected
-    const [activeTab, setActiveTab] = useState('attendance'); // attendance | leave
+    const [activeTab, setActiveTab] = useState('recent'); // recent | history | leave
     const [selectedPhoto, setSelectedPhoto] = useState(null);
     const socketRef = useRef(null);
 
@@ -310,9 +310,24 @@ const AdminAttendanceScreen = ({ navigation }) => {
     const waitingCount = Array.isArray(attendance) ? attendance.filter(a => a.status === 'Waiting').length : 0;
     const leaveCount = Array.isArray(attendance) ? attendance.filter(a => a.type === 'Leave' && (a.status === 'Pending' || a.status === 'Waiting')).length : 0;
 
+    const getTodayString = () => {
+        const d = new Date();
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+    const todayString = getTodayString();
+
+    const isRecent = (a) => {
+        return a.date === todayString || a.status === 'Pending' || a.status === 'Waiting' || a.checkOutStatus === 'PendingClose';
+    };
+
     const tabFiltered = Array.isArray(attendance) ? 
-                        (activeTab === 'attendance' 
-                            ? attendance.filter(a => a.type !== 'Leave') 
+                        (activeTab === 'recent' 
+                            ? attendance.filter(a => a.type !== 'Leave' && isRecent(a)) 
+                            : activeTab === 'history'
+                            ? attendance.filter(a => a.type !== 'Leave' && !isRecent(a))
                             : attendance.filter(a => a.type === 'Leave')) 
                         : [];
 
@@ -390,15 +405,24 @@ const AdminAttendanceScreen = ({ navigation }) => {
                         </TouchableOpacity>
                     </View>
 
-                    {/* Tab Switcher: Attendance / Leave Requests */}
+                    {/* Tab Switcher: Recent / History / Leave */}
                     <View style={styles.tabContainer}>
                         <TouchableOpacity
-                            style={[styles.tabButton, activeTab === 'attendance' && styles.tabButtonActive]}
-                            onPress={() => setActiveTab('attendance')}
+                            style={[styles.tabButton, activeTab === 'recent' && styles.tabButtonActive]}
+                            onPress={() => setActiveTab('recent')}
                         >
-                            <AdminSvgIcon name="calendar-outline" size={18} color={activeTab === 'attendance' ? '#ffc61c' : '#64748b'} />
-                            <Text style={[styles.tabButtonText, activeTab === 'attendance' && styles.tabButtonTextActive]}>
-                                Attendance
+                            <AdminSvgIcon name="time" size={18} color={activeTab === 'recent' ? '#ffc61c' : '#64748b'} />
+                            <Text style={[styles.tabButtonText, activeTab === 'recent' && styles.tabButtonTextActive]}>
+                                Action Required
+                            </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.tabButton, activeTab === 'history' && styles.tabButtonActive]}
+                            onPress={() => setActiveTab('history')}
+                        >
+                            <AdminSvgIcon name="calendar-outline" size={18} color={activeTab === 'history' ? '#ffc61c' : '#64748b'} />
+                            <Text style={[styles.tabButtonText, activeTab === 'history' && styles.tabButtonTextActive]}>
+                                History
                             </Text>
                         </TouchableOpacity>
                         <TouchableOpacity
@@ -407,7 +431,7 @@ const AdminAttendanceScreen = ({ navigation }) => {
                         >
                             <AdminSvgIcon name="document-text-outline" size={18} color={activeTab === 'leave' ? '#ffc61c' : '#64748b'} />
                             <Text style={[styles.tabButtonText, activeTab === 'leave' && styles.tabButtonTextActive]}>
-                                Leave Requests
+                                Leave
                             </Text>
                             {leaveCount > 0 && (
                                 <View style={styles.leaveBadgeCount}>
@@ -459,7 +483,7 @@ const AdminAttendanceScreen = ({ navigation }) => {
                                             </View>
                                             {isWaiting && (
                                                 <View style={styles.waitingTagBadge}>
-                                                    <Text style={styles.waitingTagText}>⏳ NO PHOTO</Text>
+                                                    <Text style={styles.waitingTagText}>⏳ CHECK-IN PENDING</Text>
                                                 </View>
                                             )}
                                         </View>

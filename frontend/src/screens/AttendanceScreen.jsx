@@ -276,8 +276,8 @@ const AttendanceScreen = ({ navigation }) => {
 
             Toast.show({
                 type: 'success',
-                text1: type === 'Leave' ? '✅ Leave Requested' : '✅ Checked In',
-                text2: type === 'Leave' ? `Leave requested for ${checkDate}` : 'Evidence accepted. Have a productive day!'
+                text1: type === 'Leave' ? '✅ Leave Requested' : '✅ Request Sent',
+                text2: type === 'Leave' ? `Leave requested for ${checkDate}` : 'Attendance sent to Admin for approval.'
             });
             fetchAttendance();
         } catch (err) {
@@ -454,10 +454,10 @@ const AttendanceScreen = ({ navigation }) => {
 
                             {todayRecord && (
                                 <View style={{ width: '100%', gap: 6, marginBottom: 15 }}>
-                                    <View style={[styles.markedBadge, todayRecord.type === 'Leave' ? styles.leaveBadge : styles.presentBadge]}>
-                                        <Ionicons name="checkmark-circle" size={16} color="#fff" />
+                                    <View style={[styles.markedBadge, (todayRecord.status === 'Waiting' || todayRecord.status === 'Pending') ? { backgroundColor: '#f59e0b' } : todayRecord.type === 'Leave' ? styles.leaveBadge : styles.presentBadge]}>
+                                        <Ionicons name={(todayRecord.status === 'Waiting' || todayRecord.status === 'Pending') ? "time" : "checkmark-circle"} size={16} color="#fff" />
                                         <Text style={styles.markedBadgeText}>
-                                            {todayRecord.leaveType || todayRecord.type} — {todayRecord.status}
+                                            {(todayRecord.status === 'Waiting' || todayRecord.status === 'Pending') ? 'Sent for Admin Approval' : `${todayRecord.leaveType || todayRecord.type} — ${todayRecord.status}`}
                                         </Text>
                                     </View>
 

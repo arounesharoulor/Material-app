@@ -46,11 +46,7 @@ exports.markAttendanceV2 = async (req, res) => {
 
         let status = 'Pending';
         if (attendType === 'Present') {
-            if (!req.file) {
-                status = 'Waiting'; // Waiting for Admin (No Photo)
-            } else {
-                status = 'Approved'; // Automatically approved if photo evidence is provided
-            }
+            status = 'Waiting'; // All check-ins require Admin approval, even with photos
         } else {
             status = 'Pending'; // Leave requests need admin approval
         }

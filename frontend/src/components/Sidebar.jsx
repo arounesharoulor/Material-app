@@ -440,6 +440,18 @@ const Sidebar = ({
                             user={user}
                         />
 
+                        {user?.role === 'Admin' && (
+                            <SidebarItem
+                                label="ATTENDANCE HISTORY"
+                                iconName="calendar"
+                                targetScreen="AdminAttendanceHistory"
+                                isActive={activeScreen === 'AdminAttendanceHistory'}
+                                navigation={navigation}
+                                toggleSidebar={toggleSidebar}
+                                user={user}
+                            />
+                        )}
+
                         <SidebarItem
                             label="CLOSED HISTORY"
                             iconName="checkmark-circle"

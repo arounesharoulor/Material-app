@@ -138,13 +138,13 @@ const AdminSvgIcon = ({ name, size = 18, color = '#64748b', style }) => {
     );
 };
 
-const AdminAttendanceScreen = ({ navigation }) => {
+const AdminAttendanceHistoryScreen = ({ navigation }) => {
     const { user } = useContext(AuthContext);
     const [attendance, setAttendance] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-    const [filter, setFilter] = useState('All'); // All | Pending | Approved | Rejected
-    const [activeTab, setActiveTab] = useState('recent'); // recent | history | leave
+    const [filter, setFilter] = useState('All'); // All | Approved | Rejected
+    const [activeTab, setActiveTab] = useState('history'); 
     const [selectedPhoto, setSelectedPhoto] = useState(null);
     const socketRef = useRef(null);
 
@@ -324,11 +324,7 @@ const AdminAttendanceScreen = ({ navigation }) => {
         return a.date === todayString || a.status === 'Pending' || a.status === 'Waiting' || a.checkOutStatus === 'PendingClose';
     };
 
-    const tabFiltered = Array.isArray(attendance) ? 
-                        (activeTab === 'recent' 
-                            ? attendance.filter(a => a.type !== 'Leave' && isRecent(a)) 
-                            : attendance.filter(a => a.type === 'Leave')) 
-                        : [];
+    const tabFiltered = Array.isArray(attendance) ? attendance.filter(a => a.type !== 'Leave' && !isRecent(a)) : [];
 
     const filtered = !Array.isArray(attendance) ? [] :
                      filter === 'All' ? tabFiltered : 
@@ -338,7 +334,7 @@ const AdminAttendanceScreen = ({ navigation }) => {
 
     return (
         <View style={[styles.container, Platform.OS === 'web' ? { flexDirection: isMobile ? 'column' : 'row', height: '100vh', overflow: 'hidden' } : { flex: 1 }]}>
-            <Sidebar user={user} navigation={navigation} logout={() => {}} sidebarAnim={sidebarAnim} toggleSidebar={toggleSidebar} activeScreen="AdminAttendance" />
+            <Sidebar user={user} navigation={navigation} logout={() => {}} sidebarAnim={sidebarAnim} toggleSidebar={toggleSidebar} activeScreen="AdminAttendanceHistory" />
             {isSidebarOpen && (Platform.OS !== 'web' || isMobile) && (
                 <TouchableOpacity activeOpacity={1} onPress={toggleSidebar} style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 90 }]} />
             )}
@@ -359,7 +355,7 @@ const AdminAttendanceScreen = ({ navigation }) => {
                             {/* logo removed from Admin header */}
                             <View>
                                 <Text allowFontScaling={false} style={styles.headerLabel}>ADMIN</Text>
-                                <Text allowFontScaling={false} style={styles.headerTitle}>Attendance Review</Text>
+                                <Text allowFontScaling={false} style={styles.headerTitle}>Attendance History</Text>
                             </View>
                         </View>
                         <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
@@ -402,35 +398,7 @@ const AdminAttendanceScreen = ({ navigation }) => {
                             <Text style={[styles.statLabel, { color: '#10b981' }]}>OK</Text>
                             <Text style={[styles.statValue, { color: '#10b981' }]}>{attendance.filter(a => a.status === 'Approved').length}</Text>
                         </TouchableOpacity>
-                    </View>
-
-                    {/* Tab Switcher: Recent / History / Leave */}
-                    <View style={styles.tabContainer}>
-                        <TouchableOpacity
-                            style={[styles.tabButton, activeTab === 'recent' && styles.tabButtonActive]}
-                            onPress={() => setActiveTab('recent')}
-                        >
-                            <AdminSvgIcon name="time" size={18} color={activeTab === 'recent' ? '#ffc61c' : '#64748b'} />
-                            <Text style={[styles.tabButtonText, activeTab === 'recent' && styles.tabButtonTextActive]}>
-                                Action Required
-                            </Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={[styles.tabButton, activeTab === 'leave' && styles.tabButtonActive]}
-                            onPress={() => setActiveTab('leave')}
-                        >
-                            <AdminSvgIcon name="document-text-outline" size={18} color={activeTab === 'leave' ? '#ffc61c' : '#64748b'} />
-                            <Text style={[styles.tabButtonText, activeTab === 'leave' && styles.tabButtonTextActive]}>
-                                Leave
-                            </Text>
-                            {leaveCount > 0 && (
-                                <View style={styles.leaveBadgeCount}>
-                                    <Text style={styles.leaveBadgeCountText}>{leaveCount}</Text>
-                                </View>
-                            )}
-                        </TouchableOpacity>
-                    </View>
+                                   {/* Removed Tab Switcher since this screen is just for History */}       </View>
 
                     {/* Filter Pills */}
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 15 }} contentContainerStyle={{ gap: 8 }}>
@@ -850,4 +818,4 @@ const styles = StyleSheet.create({
     modalHint: { color: '#94a3b8', textAlign: 'center', marginTop: 20, fontSize: 12 }
 });
 
-export default AdminAttendanceScreen;
+export default AdminAttendanceHistoryScreen;

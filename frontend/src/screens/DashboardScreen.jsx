@@ -358,9 +358,9 @@ const DashboardScreen = ({ navigation, route }) => {
             // Rely on Expo's default Audio Session configuration to avoid silent failures on custom ROMs
 
             const sounds = {
-                default: 'https://raw.githubusercontent.com/zmxv/react-native-sound-demo/master/bell.mp3', 
-                penalty: 'https://raw.githubusercontent.com/zmxv/react-native-sound-demo/master/button-3.mp3', 
-                closed: 'https://raw.githubusercontent.com/zmxv/react-native-sound-demo/master/button-1.mp3' 
+                default: 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3',
+                penalty: 'https://assets.mixkit.co/active_storage/sfx/2357/2357-preview.mp3',
+                closed:  'https://assets.mixkit.co/active_storage/sfx/1862/1862-preview.mp3'
             };
 
             for (const [key, uri] of Object.entries(sounds)) {

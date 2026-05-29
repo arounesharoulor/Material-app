@@ -279,15 +279,14 @@ const AdminAttendanceScreen = ({ navigation }) => {
     };
 
     const handleAction = async (id, status) => {
-        // Optimistic update — instantly reflect in UI before API responds
-        setAttendance(prev => prev.map(a => a._id === id ? { ...a, status } : a));
+        // No optimistic UI – wait for server response before updating UI
         try {
             await api.put(`/attendance/${id}/action`, { status });
             Toast.show({ type: 'success', text1: `✅ ${status}`, text2: `Attendance has been ${status.toLowerCase()}.` });
-            fetchAttendance(); // Sync with server
+            fetchAttendance(); // Refresh list after successful update
         } catch (err) {
             Toast.show({ type: 'error', text1: 'Error', text2: 'Could not update status' });
-            fetchAttendance(); // Revert on error
+            fetchAttendance(); // Ensure UI reflects actual server state
         }
     };
 
@@ -304,11 +303,11 @@ const AdminAttendanceScreen = ({ navigation }) => {
         }
     };
 
-    const filters = ['All', 'Pending', 'Waiting', 'PendingClose', 'Approved', 'Rejected'];
-    const pendingCount = Array.isArray(attendance) ? attendance.filter(a => a.status === 'Pending' || a.status === 'Waiting').length : 0;
+    const filters = ['All', 'Waiting', 'PendingClose', 'Approved', 'Rejected'];
+    const pendingCount = Array.isArray(attendance) ? attendance.filter(a => a.status === 'Waiting').length : 0;
     const pendingCloseCount = Array.isArray(attendance) ? attendance.filter(a => a.checkOutStatus === 'PendingClose').length : 0;
-    const waitingCount = Array.isArray(attendance) ? attendance.filter(a => a.status === 'Waiting').length : 0;
-    const leaveCount = Array.isArray(attendance) ? attendance.filter(a => a.type === 'Leave' && (a.status === 'Pending' || a.status === 'Waiting')).length : 0;
+    const waitingCount = pendingCount; // alias for UI
+    const leaveCount = Array.isArray(attendance) ? attendance.filter(a => a.type === 'Leave' && a.status === 'Waiting').length : 0;
 
     const getTodayString = () => {
         const d = new Date();
@@ -390,16 +389,12 @@ const AdminAttendanceScreen = ({ navigation }) => {
                             <Text style={styles.statLabel}>TOTAL</Text>
                             <Text style={styles.statValue}>{attendance.length}</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity onPress={() => setFilter('Pending')} style={[styles.statCard, filter === 'Pending' && styles.statCardActive]}>
-                            <Text style={[styles.statLabel, { color: '#3b82f6' }]}>PENDING</Text>
-                            <Text style={[styles.statValue, { color: '#3b82f6' }]}>{attendance.filter(a => a.status === 'Pending').length}</Text>
-                        </TouchableOpacity>
                         <TouchableOpacity onPress={() => setFilter('Waiting')} style={[styles.statCard, filter === 'Waiting' && styles.statCardActive]}>
                             <Text style={[styles.statLabel, { color: '#f59e0b' }]}>WAITING</Text>
                             <Text style={[styles.statValue, { color: '#f59e0b' }]}>{waitingCount}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => setFilter('Approved')} style={[styles.statCard, filter === 'Approved' && styles.statCardActive]}>
-                            <Text style={[styles.statLabel, { color: '#10b981' }]}>OK</Text>
+                            <Text style={[styles.statLabel, { color: '#10b981' }]}>APPROVED</Text>
                             <Text style={[styles.statValue, { color: '#10b981' }]}>{attendance.filter(a => a.status === 'Approved').length}</Text>
                         </TouchableOpacity>
                     </View>

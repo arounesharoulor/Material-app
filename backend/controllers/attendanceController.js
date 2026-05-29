@@ -15,8 +15,10 @@ exports.markAttendance = async (req, res) => {
         attendance = new Attendance({
             user: req.user.id,
             date: today,
-            status: 'Pending'
+            status: 'Waiting'
         });
+
+        console.log(`[ATTENDANCE-V1] Creating new record for user ${req.user.id} on ${today}. Status set to: Waiting`);
 
         await attendance.save();
 
@@ -44,12 +46,14 @@ exports.markAttendanceV2 = async (req, res) => {
             return res.status(400).json({ msg: 'Attendance already marked for this date' });
         }
 
-        let status = 'Pending';
-        if (attendType === 'Present') {
-            status = 'Waiting'; // All check-ins require Admin approval, even with photos
-        } else {
+        let status = 'Waiting';
+        if (attendType === 'Leave') {
             status = 'Pending'; // Leave requests need admin approval
+        } else {
+            status = 'Waiting'; // All check-ins require Admin approval
         }
+
+        console.log(`[ATTENDANCE] Creating new record for user ${req.user.id} on ${date}. Type: ${attendType}, Status set to: ${status}`);
 
         const photoUrl = req.file ? `/uploads/${req.file.filename}` : null;
 

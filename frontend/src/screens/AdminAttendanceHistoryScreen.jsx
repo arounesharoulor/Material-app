@@ -398,7 +398,7 @@ const AdminAttendanceHistoryScreen = ({ navigation }) => {
                             <Text style={[styles.statLabel, { color: '#10b981' }]}>OK</Text>
                             <Text style={[styles.statValue, { color: '#10b981' }]}>{attendance.filter(a => a.status === 'Approved').length}</Text>
                         </TouchableOpacity>
-                                   {/* Removed Tab Switcher since this screen is just for History */}       </View>
+                    </View>
 
                     {/* Filter Pills */}
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 15 }} contentContainerStyle={{ gap: 8 }}>

@@ -71,6 +71,7 @@ const sendEmail = async (to, subject, text, html = null) => {
             },
         };
 
+
     const transporter = nodemailer.createTransport(transportOptions);
     const info = await transporter.sendMail({
         from: `"Madhura Energy" <${config.from}>`,

@@ -42,3 +42,8 @@ Performance optimizations: OFF.
 [2:59:28 pm] GET /api/otp/send-otp 404 - 82ms
 [2:59:28 pm] GET /favicon.ico 404 - 81ms
 [CRON] Hourly reminder started at 3:00:00 pm
+[WEB WARN]: Disconnected from Metro (1006)
+To reconnect:
+- Ensure that Metro is running and available on the same network
+- Reload this app (will trigger further help if Metro cannot be connected to)
+[CRON] Hourly reminder started at 4:00:00 pm

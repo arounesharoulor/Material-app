@@ -13,7 +13,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 const connectDB = async () => {
     try {
-        const uri = process.env.MONGO_URI || "mongodb+srv://arounesharoulor_db_user:GytVRhtHlKCLwzIG@materialapp.t8wxpqk.mongodb.net/Materialtest?retryWrites=true&w=majority&appName=MaterialApp";
+        const uri = process.env.MONGO_URI || "mongodb+srv://arounesharoulor_db_user:Arounesh123@materialapp.t8wxpqk.mongodb.net/Materialtest?retryWrites=true&w=majority&appName=MaterialApp";
         await mongoose.connect(uri, {
             useNewUrlParser: true,
             useUnifiedTopology: true,

@@ -4,11 +4,11 @@ const Otp = require('../models/Otp');
 const getOtpMailErrorMessage = (error) => {
     const message = (error && error.message) ? error.message : '';
 
-    if (/credentials/i.test(message) || /SMTP credentials/i.test(message) || /auth/i.test(message)) {
+    if (/credentials/i.test(message) || /SMTP credentials/i.test(message) || /auth/i.test(message) || /invalid login/i.test(message) || /535/i.test(message)) {
         return 'OTP email could not be sent because the SMTP credentials are not configured or are invalid. Check EMAIL_USER and EMAIL_PASS (or SMTP_USER and SMTP_PASS) in the backend environment.';
     }
 
-    return 'OTP email could not be sent right now. Check your SMTP/Nodemailer backend settings and try again.';
+    return `OTP email could not be sent right now. Technical details: ${message || 'Unknown error'}. Check your SMTP/Nodemailer backend settings and try again.`;
 };
 
 exports.sendOtp = async (req, res) => {

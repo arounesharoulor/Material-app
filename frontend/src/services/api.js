@@ -5,16 +5,10 @@ import Constants from 'expo-constants';
 
 // Cloud deployment URL (Render)
 const CLOUD_URL = "https://material-app-zhm4.onrender.com";
-const LOCAL_BACKEND_URL = 'http://localhost:5005';
 
 /**
  * Determine the base URL for the backend.
- * In development we try to reach the locally running server.
- *   • Web (expo web) – use cloud URL to avoid CORS / localhost issues.
- *   • Android emulator – localhost of the host machine is reachable via 10.0.2.2.
- *   • iOS simulator – can use http://localhost.
- *   • Physical device – try to infer LAN IP from Expo debuggerHost.
- * In production we always use the cloud URL.
+ * We are currently pointing directly to the live Render backend.
  */
 const getBaseUrl = () => {
   const envOverride =
@@ -22,37 +16,11 @@ const getBaseUrl = () => {
     process.env.EXPO_PUBLIC_BACKEND_URL ||
     process.env.REACT_APP_API_BASE_URL;
 
-  const useLocalBackend = process.env.EXPO_PUBLIC_USE_LOCAL_BACKEND === 'true';
-
   if (envOverride) {
     return envOverride.replace(/\/+$/, '');
   }
 
-  if (__DEV__) {
-    if (Platform.OS === 'web') {
-      return LOCAL_BACKEND_URL;
-    }
-
-    // Fallback to LAN IP for physical-device local debugging only.
-    const debuggerHost =
-      Constants?.expoConfig?.hostUri ||
-      Constants?.manifest?.debuggerHost;
-    if (debuggerHost) {
-      const ip = debuggerHost.split(':')[0];
-      return `http://${ip}:5005`;
-    }
-
-    // Emulator defaults
-    if (Platform.OS === 'android') {
-      return 'http://10.0.2.2:5005';
-    }
-    if (Platform.OS === 'ios') {
-      return LOCAL_BACKEND_URL;
-    }
-    return LOCAL_BACKEND_URL;
-  }
-
-  // Production – use the deployed cloud URL
+  // Always use the cloud URL to connect to the live backend
   return CLOUD_URL;
 };
 

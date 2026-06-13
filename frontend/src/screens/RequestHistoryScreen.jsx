@@ -1,0 +1,373 @@
+import React, { useContext, useEffect, useState, useRef } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, Platform, Animated, Modal, StyleSheet, Dimensions, ActivityIndicator, Image, BackHandler, useWindowDimensions } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+import tw from 'twrnc';
+import { AuthContext } from '../context/AuthContext';
+import api, { BASE_URL } from '../services/api';
+import Sidebar from '../components/Sidebar';
+
+const RequestHistoryScreen = ({ navigation }) => {
+  const { user, logout } = useContext(AuthContext);
+  const [requests, setRequests] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  const { width } = useWindowDimensions();
+  const isMobile = width < 768;
+  const sidebarWidth = Platform.OS === 'web' ? Math.min(280, width * 0.85) : 280;
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const sidebarAnim = useRef(new Animated.Value(-sidebarWidth)).current;
+
+  useFocusEffect(
+    React.useCallback(() => {
+        const onBackPress = () => {
+            navigation.navigate('Dashboard');
+            return true;
+        };
+        const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+        return () => subscription.remove();
+    }, [navigation])
+  );
+
+  // Image Viewer State
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [viewerImage, setViewerImage] = useState(null);
+  const [viewerTitle, setViewerTitle] = useState('');
+
+  const toggleSidebar = () => {
+    const toValue = isSidebarOpen ? -sidebarWidth : 0;
+    Animated.timing(sidebarAnim, {
+        toValue,
+        duration: 300,
+        useNativeDriver: true,
+    }).start();
+    setIsSidebarOpen(!isSidebarOpen);
+  };
+
+  useEffect(() => {
+    fetchRequests();
+  }, []);
+
+  const fetchRequests = async () => {
+    try {
+      setIsLoading(true);
+      const res = await api.get('/requests');
+
+      // Show ALL items in the comprehensive history
+      let archive = res.data;
+
+      if (user?.role === 'Employee' && user?.employeeId) {
+          // Employee sees their own requests
+          archive = archive.filter(r => r.employeeId === user.employeeId);
+      }
+      // Admins see EVERYTHING in history
+      
+      // Group by date with DAY NAME (e.g., 'Monday, 4/20/2026')
+      const grouped = archive.reduce((acc, req) => {
+          const d = new Date(req.date);
+          const dayName = d.toLocaleDateString('en-US', { weekday: 'long' });
+          const dateStr = d.toLocaleDateString();
+          const displayGroup = `${dayName}, ${dateStr}`;
+          
+          if (!acc[displayGroup]) acc[displayGroup] = [];
+          acc[displayGroup].push(req);
+          return acc;
+      }, {});
+      
+      setRequests(grouped);
+    } catch (err) {
+      console.log('Error fetching requests');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getFullImageUrl = (path) => {
+    if (!path) return null;
+    let cleanPath = path.toString().trim().replace(/\\/g, '/');
+    const uploadsIndex = cleanPath.indexOf('uploads/');
+    if (uploadsIndex !== -1) {
+        cleanPath = cleanPath.substring(uploadsIndex);
+    } else {
+        const filename = cleanPath.split('/').pop();
+        cleanPath = `uploads/${filename}`;
+    }
+    const encodedPath = cleanPath.split('/').map(segment => encodeURIComponent(segment)).join('/');
+    return `${BASE_URL}/${encodedPath}`;
+  };
+
+  const openViewer = (path, title) => {
+    const url = getFullImageUrl(path);
+    if (!url) return;
+    setViewerImage(url);
+    setViewerTitle(title);
+    setViewerVisible(true);
+  };
+
+  const HistoryCard = ({ item }) => {
+    const hasAnyPhoto = !!(item.photoUrl || item.pickupPhotoUrl || item.returnPhotoUrl);
+
+    return (
+        <View style={styles.card}>
+            <View style={[
+                styles.cardAccent, 
+                item.status === 'Closed' ? styles.bgEmerald : 
+                item.status === 'Approved' ? styles.bgIndigo : styles.bgRose
+            ]} />
+            <View style={styles.cardHeader}>
+                <View style={{ flex: 1 }}>
+                    <Text allowFontScaling={false} style={styles.cardTitle}>{item.materialName}</Text>
+                    <Text allowFontScaling={false} style={styles.cardSubtitle}>ID: {item.requestId}</Text>
+                </View>
+                <View style={[
+                    styles.statusBadge,
+                    item.status === 'Closed' ? styles.badgeEmerald : 
+                    item.status === 'Approved' ? styles.badgeIndigo : styles.badgeRose
+                ]}>
+                    <Text allowFontScaling={false} style={[
+                        styles.badgeText,
+                        item.status === 'Closed' ? styles.textEmerald : 
+                        item.status === 'Approved' ? styles.textIndigo : styles.textRose
+                    ]}>{item.status.toUpperCase().replace('PENDINGRETURN', 'PICKED UP')}</Text>
+                </View>
+            </View>
+
+            <View style={styles.cardDetails}>
+                <View style={styles.detailRow}>
+                    <Text allowFontScaling={false} style={styles.detailLabel}>REQUESTED BY</Text>
+                    <Text allowFontScaling={false} style={styles.detailValue}>{item.employeeName}</Text>
+                </View>
+                {!item.materialName.toLowerCase().includes('general inquiry') && (
+                    <View style={styles.detailRow}>
+                        <Text allowFontScaling={false} style={styles.detailLabel}>QUANTITY</Text>
+                        <Text allowFontScaling={false} style={styles.detailValue}>{item.quantity} Units</Text>
+                    </View>
+                )}
+                {((item.remark || '').toString().trim() !== '') ? (
+                    <View style={styles.remarkBubble}>
+                        <Ionicons name="chatbubble-ellipses" size={16} color="#0891b2" />
+                        <Text allowFontScaling={false} style={styles.remarkBubbleText}>
+                            {(item.remark || '').toString().trim()}
+                        </Text>
+                    </View>
+                ) : null}
+            </View>
+
+            {/* Photo Section */}
+            <View style={styles.photoSectionHeader}>
+                <Text style={styles.photoSectionTitle}>ATTACHMENTS</Text>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photoContainer}>
+                {item.photoUrl && (
+                    <TouchableOpacity style={styles.photoBox} onPress={() => openViewer(item.photoUrl, 'Reference Photo')}>
+                        <Text style={styles.photoLabel}>Ref Photo</Text>
+                        <Image source={{ uri: getFullImageUrl(item.photoUrl) }} style={styles.cardImage} resizeMode="contain" />
+                    </TouchableOpacity>
+                )}
+                {item.pickupPhotoUrl && (
+                    <TouchableOpacity style={styles.photoBox} onPress={() => openViewer(item.pickupPhotoUrl, 'Pickup Proof')}>
+                        <Text style={styles.photoLabel}>Pickup</Text>
+                        <Image source={{ uri: getFullImageUrl(item.pickupPhotoUrl) }} style={styles.cardImage} resizeMode="contain" />
+                    </TouchableOpacity>
+                )}
+                {item.returnPhotoUrl && (
+                    <TouchableOpacity style={styles.photoBox} onPress={() => openViewer(item.returnPhotoUrl, 'Return Proof')}>
+                        <Text style={styles.photoLabel}>Return</Text>
+                        <Image source={{ uri: getFullImageUrl(item.returnPhotoUrl) }} style={styles.cardImage} resizeMode="contain" />
+                    </TouchableOpacity>
+                )}
+            </ScrollView>
+
+            {item.penalty && (
+                <View style={styles.penaltyBox}>
+                    <Text allowFontScaling={false} style={styles.penaltyLabel}>PENALTY INFO</Text>
+                    <Text allowFontScaling={false} style={styles.penaltyText}>{item.penalty}</Text>
+                </View>
+            )}
+
+            <View style={styles.cardFooter}>
+                <View>
+                    <Text allowFontScaling={false} style={styles.footerTime}>{new Date(item.inTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}</Text>
+                    <Text allowFontScaling={false} style={styles.footerDate}>{new Date(item.inTime).toLocaleDateString()}</Text>
+                </View>
+                <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                    {item.pickupTime && (
+                        <View style={{ alignItems: 'flex-end' }}>
+                            <Text style={styles.footerLabel}>PICKUP TIME</Text>
+                            <Text style={styles.footerValue}>{new Date(item.pickupTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}</Text>
+                        </View>
+                    )}
+                    {item.returnTime && (
+                        <View style={{ alignItems: 'flex-end' }}>
+                            <Text style={styles.footerLabel}>RETURN TIME</Text>
+                            <Text style={styles.footerValue}>{new Date(item.returnTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}</Text>
+                        </View>
+                    )}
+                </View>
+            </View>
+        </View>
+    );
+  };
+
+  if (isLoading) return (
+    <View style={styles.loadingContainer}>
+      <ActivityIndicator size="large" color="#1b264a" />
+      <Text style={styles.loadingText}>Loading Archive...</Text>
+    </View>
+  );
+
+  return (
+    <View style={[styles.container, Platform.OS === 'web' ? { flexDirection: isMobile ? 'column' : 'row', height: '100vh', overflow: 'hidden' } : { flex: 1 }]}>
+      <Sidebar 
+          user={user} 
+          navigation={navigation} 
+          logout={logout} 
+          sidebarAnim={sidebarAnim} 
+          toggleSidebar={toggleSidebar} 
+          activeScreen="History" 
+      />
+      {isSidebarOpen && (Platform.OS !== 'web' || isMobile) && (
+          <TouchableOpacity 
+              activeOpacity={1} 
+              onPress={toggleSidebar} 
+              style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 90 }]} 
+          />
+      )}
+      <View style={{ flex: 1, height: Platform.OS === 'web' ? '100vh' : 'auto' }}>
+        <ScrollView 
+          style={[styles.scrollView, Platform.OS === 'web' ? { height: '100vh' } : {}]}
+          contentContainerStyle={[styles.scrollContent, { minHeight: '100%' }]}
+        >
+        <View style={styles.paddingContainer}>
+          <View style={styles.header}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                {(Platform.OS !== 'web' || isMobile) && (
+                    <TouchableOpacity onPress={toggleSidebar} style={styles.mobileMenuBtn}>
+                        <Ionicons name="menu" size={24} color="#1b264a" />
+                    </TouchableOpacity>
+                )}
+                <View>
+                    <Text allowFontScaling={false} style={styles.headerLabel}>ARCHIVE</Text>
+                    <Text allowFontScaling={false} style={styles.headerTitle}>Request History</Text>
+                </View>
+            </View>
+          </View>
+
+          {Object.keys(requests).sort((a,b) => new Date(b) - new Date(a)).map(date => (
+            <View key={date} style={styles.dateSection}>
+                <View style={styles.dateHeader}>
+                    <Ionicons name="calendar-outline" size={14} color="#64748b" style={{ marginRight: 6 }} />
+                    <Text style={styles.dateHeaderText}>{date === new Date().toLocaleDateString() ? 'TODAY' : date}</Text>
+                </View>
+                {requests[date].map((item) => <HistoryCard key={item._id} item={item} />)}
+            </View>
+          ))}
+
+          {Object.keys(requests).length === 0 ? (
+            <View style={styles.emptyBox}>
+              <Text allowFontScaling={false} style={styles.emptyText}>No request history found</Text>
+            </View>
+          ) : null}
+        </View>
+      </ScrollView>
+    </View>
+
+      <Modal visible={viewerVisible} transparent={true} animationType="fade" onRequestClose={() => setViewerVisible(false)}>
+          <View style={styles.viewerOverlay}>
+              <TouchableOpacity style={styles.viewerClose} onPress={() => setViewerVisible(false)}>
+                  <Text style={styles.viewerCloseText}>✕</Text>
+              </TouchableOpacity>
+              <Text style={styles.viewerTitle}>{viewerTitle}</Text>
+              {viewerImage && (
+                  <Image source={{ uri: viewerImage }} style={styles.viewerImage} resizeMode="contain" />
+              )}
+          </View>
+      </Modal>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#f8fafc' },
+  paddingContainer: { padding: Platform.OS === 'web' ? 20 : 14 },
+  header: { marginBottom: Platform.OS === 'web' ? 30 : 14 },
+  headerLabel: { fontSize: 9, fontWeight: '700', color: '#94a3b8', letterSpacing: 1 },
+  headerTitle: { fontSize: Platform.OS === 'web' ? 24 : 19, fontWeight: 'bold', color: '#0f172a' },
+  mobileMenuBtn: {
+    backgroundColor: '#ffffff',
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  card: { backgroundColor: '#ffffff', borderRadius: 24, marginBottom: 16, borderWidth: 1, borderColor: '#f1f5f9', overflow: 'hidden' },
+  cardAccent: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 6 },
+  bgEmerald: { backgroundColor: '#10b981' },
+  bgRose: { backgroundColor: '#e11d48' },
+  cardHeader: { padding: Platform.OS === 'web' ? 20 : 14, paddingLeft: Platform.OS === 'web' ? 26 : 18, flexDirection: 'row', justifyContent: 'space-between' },
+  cardTitle: { fontSize: 18, fontWeight: 'bold', color: '#1e293b' },
+  cardSubtitle: { fontSize: 10, fontWeight: '700', color: '#94a3b8' },
+  statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  badgeEmerald: { backgroundColor: '#ecfdf5' },
+  badgeIndigo: { backgroundColor: '#eef2ff' },
+  badgeRose: { backgroundColor: '#fff1f2' },
+  badgeText: { fontSize: 9, fontWeight: '800' },
+  textEmerald: { color: '#059669' },
+  textIndigo: { color: '#4f46e5' },
+  textRose: { color: '#e11d48' },
+  bgEmerald: { backgroundColor: '#10b981' },
+  bgIndigo: { backgroundColor: '#4f46e5' },
+  bgRose: { backgroundColor: '#e11d48' },
+  cardDetails: { backgroundColor: '#f8fafc', padding: 16, marginHorizontal: 20, borderRadius: 16, marginBottom: 16 },
+  detailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10, gap: 12 },
+  detailLabel: { fontSize: 9, fontWeight: '700', color: '#94a3b8', flexShrink: 0, width: '35%' },
+  detailValue: { fontSize: 13, fontWeight: '700', color: '#334155', flex: 1, textAlign: 'right' },
+  photoSectionHeader: { paddingHorizontal: 24, marginBottom: 8 },
+  photoSectionTitle: { fontSize: 9, fontWeight: '800', color: '#94a3b8' },
+  photoContainer: { paddingHorizontal: 20, gap: 12, marginBottom: 16 },
+  photoBox: { alignItems: 'center' },
+  photoLabel: { fontSize: 8, fontWeight: '800', color: '#94a3b8', marginBottom: 4 },
+  cardImage: { width: 60, height: 60, borderRadius: 10, backgroundColor: '#f1f5f9' },
+  penaltyBox: { backgroundColor: '#fff1f2', padding: 16, marginHorizontal: 20, borderRadius: 16, marginBottom: 16 },
+  penaltyLabel: { fontSize: 9, fontWeight: '800', color: '#e11d48' },
+  penaltyText: { fontSize: 12, color: '#9f1239' },
+  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 24, paddingBottom: 20, alignItems: 'center' },
+  footerTime: { fontSize: 10, fontWeight: '700', color: '#1e293b' },
+  footerDate: { fontSize: 9, fontWeight: '700', color: '#94a3b8' },
+  footerLabel: { fontSize: 8, fontWeight: '800', color: '#94a3b8', letterSpacing: 0.5 },
+  footerValue: { fontSize: 13, fontWeight: '800', color: '#059669', marginTop: 2 },
+  emptyBox: { padding: 60, alignItems: 'center', borderStyle: 'dashed', borderWidth: 1, borderColor: '#e2e8f0' },
+  emptyText: { color: '#94a3b8', fontSize: 14, fontWeight: '600' },
+  viewerOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center', zIndex: 2000 },
+  viewerClose: { position: 'absolute', top: 50, right: 30, backgroundColor: 'rgba(255,255,255,0.1)', width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
+  viewerCloseText: { color: '#ffffff', fontSize: 20 },
+  viewerTitle: { position: 'absolute', top: 60, color: '#ffffff', fontSize: 14, fontWeight: '800' },
+  viewerImage: { width: Dimensions.get('window').width * 0.9, height: Dimensions.get('window').height * 0.7 },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8fafc' },
+  loadingText: { marginTop: 12, fontSize: 12, fontWeight: '700', color: '#1b264a' },
+  scrollView: { flex: 1 },
+  scrollContent: { paddingBottom: 120, flexGrow: 1 },
+  dateSection: { marginBottom: 24 },
+  dateHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, paddingHorizontal: 4 },
+  dateHeaderText: { fontSize: 11, fontWeight: '800', color: '#64748b', letterSpacing: 1 },
+  remarkBubble: {
+    backgroundColor: '#ecfeff',
+    padding: 12,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#cffafe',
+  },
+  remarkBubbleText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#0e7490',
+    fontWeight: '600',
+    fontStyle: 'italic',
+  },
+});
+
+export default RequestHistoryScreen;

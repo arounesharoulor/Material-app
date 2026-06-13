@@ -47,3 +47,4 @@ To reconnect:
 - Ensure that Metro is running and available on the same network
 - Reload this app (will trigger further help if Metro cannot be connected to)
 [CRON] Hourly reminder started at 4:00:00 pm
+[CRON] Hourly reminder started at 6:00:00 pm

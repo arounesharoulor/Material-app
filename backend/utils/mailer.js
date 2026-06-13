@@ -64,8 +64,8 @@ const sendEmail = async (to, subject, text, html = null) => {
 
     const transportOptions = {
         host: resolvedHost,
-        port: config.host ? config.port : 587,
-        secure: config.host ? config.secure : false,
+        port: config.host ? config.port : 465,
+        secure: config.host ? config.secure : true,
         ...( (!config.host || !config.secure) ? { requireTLS: true } : {} ),
         auth: {
             user: config.user,

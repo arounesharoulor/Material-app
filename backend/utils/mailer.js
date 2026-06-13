@@ -53,34 +53,24 @@ const sendEmail = async (to, subject, text, html = null) => {
 
     console.log(`\n[MAILER] Sending email to: ${to} via SMTP`);
 
-    let resolvedHost = config.host || 'smtp.gmail.com';
-    try {
-        const { address } = await require('dns').promises.lookup(resolvedHost, { family: 4 });
-        console.log(`[MAILER] Resolved ${resolvedHost} to IPv4: ${address}`);
-        resolvedHost = address;
-    } catch (err) {
-        console.warn(`[MAILER] Failed to resolve IPv4 for ${resolvedHost}. Using original host.`, err.message);
-    }
-
-    const transportOptions = {
-        host: resolvedHost,
-        port: config.host ? config.port : 465,
-        secure: config.host ? config.secure : true,
-        ...( (!config.host || !config.secure) ? { requireTLS: true } : {} ),
+    const transportOptions = config.host ? {
+        host: config.host,
+        port: config.port,
+        secure: config.secure,
         auth: {
             user: config.user,
             pass: config.pass,
         },
-        pool: true,
-        connectionTimeout: 15000,
-        greetingTimeout: 15000,
-        socketTimeout: 15000,
         tls: {
-            rejectUnauthorized: false,
-            servername: config.host || 'smtp.gmail.com'
+            rejectUnauthorized: false
+        }
+    } : {
+        service: 'gmail',
+        auth: {
+            user: config.user,
+            pass: config.pass,
         }
     };
-
 
     const transporter = nodemailer.createTransport(transportOptions);
     const info = await transporter.sendMail({

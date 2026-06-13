@@ -46,56 +46,22 @@ exports.sendOtp = async (req, res) => {
         await Otp.deleteMany({ email });
         await newOtp.save();
 
-        const sendStart = Date.now();
-        let emailDelivered = false;
-        let lastEmailError = null;
-        try {
-            // Await email delivery so we can surface failures
-            await sendEmail(
-                email,
-                'Your Verification Code',
-                `Your OTP for verification is: ${otp}. This code will expire in 5 minutes.`
-            );
-            emailDelivered = true;
-        } catch (emailErr) {
-            lastEmailError = emailErr;
-            console.error('Failed to send OTP email:', emailErr.message);
-        }
-
-        if (!emailDelivered) {
-            const errorMsg = lastEmailError?.message || 'Unknown email delivery error';
-            
-            // Render blocks SMTP on free tiers, so we'll gracefully fallback
-            // instead of crashing the app. We log the OTP so the admin can see it.
-            console.log(`\n==================================================`);
-            console.log(`🚨 SMTP BLOCKED BY RENDER FIREWALL!`);
-            console.log(`🚨 FALLBACK MODE: BYPASSING EMAIL SENDING`);
-            console.log(`🚨 USE THIS OTP TO REGISTER: ${otp}`);
-            console.log(`==================================================\n`);
-
-            return res.status(200).json({
-                msg: 'Verification code generated (Check Render Logs for OTP)',
-                emailDelivered: false,
-                debugNote: 'Render blocked SMTP. Check server logs for the OTP.',
-                debugDurationMs: Date.now() - sendStart,
-            });
-        }
+        // Send the OTP email directly via Nodemailer
+        await sendEmail(
+            email,
+            'Your Verification Code',
+            `Your OTP for verification is: ${otp}. This code will expire in 5 minutes.`
+        );
 
         return res.status(200).json({
             msg: 'Verification code sent to ' + email,
-            emailDelivered: true,
-            debugDurationMs: Date.now() - sendStart,
         });
     } catch (err) {
-        // Log full error for debugging purposes
         console.error('OTP Send Error:', err);
-        const errorMsg = err.message || 'Error processing verification';
-        // Include debug details only in non‑production environments
-        const errorResponse = { msg: errorMsg };
-        if (process.env.NODE_ENV !== 'production') {
-            errorResponse.debug = err.stack;
-        }
-        res.status(500).json(errorResponse);
+        await Otp.deleteMany({ email });
+        return res.status(500).json({
+            msg: getOtpMailErrorMessage(err),
+        });
     }
 
 };

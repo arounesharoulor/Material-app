@@ -53,32 +53,29 @@ const sendEmail = async (to, subject, text, html = null) => {
 
     console.log(`\n[MAILER] Sending email to: ${to} via SMTP`);
 
-    const transportOptions = config.host
-        ? {
-            host: config.host,
-            port: config.port,
-            secure: config.secure,
-            auth: {
-                user: config.user,
-                pass: config.pass,
-            },
+    const transportOptions = {
+        host: config.host || 'smtp.gmail.com',
+        port: config.host ? config.port : 587,
+        secure: config.host ? config.secure : false,
+        ...( (!config.host || !config.secure) ? { requireTLS: true } : {} ),
+        auth: {
+            user: config.user,
+            pass: config.pass,
+        },
+        pool: true,
+        connectionTimeout: 15000,
+        greetingTimeout: 15000,
+        socketTimeout: 15000,
+        tls: {
+            rejectUnauthorized: false
+        },
+        // Force IPv4 resolution to prevent Render IPv6 blackholing
+        lookup: (hostname, options, callback) => {
+            require('dns').lookup(hostname, { family: 4 }, (err, address, family) => {
+                callback(err, address, family);
+            });
         }
-        : {
-            host: 'smtp.gmail.com',
-            port: 465,
-            secure: true,
-            auth: {
-                user: config.user,
-                pass: config.pass,
-            },
-            pool: true,
-            connectionTimeout: 15000,
-            greetingTimeout: 15000,
-            socketTimeout: 15000,
-            tls: {
-                rejectUnauthorized: false
-            }
-        };
+    };
 
 
     const transporter = nodemailer.createTransport(transportOptions);

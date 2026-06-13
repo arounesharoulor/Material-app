@@ -53,22 +53,18 @@ const sendEmail = async (to, subject, text, html = null) => {
 
     console.log(`\n[MAILER] Sending email to: ${to} via SMTP`);
 
-    const transportOptions = config.host ? {
-        host: config.host,
-        port: config.port,
-        secure: config.secure,
+    const transportOptions = {
+        host: config.host || 'smtp.gmail.com',
+        port: config.host ? config.port : 587,
+        secure: config.host ? config.secure : false,
+        requireTLS: true,
         auth: {
             user: config.user,
             pass: config.pass,
         },
         tls: {
+            ciphers: 'SSLv3',
             rejectUnauthorized: false
-        }
-    } : {
-        service: 'gmail',
-        auth: {
-            user: config.user,
-            pass: config.pass,
         }
     };
 

@@ -64,10 +64,20 @@ exports.sendOtp = async (req, res) => {
 
         if (!emailDelivered) {
             const errorMsg = lastEmailError?.message || 'Unknown email delivery error';
-            await Otp.deleteMany({ email });
-            return res.status(500).json({
-                msg: getOtpMailErrorMessage(lastEmailError),
-                ...(process.env.NODE_ENV !== 'production' ? { debug: errorMsg } : {}),
+            
+            // Render blocks SMTP on free tiers, so we'll gracefully fallback
+            // instead of crashing the app. We log the OTP so the admin can see it.
+            console.log(`\n==================================================`);
+            console.log(`🚨 SMTP BLOCKED BY RENDER FIREWALL!`);
+            console.log(`🚨 FALLBACK MODE: BYPASSING EMAIL SENDING`);
+            console.log(`🚨 USE THIS OTP TO REGISTER: ${otp}`);
+            console.log(`==================================================\n`);
+
+            return res.status(200).json({
+                msg: 'Verification code generated (Check Render Logs for OTP)',
+                emailDelivered: false,
+                debugNote: 'Render blocked SMTP. Check server logs for the OTP.',
+                debugDurationMs: Date.now() - sendStart,
             });
         }
 

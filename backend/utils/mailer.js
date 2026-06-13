@@ -1,24 +1,15 @@
 // utils/mailer.js
 // ─────────────────────────────────────────────────────────────────────
 // Email sender using Nodemailer (SMTP).
-//
-// Required/Preferred env vars:
-//   EMAIL_USER=<gmail address or SMTP username>
-//   EMAIL_PASS=<gmail app password or SMTP password>
-//   EMAIL_FROM=<optional sender address>
-//
-//   or:
-//   SMTP_USER=<gmail address or SMTP username>
-//   SMTP_PASS=<gmail app password or SMTP password>
-//   SMTP_FROM=<optional sender address>
+// Hardened for cloud deployments (Render, Railway, etc.) that may
+// default to IPv6, causing ENETUNREACH errors with smtp.gmail.com.
 // ─────────────────────────────────────────────────────────────────────
 'use strict';
 
 const nodemailer = require('nodemailer');
 const dns = require('dns');
 
-// Force Node.js to use IPv4 first. Render sometimes provides IPv6 addresses
-// that don't have internet routing, causing ENETUNREACH errors.
+// Force Node.js DNS to prefer IPv4 globally
 if (dns.setDefaultResultOrder) {
     dns.setDefaultResultOrder('ipv4first');
 }
@@ -48,32 +39,58 @@ const getSmtpConfig = () => {
         host: (process.env.SMTP_HOST || '').trim(),
         port: Number(process.env.SMTP_PORT || 587),
         secure: String(process.env.SMTP_SECURE || '').toLowerCase() === 'true',
-        service: (process.env.SMTP_SERVICE || 'gmail').trim(),
     };
+};
+
+/**
+ * Resolve a hostname to an IPv4 address explicitly.
+ * Falls back to the original hostname if resolution fails.
+ */
+const resolveIPv4 = async (hostname) => {
+    try {
+        const { address } = await dns.promises.lookup(hostname, { family: 4 });
+        console.log(`[MAILER] Resolved ${hostname} → IPv4: ${address}`);
+        return address;
+    } catch (err) {
+        console.warn(`[MAILER] IPv4 resolution failed for ${hostname}: ${err.message}. Using hostname directly.`);
+        return hostname;
+    }
 };
 
 const sendEmail = async (to, subject, text, html = null) => {
     const config = getSmtpConfig();
     if (!config) {
-        throw new Error('[MAILER] SMTP credentials (EMAIL_USER/EMAIL_PASS or SMTP_USER/SMTP_PASS) are not configured in environment variables.');
+        throw new Error('[MAILER] SMTP credentials not configured. Set EMAIL_USER and EMAIL_PASS in environment.');
     }
 
-    console.log(`\n[MAILER] Sending email to: ${to} via SMTP`);
+    console.log(`\n[MAILER] Sending email to: ${to}`);
+
+    const smtpHost = config.host || 'smtp.gmail.com';
+    const smtpPort = config.host ? config.port : 587;
+    const smtpSecure = config.host ? config.secure : false;
+
+    // Manually resolve to IPv4 to prevent ENETUNREACH on IPv6-only DNS
+    const resolvedHost = await resolveIPv4(smtpHost);
 
     const transportOptions = {
-        host: config.host || 'smtp.gmail.com',
-        port: config.host ? config.port : 587,
-        secure: config.host ? config.secure : false,
+        host: resolvedHost,
+        port: smtpPort,
+        secure: smtpSecure,
         requireTLS: true,
         auth: {
             user: config.user,
             pass: config.pass,
         },
+        connectionTimeout: 30000,
+        greetingTimeout: 30000,
+        socketTimeout: 30000,
         tls: {
-            ciphers: 'SSLv3',
-            rejectUnauthorized: false
-        }
+            servername: smtpHost,   // TLS SNI must be the hostname, not the IP
+            rejectUnauthorized: false,
+        },
     };
+
+    console.log(`[MAILER] Connecting to ${resolvedHost}:${smtpPort} (secure=${smtpSecure})`);
 
     const transporter = nodemailer.createTransport(transportOptions);
     const info = await transporter.sendMail({
@@ -84,7 +101,7 @@ const sendEmail = async (to, subject, text, html = null) => {
         ...(html ? { html } : {}),
     });
 
-    console.log(`[MAILER] Email sent successfully via SMTP. Message ID: ${info.messageId || 'unknown'}`);
+    console.log(`[MAILER] ✅ Email sent. Message ID: ${info.messageId || 'unknown'}`);
     return { success: true, messageId: info.messageId };
 };
 

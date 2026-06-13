@@ -64,11 +64,20 @@ const sendEmail = async (to, subject, text, html = null) => {
             },
         }
         : {
-            service: config.service,
+            host: 'smtp.gmail.com',
+            port: 465,
+            secure: true,
             auth: {
                 user: config.user,
                 pass: config.pass,
             },
+            pool: true,
+            connectionTimeout: 15000,
+            greetingTimeout: 15000,
+            socketTimeout: 15000,
+            tls: {
+                rejectUnauthorized: false
+            }
         };
 
 

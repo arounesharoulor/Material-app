@@ -99,6 +99,39 @@ app.post('/api/debug/send-test-email', async (req, res) => {
         });
     }
 });
+
+// ==================== DNS DIAGNOSTICS ROUTE ====================
+app.get('/api/debug/dns', async (req, res) => {
+    const dns = require('dns');
+    const results = {};
+    try {
+        const all = await dns.promises.resolve4('smtp.gmail.com');
+        results.ipv4Addresses = all;
+    } catch (e) {
+        results.ipv4Error = e.message;
+    }
+    try {
+        const all6 = await dns.promises.resolve6('smtp.gmail.com');
+        results.ipv6Addresses = all6;
+    } catch (e) {
+        results.ipv6Error = e.message;
+    }
+    try {
+        const lookup = await dns.promises.lookup('smtp.gmail.com', { family: 4 });
+        results.lookupIPv4 = lookup;
+    } catch (e) {
+        results.lookupIPv4Error = e.message;
+    }
+    try {
+        const lookupDefault = await dns.promises.lookup('smtp.gmail.com');
+        results.lookupDefault = lookupDefault;
+    } catch (e) {
+        results.lookupDefaultError = e.message;
+    }
+    results.nodeVersion = process.version;
+    results.dnsOrder = dns.getDefaultResultOrder ? dns.getDefaultResultOrder() : 'unknown';
+    res.json(results);
+});
 // ==========================================================
 
 // ✅ Main Routes
@@ -119,7 +152,8 @@ app.get('/api/status', (req, res) => {
     res.json({
         status: 'API is healthy',
         timestamp: new Date(),
-        version: '2.5',
+        version: '2.6',
+        nodeVersion: process.version,
         emailConfigured: Boolean(process.env.SMTP_USER || process.env.EMAIL_USER),
     });
 });

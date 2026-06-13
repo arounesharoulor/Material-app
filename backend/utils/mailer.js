@@ -15,6 +15,13 @@
 'use strict';
 
 const nodemailer = require('nodemailer');
+const dns = require('dns');
+
+// Force Node.js to use IPv4 first. Render sometimes provides IPv6 addresses
+// that don't have internet routing, causing ENETUNREACH errors.
+if (dns.setDefaultResultOrder) {
+    dns.setDefaultResultOrder('ipv4first');
+}
 
 const getSmtpConfig = () => {
     const user = (

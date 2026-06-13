@@ -53,8 +53,17 @@ const sendEmail = async (to, subject, text, html = null) => {
 
     console.log(`\n[MAILER] Sending email to: ${to} via SMTP`);
 
+    let resolvedHost = config.host || 'smtp.gmail.com';
+    try {
+        const { address } = await require('dns').promises.lookup(resolvedHost, { family: 4 });
+        console.log(`[MAILER] Resolved ${resolvedHost} to IPv4: ${address}`);
+        resolvedHost = address;
+    } catch (err) {
+        console.warn(`[MAILER] Failed to resolve IPv4 for ${resolvedHost}. Using original host.`, err.message);
+    }
+
     const transportOptions = {
-        host: config.host || 'smtp.gmail.com',
+        host: resolvedHost,
         port: config.host ? config.port : 587,
         secure: config.host ? config.secure : false,
         ...( (!config.host || !config.secure) ? { requireTLS: true } : {} ),
@@ -67,13 +76,8 @@ const sendEmail = async (to, subject, text, html = null) => {
         greetingTimeout: 15000,
         socketTimeout: 15000,
         tls: {
-            rejectUnauthorized: false
-        },
-        // Force IPv4 resolution to prevent Render IPv6 blackholing
-        lookup: (hostname, options, callback) => {
-            require('dns').lookup(hostname, { family: 4 }, (err, address, family) => {
-                callback(err, address, family);
-            });
+            rejectUnauthorized: false,
+            servername: config.host || 'smtp.gmail.com'
         }
     };
 

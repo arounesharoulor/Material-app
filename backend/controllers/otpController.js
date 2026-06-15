@@ -46,19 +46,37 @@ exports.sendOtp = async (req, res) => {
         await Otp.deleteMany({ email });
         await newOtp.save();
 
-        // Send the OTP email directly via Nodemailer
-        await sendEmail(
-            email,
-            'Your Verification Code',
-            `Your OTP for verification is: ${otp}. This code will expire in 5 minutes.`
-        );
+        // Attempt to send the OTP email via Nodemailer
+        // If SMTP fails (e.g. Render blocks port 587), fall back gracefully
+        let emailDelivered = true;
+        let emailError = null;
+        try {
+            await sendEmail(
+                email,
+                'Your Verification Code',
+                `Your OTP for verification is: ${otp}. This code will expire in 5 minutes.`
+            );
+            console.log(`[OTP] ✅ Email delivered to ${email}`);
+        } catch (mailErr) {
+            emailDelivered = false;
+            emailError = mailErr.message || 'Unknown SMTP error';
+            console.warn(`[OTP] ⚠️ Email delivery failed for ${email}: ${emailError}`);
+            console.warn(`[OTP] 📋 Fallback: OTP for ${email} is ${otp} (saved in DB, returned in response)`);
+        }
 
+        // Always return 200 — the OTP is saved in DB regardless of email delivery
         return res.status(200).json({
-            msg: 'Verification code sent to ' + email,
+            msg: emailDelivered
+                ? 'Verification code sent to ' + email
+                : 'Email delivery failed, but your verification code is ready.',
+            emailDelivered,
+            // When email fails, include the OTP in the response so the frontend can show it
+            ...(emailDelivered ? {} : { fallbackOtp: otp }),
         });
     } catch (err) {
-        console.error('OTP Send Error:', err);
-        await Otp.deleteMany({ email });
+        // Only reach here for DB errors or validation issues — not SMTP failures
+        console.error('OTP Send Error (non-SMTP):', err);
+        try { await Otp.deleteMany({ email }); } catch (_) { /* ignore cleanup errors */ }
         return res.status(500).json({
             msg: getOtpMailErrorMessage(err),
         });

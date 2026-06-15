@@ -29,7 +29,9 @@ const RegisterScreen = ({ navigation }) => {
   const [employeeId, setEmployeeId] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [role, setRole] = useState('Employee');
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -59,6 +61,9 @@ const RegisterScreen = ({ navigation }) => {
     if (!email) newErrors.email = 'Work email is required';
     if (!password) newErrors.password = 'Password is required';
     else if (password.length < 6) newErrors.password = 'Password must be at least 6 characters';
+    
+    if (!confirmPassword) newErrors.confirmPassword = 'Confirm Password is required';
+    else if (password !== confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -204,6 +209,27 @@ const RegisterScreen = ({ navigation }) => {
                           </TouchableOpacity>
                         </View>
                         {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
+                      </View>
+
+                      <View style={styles.inputGroup}>
+                        <Text allowFontScaling={false} style={styles.inputLabel}>CONFIRM PASSWORD</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <TextInput 
+                            style={[styles.input, { flex: 1 }, errors.confirmPassword && styles.inputError]}
+                            placeholder="••••••••" 
+                            placeholderTextColor="#94a3b8"
+                            secureTextEntry={!showConfirmPassword} 
+                            value={confirmPassword} 
+                            onChangeText={(val) => { setConfirmPassword(val); setErrors({ ...errors, confirmPassword: null, auth: null }); }} 
+                          />
+                          <TouchableOpacity 
+                            style={{ position: 'absolute', right: 16, height: '100%', justifyContent: 'center' }}
+                            onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                          >
+                            <RegisterSvgIcon name={showConfirmPassword ? "eye-off" : "eye"} size={20} color="#94a3b8" />
+                          </TouchableOpacity>
+                        </View>
+                        {errors.confirmPassword ? <Text style={styles.errorText}>{errors.confirmPassword}</Text> : null}
                         {errors.auth ? <Text style={styles.authErrorText}>{errors.auth}</Text> : null}
                       </View>
   

@@ -73,11 +73,19 @@ const RegisterScreen = ({ navigation }) => {
         email: email.trim(),
         employeeId: trimmedId
       });
+      if (response.data?.emailDelivered === false) {
+        throw {
+          response: {
+            data: {
+              msg: response.data?.msg || 'OTP email was not delivered. Please check backend email configuration.',
+              debug: response.data?.debug,
+            },
+          },
+        };
+      }
+      const debugDurationMs = response.data?.debugDurationMs;
 
-      const emailDelivered = response.data?.emailDelivered !== false;
-      const fallbackOtp = response.data?.fallbackOtp || null;
-
-      // Navigate to OTP screen — pass fallbackOtp if email delivery failed
+      // Navigate to OTP screen only after the email request succeeds.
       navigation.navigate('Otp', {
         registrationData: JSON.stringify({
           name: name.trim(),
@@ -85,8 +93,7 @@ const RegisterScreen = ({ navigation }) => {
           email: email.trim(),
           password,
           role,
-          emailDelivered,
-          fallbackOtp,
+          debugDurationMs: debugDurationMs
         })
       });
     } catch (err) {

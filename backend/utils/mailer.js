@@ -66,8 +66,8 @@ const sendEmail = async (to, subject, text, html = null) => {
     console.log(`\n[MAILER] Sending email to: ${to}`);
 
     const smtpHost = config.host || 'smtp.gmail.com';
-    const smtpPort = config.host ? config.port : 587;
-    const smtpSecure = config.host ? config.secure : false;
+    const smtpPort = config.host ? config.port : 465;
+    const smtpSecure = config.host ? config.secure : true;
 
     // Manually resolve to IPv4 to prevent ENETUNREACH on IPv6-only DNS
     const resolvedHost = await resolveIPv4(smtpHost);

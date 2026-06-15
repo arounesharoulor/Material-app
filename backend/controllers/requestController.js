@@ -384,13 +384,13 @@ exports.issuePenalty = async (req, res) => {
             }
         }
 
-        // Send Email Notification
-        if (request.employeeEmail) {
+        // Send Email Notification using registered User email
+        if (userObj && userObj.email) {
             sendEmail(
-                request.employeeEmail, 
+                userObj.email, 
                 '⚠️ Important: Penalty Issued', 
-                `Hi ${request.employeeName},\n\nA penalty has been issued for your material request (${request.requestId}).\n\nReason: ${penalty}\n\nPlease check the app for more details.\n\nThank you.`
-            );
+                `Hi ${userObj.name},\n\nA penalty has been issued for your material request (${request.requestId}).\n\nReason: ${penalty}\n\nPlease check the app for more details.\n\nThank you.`
+            ).catch(err => console.error('Failed to send penalty email:', err));
         }
 
         res.json(request);

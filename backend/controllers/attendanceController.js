@@ -194,22 +194,23 @@ exports.actionAttendance = async (req, res) => {
             try {
                 const employee = await User.findById(attendance.user);
                 if (employee && employee.email) {
-                    const subject = `Your Attendance Request has been ${status}`;
+                    const requestType = attendance.type === 'Leave' ? 'Leave' : 'Attendance';
+                    const subject = `Your ${requestType} Request has been ${status}`;
                     const html = `
                         <div style="font-family: Arial, sans-serif; max-width: 520px; margin: auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
                             <div style="background: #1b264a; padding: 24px; text-align: center;">
-                                <h2 style="color: #ffc61c; margin: 0;">Attendance Update</h2>
+                                <h2 style="color: #ffc61c; margin: 0;">${requestType} Update</h2>
                             </div>
                             <div style="padding: 24px; background: #f8fafc;">
                                 <p style="font-size: 16px; color: #0f172a;">Hello <strong>${employee.name}</strong>,</p>
-                                <p style="font-size: 15px; color: #475569;">Your attendance request for <strong>${attendance.date}</strong> has been <strong style="color: ${status === 'Approved' ? '#10b981' : '#ef4444'}">${status}</strong> by the admin.</p>
-                                ${status === 'Approved' ? '<p style="color:#10b981; font-weight:bold;">✅ Your attendance is now marked. You may proceed with your work.</p>' : '<p style="color:#ef4444;">❌ If you believe this is incorrect, please contact your admin.</p>'}
+                                <p style="font-size: 15px; color: #475569;">Your ${requestType.toLowerCase()} request for <strong>${attendance.date}</strong> has been <strong style="color: ${status === 'Approved' ? '#10b981' : '#ef4444'}">${status}</strong> by the admin.</p>
+                                ${status === 'Approved' ? `<p style="color:#10b981; font-weight:bold;">✅ Your ${requestType.toLowerCase()} is now marked.</p>` : '<p style="color:#ef4444;">❌ If you believe this is incorrect, please contact your admin.</p>'}
                                 <hr style="border:none; border-top:1px solid #e2e8f0; margin:20px 0;">
                                 <p style="font-size: 12px; color: #94a3b8;">This is an automated notification from the Attendance Management System.</p>
                             </div>
                         </div>
                     `;
-                    const plainText = `Your attendance for ${attendance.date} has been ${status} by the admin.`;
+                    const plainText = `Your ${requestType.toLowerCase()} for ${attendance.date} has been ${status} by the admin.`;
                     await sendEmail(employee.email, subject, plainText, html);
                 }
             } catch (emailErr) {

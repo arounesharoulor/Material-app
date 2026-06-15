@@ -67,40 +67,13 @@ const RegisterScreen = ({ navigation }) => {
 
     setLoading(true);
     try {
-
-      // Instead of direct registration, send OTP first
-      const response = await api.post('/otp/send-otp', {
-        email: email.trim(),
-        employeeId: trimmedId
-      });
-      if (response.data?.emailDelivered === false) {
-        throw {
-          response: {
-            data: {
-              msg: response.data?.msg || 'OTP email was not delivered. Please check backend email configuration.',
-              debug: response.data?.debug,
-            },
-          },
-        };
-      }
-      const debugDurationMs = response.data?.debugDurationMs;
-
-      // Navigate to OTP screen only after the email request succeeds.
-      navigation.navigate('Otp', {
-        registrationData: JSON.stringify({
-          name: name.trim(),
-          employeeId: trimmedId,
-          email: email.trim(),
-          password,
-          role,
-          debugDurationMs: debugDurationMs
-        })
-      });
+      await register(name.trim(), trimmedId, email.trim(), password, role);
+      // AuthContext updates `user` state → AppNavigator redirects to Dashboard automatically
     } catch (err) {
       if (!err.response) {
         setErrors({ auth: `Connection Error: Backend server is unreachable at ${api.defaults.baseURL || 'unknown'}. Check your IP/Network.` });
       } else {
-        const msg = err.response.data?.msg || 'Could not send verification code. Please try again.';
+        const msg = err.response.data?.msg || 'Registration failed. Please try again.';
         setErrors({ auth: msg });
       }
     } finally {

@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 
 // Cloud deployment URL (Render)
-const CLOUD_URL = "https://material-app-zhm4.onrender.com";
+const CLOUD_URL = "https://material-app-a5m9.onrender.com";
 
 /**
  * Determine the base URL for the backend.

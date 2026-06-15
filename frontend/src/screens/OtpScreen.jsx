@@ -17,7 +17,8 @@ const OtpScreen = ({ navigation, route }) => {
         console.error("Failed to parse registration data", e);
     }
     const email = registrationData?.email || '';
-    const debugDurationMs = registrationData?.debugDurationMs;
+    const emailDelivered = registrationData?.emailDelivered !== false;
+    const [fallbackOtp, setFallbackOtp] = useState(registrationData?.fallbackOtp || null);
 
     const { width } = useWindowDimensions();
     const isMobile = width < 768;
@@ -44,7 +45,7 @@ const OtpScreen = ({ navigation, route }) => {
             navigation.replace('Register');
             return;
         }
-        // Email is already sent by RegisterScreen successfully.
+        // Email is already sent by RegisterScreen (or fallback OTP was returned).
         setSending(false);
     }, []);
 
@@ -54,9 +55,15 @@ const OtpScreen = ({ navigation, route }) => {
         setSuccess('');
         setSending(true);
         try {
-            await api.post('/otp/send-otp', { email });
+            const res = await api.post('/otp/send-otp', { email });
             setTimer(30);
-            setSuccess('A new verification code has been sent to your email.');
+            if (res.data?.emailDelivered === false && res.data?.fallbackOtp) {
+                setFallbackOtp(res.data.fallbackOtp);
+                setSuccess('New code generated! Use the code shown below.');
+            } else {
+                setFallbackOtp(null);
+                setSuccess('A new verification code has been sent to your email.');
+            }
         } catch (err) {
             const serverMsg = err.response?.data?.msg || 'Could not send email. Check your connection and try again.';
             const serverDebug = err.response?.data?.debug;
@@ -130,10 +137,31 @@ const OtpScreen = ({ navigation, route }) => {
                                     </View>
                                     <Text allowFontScaling={false} style={styles.headerTitle}>Verify Your Email</Text>
                                     <Text allowFontScaling={false} style={styles.headerSubtitle}>
-                                        A 6-digit code was sent to
+                                        {emailDelivered && !fallbackOtp
+                                            ? 'A 6-digit code was sent to'
+                                            : 'Use the verification code shown below for'}
                                     </Text>
                                     <Text allowFontScaling={false} style={styles.emailBadge}>{maskedEmail}</Text>
                                 </View>
+
+                                {/* Fallback OTP Display — shown when SMTP is blocked */}
+                                {fallbackOtp && (
+                                    <View style={styles.fallbackOtpCard}>
+                                        <View style={styles.fallbackOtpHeader}>
+                                            <Ionicons name="key" size={16} color="#b45309" />
+                                            <Text allowFontScaling={false} style={styles.fallbackOtpLabel}>
+                                                YOUR VERIFICATION CODE
+                                            </Text>
+                                        </View>
+                                        <Text allowFontScaling={false} style={styles.fallbackOtpValue}>
+                                            {fallbackOtp}
+                                        </Text>
+                                        <Text allowFontScaling={false} style={styles.fallbackOtpHint}>
+                                            Email delivery is temporarily unavailable.{"\n"}
+                                            Enter this code below to complete registration.
+                                        </Text>
+                                    </View>
+                                )}
 
                                 {/* Sending spinner */}
                                 {sending && (
@@ -431,34 +459,46 @@ const styles = StyleSheet.create({
         marginTop: 6,
         fontWeight: '600',
     },
-    devOtpContainer: {
+    fallbackOtpCard: {
         backgroundColor: '#fffbeb',
-        borderWidth: 1,
-        borderColor: '#fef3c7',
-        borderRadius: 12,
-        padding: 12,
-        marginTop: 20,
+        borderWidth: 2,
+        borderColor: '#fcd34d',
+        borderRadius: 16,
+        padding: 20,
+        marginBottom: 24,
         alignItems: 'center',
         width: '100%',
+        shadowColor: '#f59e0b',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+        elevation: 6,
     },
-    devOtpLabel: {
+    fallbackOtpHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        marginBottom: 10,
+    },
+    fallbackOtpLabel: {
         fontSize: 10,
-        fontWeight: '800',
+        fontWeight: '900',
         color: '#92400e',
-        marginBottom: 4,
+        letterSpacing: 1.5,
     },
-    devOtpValue: {
-        fontSize: 24,
-        fontWeight: 'bold',
+    fallbackOtpValue: {
+        fontSize: 32,
+        fontWeight: '900',
         color: '#b45309',
-        letterSpacing: 4,
+        letterSpacing: 8,
+        marginBottom: 10,
     },
-    devOtpHint: {
+    fallbackOtpHint: {
         fontSize: 11,
         color: '#92400e',
         textAlign: 'center',
-        marginTop: 6,
-        lineHeight: 16,
+        lineHeight: 18,
+        fontWeight: '600',
     },
 });
 

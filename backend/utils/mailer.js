@@ -58,6 +58,29 @@ const resolveIPv4 = async (hostname) => {
 };
 
 const sendEmail = async (to, subject, text, html = null) => {
+    const scriptUrl = process.env.GMAIL_SCRIPT_URL;
+    if (scriptUrl) {
+        console.log(`[MAILER] GMAIL_SCRIPT_URL detected. Sending email via Google Apps Script Web App...`);
+        try {
+            const response = await fetch(scriptUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ to, subject, text, html }),
+            });
+            const result = await response.json();
+            if (result.success) {
+                console.log(`[MAILER] ✅ Email sent via Script Web App.`);
+                return { success: true, via: 'Google Script' };
+            } else {
+                throw new Error(result.error || 'Unknown Script Web App error');
+            }
+        } catch (scriptErr) {
+            console.error(`[MAILER] ❌ Failed to send via Google Script Web App: ${scriptErr.message}. Falling back to SMTP...`);
+        }
+    }
+
     const config = getSmtpConfig();
     if (!config) {
         throw new Error('[MAILER] SMTP credentials not configured. Set EMAIL_USER and EMAIL_PASS in environment.');

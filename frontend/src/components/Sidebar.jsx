@@ -487,15 +487,15 @@ const Sidebar = ({
                         <TouchableOpacity
                             style={styles.sidebarDownload}
                             onPress={() => {
-                                // Explicitly trigger download by targeting the renamed APK
+                                // Explicitly trigger download by targeting the EAS APK
                                 if (typeof window !== 'undefined') {
                                     const isIOS = /iPhone|iPad|iPod/i.test(window.navigator.userAgent);
                                     const url = isIOS
                                         ? `${window.location.origin}/ios-install.html`
-                                        : `${window.location.origin}/MaterialManagingStore.apk`;
+                                        : 'https://expo.dev/artifacts/eas/a-a_1loJdVjv1MRQx7PiBQh2enUHykt0Mp5uNZ0uVzs.apk';
                                     Linking.openURL(url);
                                 } else {
-                                    Linking.openURL('/MaterialManagingStore.apk');
+                                    Linking.openURL('https://expo.dev/artifacts/eas/a-a_1loJdVjv1MRQx7PiBQh2enUHykt0Mp5uNZ0uVzs.apk');
                                 }
                             }}
                             activeOpacity={0.7}
